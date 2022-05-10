@@ -1,0 +1,16 @@
+numpy
+scipy
+pandas
+scikit-learn
+matplotlib
+seaborn
+natsort
+statsmodels
+xlrd
+adjustText
+ipython
+cy
+matplotlib_venn
+openpyxl
+python-igraph
+cobra
