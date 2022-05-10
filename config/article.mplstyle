@@ -1,0 +1,19 @@
+axes.titlesize : 7
+axes.labelsize : 6
+axes.linewidth: 0.3
+axes.axisbelow: True
+lines.linewidth : 1
+xtick.labelsize : 5
+ytick.labelsize : 5
+xtick.major.width : 0.3
+xtick.minor.width : 0.3
+ytick.major.width : 0.3
+ytick.minor.width : 0.3
+xtick.major.size : 3
+xtick.minor.size : 2
+ytick.major.size : 3
+ytick.minor.size : 2
+legend.frameon : False
+legend.fontsize : 5
+legend.handlelength : 1.0
+font.family : Arial
