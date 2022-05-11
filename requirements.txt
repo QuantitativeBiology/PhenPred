@@ -14,3 +14,4 @@ matplotlib_venn
 openpyxl
 python-igraph
 cobra
+yaml

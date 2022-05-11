@@ -1,19 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="24bc7fd9-9136-4311-8312-0019afc39ce1" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.name" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/PhenPred.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PhenPred.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+    <list default="true" id="24bc7fd9-9136-4311-8312-0019afc39ce1" name="Changes" comment="remove grid search">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PhenPred/DataImporter.py" beforeDir="false" afterPath="$PROJECT_DIR$/PhenPred/DataImporter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PhenPred/MLPhenotype.py" beforeDir="false" afterPath="$PROJECT_DIR$/PhenPred/MLPhenotype.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PhenPred/MLPhenotype.sh" beforeDir="false" afterPath="$PROJECT_DIR$/PhenPred/MLPhenotype.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/PhenPred/MLPhenotypePlot.py" beforeDir="false" afterPath="$PROJECT_DIR$/PhenPred/MLPhenotypePlot.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/config_rf.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_rf.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/reports/Figures_Source_Data - Fig3B_ml_benchmark.csv" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/reports/ML_phenotype_prediction.csv" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/reports/ML_phenotype_prediction_drug_metabolomics.csv" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/reports/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/reports/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PhenPred/Utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/PhenPred/Utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/config_rf.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_rf_drug.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/reports/PhenotypePrediction_Drug_Boxplot.png" beforeDir="false" afterPath="$PROJECT_DIR$/reports/PhenotypePrediction_Drug_Boxplot.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -70,6 +67,30 @@
       <option name="presentableId" value="Default" />
       <updated>1652173183792</updated>
     </task>
+    <task id="LOCAL-00001" summary="remove grid search">
+      <created>1652197072231</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1652197072231</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="remove grid search" />
+    <option name="LAST_COMMIT_MESSAGE" value="remove grid search" />
   </component>
 </project>

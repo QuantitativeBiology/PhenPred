@@ -1,11 +1,11 @@
 ---
 DATA:
   dir: "/Volumes/GoogleDrive-108722195023672559969/Shared drives/QuantitativeBiology/Datasets"
-  min_count: 300
+  min_count: 100
 
 ML:
   model: "rf"
-  dataset_y: "drug_response"
+  dataset_y: "essentiality"
   params_grid:
     criterion: ["mse"]
     n_estimators: [600] # [400, 600, 800, 1000]
@@ -17,4 +17,4 @@ ML:
     n_splits: 5
 
 OUTPUT:
-  file: "data/ML_phenotype_prediction.csv"
+  file: "data/ML_phenotype_prediction_crispr.csv"
