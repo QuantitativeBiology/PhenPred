@@ -2,6 +2,7 @@
 DATA:
   dir: "/Volumes/GoogleDrive-108722195023672559969/Shared drives/QuantitativeBiology/Datasets"
   min_count: 100
+  append_tissue: True
 
 ML:
   model: "rf"
@@ -17,4 +18,4 @@ ML:
     n_splits: 5
 
 OUTPUT:
-  file: "data/ML_phenotype_prediction_drug.csv"
+  file: "data/ML_phenotype_prediction_drug_with_tissue.csv"

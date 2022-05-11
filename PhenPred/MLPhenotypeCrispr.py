@@ -49,7 +49,7 @@ if __name__ == "__main__":
 	"""
 	Read argvs
 	"""
-	# configs = read_yaml("config/config_rf_drug.yml")
+	# configs = read_yaml("config/config_rf_crispr.yml")
 	configs = read_yaml(sys.argv[1])
 
 	# dataset_x = "metabolomics"
@@ -69,17 +69,43 @@ if __name__ == "__main__":
 	Y = Y.iloc[:, :3]
 
 	X = data.read_dataset(dataset_x)
-	if configs["DATA"]["append_tissue"]:
-		X2 = data.read_dataset("tissue").reindex(X.index)
-		X2 = pd.DataFrame(get_imputer("tissue").fit_transform(X2), index=X2.index, columns=X2.columns)
-		X = pd.concat([X, X2], axis=1)
-
 	X = X.loc[:, X.count() >= configs["DATA"]["min_count"]]
 	print(f"Datasets {configs['ML']['dataset_y']} and {dataset_x} imported")
 
 	"""
 	ML
 	"""
+	# Overlapping observations without missing values
+	samples = set(X.index).intersection(Y.index)
+
+	# Regressor GridSearchCV
+	regressor = GridSearchCV(
+		get_ml_model(configs["ML"]["model"]),
+		configs["ML"]["params_grid"],
+		cv=KFold(n_splits=configs["ML"]["cv"]["n_splits"], shuffle=True),
+		scoring=pearsonsr_scorer,
+		refit=True,
+	)
+
+	# Fit regressor
+	regressor.fit(
+		get_imputer(dataset_x).fit_transform(X.loc[samples]),
+		Y.loc[samples].values
+	)
+
+	regressor = get_ml_model(configs["ML"]["model"]).fit(
+		get_imputer(dataset_x).fit_transform(X.loc[samples]),
+		Y.loc[samples]
+	)
+
+	_pearsonr(
+		Y.loc[samples].values,
+		regressor.predict(get_imputer(dataset_x).fit_transform(X.loc[samples]))
+	)
+
+	regressor.best_score_
+
+	#
 	ml_results = []
 
 	for feature in tqdm(Y.columns, miniters=1):
@@ -87,7 +113,7 @@ if __name__ == "__main__":
 		regressor = GridSearchCV(
 			get_ml_model(configs["ML"]["model"]),
 			configs["ML"]["params_grid"],
-			n_jobs=4,
+			n_jobs=3,
 			cv=KFold(n_splits=configs["ML"]["cv"]["n_splits"], shuffle=True),
 			scoring=pearsonsr_scorer,
 			refit=True,

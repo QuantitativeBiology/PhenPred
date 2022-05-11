@@ -1,16 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="24bc7fd9-9136-4311-8312-0019afc39ce1" name="Changes" comment="remove grid search">
+    <list default="true" id="24bc7fd9-9136-4311-8312-0019afc39ce1" name="Changes" comment="crispr output prediction">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PhenPred/DataImporter.py" beforeDir="false" afterPath="$PROJECT_DIR$/PhenPred/DataImporter.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/PhenPred/MLPhenotype.py" beforeDir="false" afterPath="$PROJECT_DIR$/PhenPred/MLPhenotype.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/PhenPred/MLPhenotype.sh" beforeDir="false" afterPath="$PROJECT_DIR$/PhenPred/MLPhenotype.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PhenPred/MLPhenotypePlot.py" beforeDir="false" afterPath="$PROJECT_DIR$/PhenPred/MLPhenotypePlot.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/PhenPred/Utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/PhenPred/Utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/config_rf.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_rf_drug.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/reports/PhenotypePrediction_Drug_Boxplot.png" beforeDir="false" afterPath="$PROJECT_DIR$/reports/PhenotypePrediction_Drug_Boxplot.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/config_rf_drug.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config/config_rf_drug.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,7 +34,7 @@
     <property name="WebServerToolWindowPanel.toolwindow.show.date" value="false" />
     <property name="WebServerToolWindowPanel.toolwindow.show.permissions" value="false" />
     <property name="WebServerToolWindowPanel.toolwindow.show.size" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/config" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/PhenPred" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
     <property name="settings.editor.selected.configurable" value="preferences.lookFeel" />
@@ -55,6 +51,7 @@
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/PhenPred" />
       <recent name="$PROJECT_DIR$/config" />
     </key>
   </component>
@@ -74,7 +71,14 @@
       <option name="project" value="LOCAL" />
       <updated>1652197072231</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="crispr output prediction">
+      <created>1652261857948</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1652261857948</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -91,6 +95,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="remove grid search" />
-    <option name="LAST_COMMIT_MESSAGE" value="remove grid search" />
+    <MESSAGE value="crispr output prediction" />
+    <option name="LAST_COMMIT_MESSAGE" value="crispr output prediction" />
   </component>
 </project>
