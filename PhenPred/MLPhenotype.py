@@ -40,18 +40,18 @@ def get_imputer(dataset_name):
 	elif dataset_name.lower() == "proteomics":
 		return SimpleImputer(missing_values=np.nan, strategy="constant", fill_value=-2.242616)
 
-	elif dataset_name.lower() == "tissue":
-		return SimpleImputer(missing_values=np.nan, strategy="constant", fill_value=0)
-
 	else:
-		raise Exception(f"Dataset {dataset_name}, not suported.")
+		return SimpleImputer(missing_values=np.nan, strategy="constant", fill_value=0)
 
 
 if __name__ == "__main__":
 	"""
 	Read argvs
 	"""
+	# configs = read_yaml("config/config_rf.yml")
 	configs = read_yaml(sys.argv[1])
+
+	# dataset_x = "metabolomics"
 	dataset_x = sys.argv[2]
 	print(f"configs={sys.argv[1]}; dataset_x={dataset_x}")
 
@@ -88,6 +88,8 @@ if __name__ == "__main__":
 
 		# Overlapping observations without missing values
 		samples = set(X.index).intersection(Y[feature].dropna().index)
+
+		# If minimum number of samples not reached skip feature
 		if len(samples) < configs["DATA"]["min_count"]:
 			continue
 
