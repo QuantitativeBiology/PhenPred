@@ -3,6 +3,7 @@
 
 import pandas as pd
 from PhenPred.Utils import scale
+from sklearn.preprocessing import StandardScaler
 
 
 class DataImporter:
@@ -44,7 +45,9 @@ class DataImporter:
 		return pd.read_csv(f"{self.data_dir}/proteomics.csv", index_col=0).T
 
 	def read_metabolomics(self):
-		return pd.read_csv(f"{self.data_dir}/metabolomics.csv", index_col=0).T
+		df = pd.read_csv(f"{self.data_dir}/metabolomics.csv", index_col=0).T
+		df = pd.DataFrame(StandardScaler().fit_transform(df), index=df.index, columns=df.columns)
+		return df
 
 	def read_drug_response(self, only_gdsc2=True):
 		df = pd.read_csv(f"{self.data_dir}/drugresponse.csv", index_col=0).T
