@@ -7,6 +7,7 @@ from PhenPred import PALETTE_TTYPE
 
 _dirPlots = "/home/egoncalves/PhenPred/reports/vae/"
 
+
 def plot_losses(losses_dict, losses_datasets, alpha_KL, alpha_MSE, timestamp=""):
     # Plot dataframes
     losses = pd.DataFrame(losses_dict)
@@ -30,9 +31,15 @@ def plot_losses(losses_dict, losses_datasets, alpha_KL, alpha_MSE, timestamp="")
         ylabel="Loss",
     )
     legend_handles, _ = ax.get_legend_handles_labels()
-    ax.legend(legend_handles, ["Train Loss", "Validation Loss"], title="Losses", loc="upper left", bbox_to_anchor=(1, 1))
+    ax.legend(
+        legend_handles,
+        ["Train Loss", "Validation Loss"],
+        title="Losses",
+        loc="upper left",
+        bbox_to_anchor=(1, 1),
+    )
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-    
+
     plt.savefig(
         f"{_dirPlots}/losses/{timestamp}_train_validation_loss.pdf",
         bbox_inches="tight",
@@ -54,9 +61,15 @@ def plot_losses(losses_dict, losses_datasets, alpha_KL, alpha_MSE, timestamp="")
         ylabel="Loss",
     )
     legend_handles, _ = ax.get_legend_handles_labels()
-    ax.legend(legend_handles, ["Reconstruction Loss", "KL Loss"], title="Losses", loc="upper left", bbox_to_anchor=(1, 1))
+    ax.legend(
+        legend_handles,
+        ["Reconstruction Loss", "KL Loss"],
+        title="Losses",
+        loc="upper left",
+        bbox_to_anchor=(1, 1),
+    )
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-    
+
     plt.savefig(
         f"{_dirPlots}/losses/{timestamp}_reconst_reg_loss.pdf",
         bbox_inches="tight",
@@ -66,7 +79,11 @@ def plot_losses(losses_dict, losses_datasets, alpha_KL, alpha_MSE, timestamp="")
     # Plot omics losses
     _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
     sns.lineplot(
-        data=pd.melt(losses_omics, ["epoch"]), x="epoch", y="value", hue="variable", ax=ax
+        data=pd.melt(losses_omics, ["epoch"]),
+        x="epoch",
+        y="value",
+        hue="variable",
+        ax=ax,
     )
     ax.set(xlabel="Epoch", ylabel="Reconstruction Loss")
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -76,39 +93,53 @@ def plot_losses(losses_dict, losses_datasets, alpha_KL, alpha_MSE, timestamp="")
     )
     plt.close("all")
 
+
 def plot_latent_spaces(
-    data,
-    latent_spaces,
+    timestamp,
+    view_names,
     configs,
-    umap_neighbors=50,
+    umap_neighbors=25,
     umap_min_dist=0.25,
     umap_metric="euclidean",
     umap_n_components=2,
-    timestamp="",
 ):
     # Get Tissue Types
     samplesheet = pd.read_csv("/data/benchmarks/clines/samplesheet.csv", index_col=0)
-    samplesheet = samplesheet.reindex(index=data.samples)
     samplesheet = samplesheet["tissue"].fillna("Other tissue")
 
+    # Read latent spaces
+    latent_spaces = {
+        n: pd.read_csv(f"{_dirPlots}/files/{timestamp}_latent_{n}.csv.gz", index_col=0)
+        for n in view_names
+    }
+
     # Get UMAP projections
-    latent_space_umaps = {        
-        k: pd.DataFrame(umap.UMAP(
-            n_neighbors=umap_neighbors, 
-            min_dist=umap_min_dist, 
-            metric=umap_metric,
-            n_components=umap_n_components,
-        ).fit_transform(v), columns=[f"UMAP_{i+1}" for i in range(umap_n_components)], index=v.index)
+    latent_space_umaps = {
+        k: pd.DataFrame(
+            umap.UMAP(
+                n_neighbors=umap_neighbors,
+                min_dist=umap_min_dist,
+                metric=umap_metric,
+                n_components=umap_n_components,
+            ).fit_transform(v),
+            columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
+            index=v.index,
+        )
         for k, v in latent_spaces.items()
     }
 
     # Configs string
-    configs_str = " ".join([("" if i % 4 else "\n") + f"{k}={v}" for i, (k, v) in enumerate(configs.items())])
+    configs_str = " ".join(
+        [
+            ("" if i % 4 else "\n") + f"{k}={v}"
+            for i, (k, v) in enumerate(configs.items())
+        ]
+    )
 
     # Plot projections
     for l_name, l_space in latent_space_umaps.items():
         plot_df = pd.concat([l_space, samplesheet], axis=1)
-        
+
         _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
         sns.scatterplot(
             data=plot_df,
