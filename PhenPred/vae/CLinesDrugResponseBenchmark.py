@@ -18,6 +18,8 @@ _timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
 class DrugResponseBenchmark:
     def __init__(self, timestamp):
+        self.timestamp = timestamp
+
         # Original dataset
         self.df_original = pd.read_csv(
             f"{_data_folder}/drugresponse.csv", index_col=0
@@ -94,7 +96,7 @@ class DrugResponseBenchmark:
         for y_var in ["MOFA", "mean", "VAE"]:
             plot_df = df_new_values[["original", y_var]].dropna()
 
-            _, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=600)
+            _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
 
             sns.scatterplot(
                 data=plot_df,
@@ -130,7 +132,7 @@ class DrugResponseBenchmark:
             )
 
             plt.savefig(
-                f"{_dirPlots}/drugresponse/{_timestamp}_imputed_scatter_{y_var}.png",
+                f"{_dirPlots}/drugresponse/{self.timestamp}_imputed_scatter_{y_var}.png",
                 bbox_inches="tight",
             )
             plt.close()
@@ -157,7 +159,7 @@ class DrugResponseBenchmark:
         )
 
         plt.savefig(
-            f"{_dirPlots}/drugresponse/{_timestamp}_imputed_corr_barplot.pdf",
+            f"{_dirPlots}/drugresponse/{self.timestamp}_imputed_corr_barplot.pdf",
             bbox_inches="tight",
         )
         plt.close()
