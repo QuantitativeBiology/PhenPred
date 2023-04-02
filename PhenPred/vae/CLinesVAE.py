@@ -31,17 +31,17 @@ _data_files = dict(
 
 # Class variables - Hyperparameters
 _hyperparameters = dict(
-    num_epochs=3,
-    learning_rate=1e-5,
+    num_epochs=25,
+    learning_rate=1e-4,
     batch_size=32,
     n_folds=3,
-    latent_dim=25,
-    hidden_dim_1=0.1,
-    hidden_dim_2=0.05,
+    latent_dim=30,
+    hidden_dim_1=0.8,
+    hidden_dim_2=0.5,
     probability=0.5,
     group=15,
-    alpha_kl=0.1,
-    alpha_mse=0.9,
+    alpha_kl=0.15,
+    alpha_mse=0.85,
     optimizer_type="adam",
     w_decay=1e-5,
     loss_type="mse",
@@ -104,17 +104,6 @@ class CLinesDataset(Dataset):
         self.df_prot = self.df_prot.loc[:, self.df_prot.isnull().mean() < 0.5]
         self.df_meta = self.df_meta.loc[:, self.df_meta.isnull().mean() < 0.5]
         self.df_dres = self.df_dres.loc[:, self.df_dres.isnull().mean() < 0.5]
-
-        # Reduce the number of features
-        self.df_meth = self.df_meth[
-            self.df_meth.std().sort_values(ascending=False).head(3000).index
-        ]
-        self.df_gexp = self.df_gexp[
-            self.df_gexp.std().sort_values(ascending=False).head(3000).index
-        ]
-        self.df_cris = self.df_cris[
-            self.df_cris.std().sort_values(ascending=False).head(3000).index
-        ]
 
         # Standardize the data
         self.x_meth, self.scaler_meth = self.process_df(self.df_meth)
