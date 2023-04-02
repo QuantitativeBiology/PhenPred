@@ -6,7 +6,10 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import make_scorer
 from scipy.stats import pearsonr, spearmanr
+<<<<<<< HEAD
 from sklearn.metrics import mean_squared_error
+=======
+>>>>>>> a44a8f05 (proteomics benchmark added)
 
 
 def _pearsonr(y_true, y_pred):
@@ -55,6 +58,7 @@ def scale(df, essential=None, non_essential=None, metric=np.nanmedian):
     return df
 
 
+<<<<<<< HEAD
 def two_vars_correlation(
     var1, var2, method="pearson", min_n=15, verbose=0, extra_fields=None
 ):
@@ -65,15 +69,28 @@ def two_vars_correlation(
     n = (~nans_mask).sum()
 
     if n <= min_n or np.std(var1[~nans_mask]) == 0 or np.std(var2[~nans_mask]) == 0:
+=======
+def two_vars_correlation(var1, var2, method="pearson", min_n=15, verbose=0, extra_fields=None):
+    if verbose > 0:
+        print(f"Var1={var1.name}; Var2={var2.name}")
+
+    nans_mask = np.logical_or(np.isnan(var1), np.isnan(var2))
+    n = (~nans_mask).sum()
+
+    if n <= min_n:
+>>>>>>> a44a8f05 (proteomics benchmark added)
         return dict(corr=np.nan, pval=np.nan, len=n)
 
     if method == "spearman":
         r, p = spearmanr(var1[~nans_mask], var2[~nans_mask], nan_policy="omit")
+<<<<<<< HEAD
 
     elif method == "mse":
         r = mean_squared_error(var1[~nans_mask], var2[~nans_mask])
         p = np.nan
 
+=======
+>>>>>>> a44a8f05 (proteomics benchmark added)
     else:
         r, p = pearsonr(var1[~nans_mask], var2[~nans_mask])
 
