@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader, Dataset
 from sklearn.preprocessing import StandardScaler
 from PhenPred.vae import CLinesVAEPlot as ploter
 from PhenPred.vae.CLinesDrugResponseBenchmark import DrugResponseBenchmark
+from PhenPred.vae.CLinesProteomicsBenchmark import ProteomicsBenchmark
 
 # Class variables - paths to csv files
 _data_folder = "/data/benchmarks/clines/"
@@ -711,3 +712,7 @@ if __name__ == "__main__":
     # Run drug benchmark
     dres_benchmark = DrugResponseBenchmark(_timestamp)
     dres_benchmark.run()
+
+    # Run proteomics benchmark
+    proteomics_benchmark = ProteomicsBenchmark(_timestamp)
+    proteomics_benchmark.run()
