@@ -110,7 +110,7 @@ def plot_latent_spaces(
     # Read latent spaces
     latent_spaces = {
         n: pd.read_csv(f"{_dirPlots}/files/{timestamp}_latent_{n}.csv.gz", index_col=0)
-        for n in view_names
+        for n in view_names + ["joint"]
     }
 
     # Get UMAP projections
