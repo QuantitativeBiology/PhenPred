@@ -31,6 +31,7 @@ _data_files = dict(
 
 # Class variables - Hyperparameters
 _hyperparameters = dict(
+<<<<<<< HEAD
     num_epochs=3,
     learning_rate=1e-5,
     batch_size=32,
@@ -38,6 +39,23 @@ _hyperparameters = dict(
     latent_dim=25,
     hidden_dim_1=0.1,
     hidden_dim_2=0.05,
+=======
+    datasets=dict(
+        methylation=_data_files["meth_csv_file"],
+        transcriptomics=_data_files["gexp_csv_file"],
+        proteomics=_data_files["prot_csv_file"],
+        metabolomics=_data_files["meta_csv_file"],
+        drugresponse=_data_files["dres_csv_file"],
+        crisprcas9=_data_files["cris_csv_file"],
+    ),
+    num_epochs=25,
+    learning_rate=1e-4,
+    batch_size=32,
+    n_folds=3,
+    latent_dim=30,
+    hidden_dim_1=0.5,
+    # hidden_dim_2=0.3,
+>>>>>>> 00a887d1 (variable number of datasets possible)
     probability=0.5,
     group=15,
     alpha_kl=0.1,
@@ -50,7 +68,7 @@ _hyperparameters = dict(
 
 # Class variables - Torch
 _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-torch.set_num_threads(32)
+torch.set_num_threads(28)
 
 # Class variables - Misc
 _verbose = True
@@ -59,29 +77,13 @@ _dirPlots = "/home/egoncalves/PhenPred/reports/vae/"
 
 
 class CLinesDataset(Dataset):
-    def __init__(self):
+    def __init__(self, datasets):
         # Read csv files
-        self.df_meth = pd.read_csv(_data_files["meth_csv_file"], index_col=0).T
-        self.df_gexp = pd.read_csv(_data_files["gexp_csv_file"], index_col=0).T
-        self.df_prot = pd.read_csv(_data_files["prot_csv_file"], index_col=0).T
-        self.df_meta = pd.read_csv(_data_files["meta_csv_file"], index_col=0).T
-        self.df_dres = pd.read_csv(_data_files["dres_csv_file"], index_col=0).T
-        self.df_cris = pd.read_csv(_data_files["cris_csv_file"], index_col=0).T
+        self.dfs = {n: pd.read_csv(f, index_col=0).T for n, f in datasets.items()}
 
         # Union samples
         self.samples = pd.concat(
-            [
-                pd.Series(df.index)
-                for df in [
-                    self.df_meth,
-                    self.df_gexp,
-                    self.df_prot,
-                    self.df_meta,
-                    self.df_dres,
-                    self.df_cris,
-                ]
-            ],
-            axis=0,
+            [pd.Series(df.index) for df in self.dfs.values()], axis=0
         ).value_counts()
         self.samples = self.samples[
             self.samples > 1
@@ -93,17 +95,12 @@ class CLinesDataset(Dataset):
         if _verbose:
             print(f"[{_timestamp}] Samples = {len(self.samples)}")
 
-        self.df_meth = self.df_meth.reindex(index=self.samples)
-        self.df_gexp = self.df_gexp.reindex(index=self.samples)
-        self.df_prot = self.df_prot.reindex(index=self.samples)
-        self.df_meta = self.df_meta.reindex(index=self.samples)
-        self.df_dres = self.df_dres.reindex(index=self.samples)
-        self.df_cris = self.df_cris.reindex(index=self.samples)
+        self.dfs = {n: df.reindex(index=self.samples) for n, df in self.dfs.items()}
 
         # Remove features with more than 50% of missing values
-        self.df_prot = self.df_prot.loc[:, self.df_prot.isnull().mean() < 0.5]
-        self.df_meta = self.df_meta.loc[:, self.df_meta.isnull().mean() < 0.5]
-        self.df_dres = self.df_dres.loc[:, self.df_dres.isnull().mean() < 0.5]
+        for n in ["proteomics", "metabolomics", "drugresponse"]:
+            if n in self.dfs:
+                self.dfs[n] = self.dfs[n].loc[:, self.dfs[n].isnull().mean() < 0.5]
 
         # Reduce the number of features
         self.df_meth = self.df_meth[
@@ -117,54 +114,12 @@ class CLinesDataset(Dataset):
         ]
 
         # Standardize the data
-        self.x_meth, self.scaler_meth = self.process_df(self.df_meth)
-        self.x_gexp, self.scaler_gexp = self.process_df(self.df_gexp)
-        self.x_prot, self.scaler_prot = self.process_df(self.df_prot)
-        self.x_meta, self.scaler_meta = self.process_df(self.df_meta)
-        self.x_dres, self.scaler_dres = self.process_df(self.df_dres)
-        self.x_cris, self.scaler_cris = self.process_df(self.df_cris)
+        self.views, self.view_scalers, self.view_feature_names = dict(), dict(), dict()
+        for n, df in self.dfs.items():
+            self.views[n], self.view_scalers[n] = self.process_df(df)
+            self.view_feature_names[n] = list(df.columns)
 
-        # Datasets list
-        self.views = [
-            self.x_meth,
-            self.x_gexp,
-            self.x_prot,
-            self.x_meta,
-            self.x_dres,
-            self.x_cris,
-        ]
-
-        self.view_scalers = [
-            self.scaler_meth,
-            self.scaler_gexp,
-            self.scaler_prot,
-            self.scaler_meta,
-            self.scaler_dres,
-            self.scaler_cris,
-        ]
-
-        self.view_names = [
-            "methylation",
-            "transcriptomics",
-            "proteomics",
-            "metabolomics",
-            "drugresponse",
-            "crisprcas9",
-        ]
-
-        self.view_feature_names = dict(
-            zip(
-                self.view_names,
-                [
-                    list(self.df_meth.columns),
-                    list(self.df_gexp.columns),
-                    list(self.df_prot.columns),
-                    list(self.df_meta.columns),
-                    list(self.df_dres.columns),
-                    list(self.df_cris.columns),
-                ],
-            )
-        )
+        self.view_names = list(self.views.keys())
 
     def process_df(self, df):
         # Normalize the data using StandardScaler
@@ -181,14 +136,7 @@ class CLinesDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        return (
-            self.x_meth[idx],
-            self.x_gexp[idx],
-            self.x_prot[idx],
-            self.x_meta[idx],
-            self.x_dres[idx],
-            self.x_cris[idx],
-        )
+        return [df[idx] for df in self.views.values()]
 
 
 class BottleNeck(nn.Module):
@@ -240,7 +188,6 @@ class OMIC_VAE(nn.Module):
         self,
         views,
         hidden_dim_1,
-        hidden_dim_2,
         latent_dim,
         probability,
         group,
@@ -252,7 +199,7 @@ class OMIC_VAE(nn.Module):
 
         # -- Bottlenecks
         self.omics_bottlenecks = nn.ModuleList()
-        for v in views:
+        for v in views.values():
             self.omics_bottlenecks.append(
                 BottleNeck(
                     hidden_dim=v.shape[1],
@@ -263,7 +210,7 @@ class OMIC_VAE(nn.Module):
 
         # -- Encoders
         self.omics_encoders = nn.ModuleList()
-        for v in views:
+        for v in views.values():
             self.omics_encoders.append(
                 nn.Sequential(
                     nn.Linear(
@@ -272,50 +219,38 @@ class OMIC_VAE(nn.Module):
                     ),
                     nn.Dropout(p=probability),
                     activation_function,
-                    nn.Linear(
-                        int(hidden_dim_1 * v.shape[1] // group * group),
-                        int(hidden_dim_2 * v.shape[1] // group * group),
-                    ),
-                    nn.Dropout(p=probability),
-                    activation_function,
                 )
             )
 
         # -- Mean
         self.mus = nn.ModuleList()
-        for v in views:
+        for v in views.values():
             self.mus.append(
                 nn.Sequential(
                     nn.Linear(
-                        int(hidden_dim_2 * v.shape[1] // group * group), latent_dim
+                        int(hidden_dim_1 * v.shape[1] // group * group), latent_dim
                     ),
                 )
             )
 
         # -- Log-Var
         self.log_vars = nn.ModuleList()
-        for v in views:
+        for v in views.values():
             self.log_vars.append(
                 nn.Sequential(
                     nn.Linear(
-                        int(hidden_dim_2 * v.shape[1] // group * group), latent_dim
+                        int(hidden_dim_1 * v.shape[1] // group * group), latent_dim
                     ),
                 )
             )
 
         # -- Decoders
         self.omics_decoders = nn.ModuleList()
-        for v in views:
+        for v in views.values():
             self.omics_decoders.append(
                 nn.Sequential(
                     nn.Linear(
-                        latent_dim, int(hidden_dim_2 * v.shape[1] // group * group)
-                    ),
-                    nn.Dropout(p=probability),
-                    activation_function,
-                    nn.Linear(
-                        int(hidden_dim_2 * v.shape[1] // group * group),
-                        int(hidden_dim_1 * v.shape[1] // group * group),
+                        latent_dim, int(hidden_dim_1 * v.shape[1] // group * group)
                     ),
                     nn.Dropout(p=probability),
                     activation_function,
@@ -549,7 +484,6 @@ def epoch(
     model = OMIC_VAE(
         views=data.views,
         hidden_dim_1=_hyperparameters["hidden_dim_1"],
-        hidden_dim_2=_hyperparameters["hidden_dim_2"],
         latent_dim=_hyperparameters["latent_dim"],
         probability=_hyperparameters["probability"],
         group=_hyperparameters["group"],
@@ -619,10 +553,8 @@ def epoch(
         _hyperparameters["alpha_mse"],
         timestamp=_timestamp,
     )
-    predictions(
-        data,
-        model,
-    )
+
+    return model
 
 
 def predictions(
@@ -643,7 +575,7 @@ def predictions(
         views_hat = model.forward(views)
         for i, (name, df) in enumerate(zip(data.view_names, views_hat)):
             imputed_datasets[name] = pd.DataFrame(
-                data.view_scalers[i].inverse_transform(df.tolist()),
+                data.view_scalers[name].inverse_transform(df.tolist()),
                 index=data.samples,
                 columns=data.view_feature_names[name],
             )
@@ -685,10 +617,16 @@ def predictions(
 
 if __name__ == "__main__":
     # Load the first dataset
-    clines_db = CLinesDataset()
+    clines_db = CLinesDataset(_hyperparameters["datasets"])
 
     # Run the training loop
-    epoch(clines_db)
+    model = epoch(clines_db)
+
+    # Predictions
+    predictions(
+        data,
+        model,
+    )
 
     # Plot latent spaces
     ploter.plot_latent_spaces(
@@ -698,7 +636,6 @@ if __name__ == "__main__":
             k: _hyperparameters[k]
             for k in [
                 "hidden_dim_1",
-                "hidden_dim_2",
                 "latent_dim",
                 "probability",
                 "group",
