@@ -48,15 +48,19 @@ _hyperparameters = dict(
         drugresponse=_data_files["dres_csv_file"],
         crisprcas9=_data_files["cris_csv_file"],
     ),
-    num_epochs=25,
+    num_epochs=50,
     learning_rate=1e-4,
     batch_size=32,
     n_folds=3,
     latent_dim=30,
-    hidden_dim_1=0.5,
+    hidden_dim_1=0.75,
     # hidden_dim_2=0.3,
+<<<<<<< HEAD
 >>>>>>> 00a887d1 (variable number of datasets possible)
     probability=0.5,
+=======
+    probability=0.75,
+>>>>>>> 8274f03f (hyperparameters dump to json file)
     group=15,
     alpha_kl=0.1,
     alpha_mse=0.9,
@@ -619,12 +623,20 @@ if __name__ == "__main__":
     # Load the first dataset
     clines_db = CLinesDataset(_hyperparameters["datasets"])
 
+    # Write the hyperparameters to json file
+    json.dump(
+        _hyperparameters,
+        open(f"{_dirPlots}/files/{_timestamp}_hyperparameters.json", "w"),
+        default=lambda o: "<not serializable>",
+        indent=4,
+    )
+
     # Run the training loop
     model = epoch(clines_db)
 
     # Predictions
     predictions(
-        data,
+        clines_db,
         model,
     )
 
