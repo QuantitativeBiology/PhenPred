@@ -2,6 +2,7 @@ import sys
 
 sys.path.extend(["/home/egoncalves/PhenPred"])
 
+import json
 import torch
 import PhenPred
 import numpy as np
