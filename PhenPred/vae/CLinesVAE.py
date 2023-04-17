@@ -40,14 +40,14 @@ _hyperparameters = dict(
         drugresponse=_data_files["dres_csv_file"],
         crisprcas9=_data_files["cris_csv_file"],
     ),
-    num_epochs=50,
+    num_epochs=45,
     learning_rate=1e-4,
     batch_size=32,
     n_folds=3,
     latent_dim=30,
-    hidden_dim_1=0.75,
+    hidden_dim_1=0.4,
     # hidden_dim_2=0.3,
-    probability=0.75,
+    probability=0.6,
     group=15,
     alpha_kl=0.1,
     alpha_mse=0.9,
@@ -605,6 +605,15 @@ if __name__ == "__main__":
         open(f"{_dirPlots}/files/{_timestamp}_hyperparameters.json", "w"),
         default=lambda o: "<not serializable>",
         indent=4,
+    )
+    print("Hyperparameters:\n")
+    print(
+        json.dumps(
+            _hyperparameters,
+            sort_keys=True,
+            indent=4,
+            default=lambda o: "<not serializable>",
+        )
     )
 
     # Run the training loop
