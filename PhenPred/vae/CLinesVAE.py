@@ -641,6 +641,8 @@ if __name__ == "__main__":
         model,
     )
 
+    # _timestamp = "2023-04-13_19:21:53"
+
     # Plot latent spaces
     ploter.plot_latent_spaces(
         _timestamp,
