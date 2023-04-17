@@ -6,10 +6,12 @@ import PhenPred
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from math import sqrt
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 from datetime import datetime
 import matplotlib.ticker as plticker
+from sklearn.metrics import mean_squared_error
 from PhenPred.Utils import two_vars_correlation
 
 
@@ -76,8 +78,9 @@ class ProteomicsBenchmark:
         return dict(
             original=df_original,
             mofa=df_original_imp_mofa,
-            vae=df_original_imp_vae,
             mean=df_original_imp_mean,
+            vae=df_original_imp_vae,
+            vae_full=self.df_vae.reindex(index=self.samples, columns=self.features),
         )
 
     def compare_imputed_ccle(self):
@@ -151,22 +154,27 @@ class ProteomicsBenchmark:
         )
         plot_df = pd.melt(
             plot_df.reset_index(),
-            value_vars=["mean", "mofa", "vae"],
+            value_vars=["mean", "mofa", "vae", "vae_full"],
             var_name="impute",
             value_name="corr",
             id_vars=["sample", "original"],
         )
 
         def annotate(data, **kws):
+            rmse = sqrt(mean_squared_error(data["original"], data["corr"]))
+            s, _ = stats.spearmanr(
+                data["original"],
+                data["corr"],
+            )
             r, _ = stats.pearsonr(
-                x=data["original"],
-                y=data["corr"],
+                data["original"],
+                data["corr"],
             )
             ax = plt.gca()
             ax.text(
                 0.95,
                 0.05,
-                f"Pearson's R={r:.2g}",
+                f"R={r:.2g}; Rho={s:.2g}; RMSE={rmse:.2f}",
                 fontsize=6,
                 transform=ax.transAxes,
                 ha="right",

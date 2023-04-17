@@ -6,9 +6,11 @@ import PhenPred
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from math import sqrt
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 from datetime import datetime
+from sklearn.metrics import mean_squared_error
 
 
 _data_folder = "/data/benchmarks/clines/"
@@ -92,7 +94,7 @@ class DrugResponseBenchmark:
         )
 
         # Scatter plots
-        corr_dict = {}
+        corr_dict = []
         for y_var in ["MOFA", "mean", "VAE"]:
             plot_df = df_new_values[["original", y_var]].dropna()
 
@@ -121,12 +123,24 @@ class DrugResponseBenchmark:
                 ylabel=f"Predicted ({y_var})",
             )
 
-            r, _ = stats.pearsonr(
-                x=plot_df["original"],
-                y=plot_df[y_var],
+            rmse = sqrt(mean_squared_error(plot_df["original"], plot_df[y_var]))
+            s, _ = stats.spearmanr(
+                plot_df["original"],
+                plot_df[y_var],
             )
-            corr_dict[y_var] = r
-            annot_text = f"Pearson's R={r:.2g}"
+            r, _ = stats.pearsonr(
+                plot_df["original"],
+                plot_df[y_var],
+            )
+            corr_dict.append(
+                {
+                    "RMSE": rmse,
+                    "Spearman's rho": s,
+                    "Pearson's r": r,
+                    "method": y_var,
+                }
+            )
+            annot_text = f"R={r:.2g}; Rho={s:.2g}; RMSE={rmse:.2f}"
             ax.text(
                 0.95, 0.05, annot_text, fontsize=6, transform=ax.transAxes, ha="right"
             )
@@ -138,28 +152,27 @@ class DrugResponseBenchmark:
             plt.close()
 
         # Bar plot
-        plot_df = pd.Series(corr_dict).rename("corr").reset_index()
+        plot_df = pd.DataFrame(corr_dict)
 
-        _, ax = plt.subplots(1, 1, figsize=(1.5, 3), dpi=600)
+        for y_var in ["RMSE", "Spearman's rho", "Pearson's r"]:
+            _, ax = plt.subplots(1, 1, figsize=(3, 1.5), dpi=600)
 
-        sns.barplot(
-            data=plot_df,
-            x="index",
-            y="corr",
-            color="#656565",
-            ax=ax,
-        )
+            sns.barplot(
+                data=plot_df,
+                x=y_var,
+                y="method",
+                color="#656565",
+                ax=ax,
+            )
 
-        ax.set_ylim(0, 1)
+            ax.set(
+                title=f"Drug response prediction (N={df_new_values.shape[0]:,})",
+                xlabel=y_var,
+                ylabel="Imputation method",
+            )
 
-        ax.set(
-            title=f"Drug response prediction (N={df_new_values.shape[0]:,})",
-            xlabel="Imputation method",
-            ylabel="Pearson's R",
-        )
-
-        plt.savefig(
-            f"{_dirPlots}/drugresponse/{self.timestamp}_imputed_corr_barplot.pdf",
-            bbox_inches="tight",
-        )
-        plt.close()
+            plt.savefig(
+                f"{_dirPlots}/drugresponse/{self.timestamp}_imputed_{y_var}_barplot.pdf",
+                bbox_inches="tight",
+            )
+            plt.close()
