@@ -13,10 +13,9 @@ from datetime import datetime
 import matplotlib.ticker as plticker
 from sklearn.metrics import mean_squared_error
 from PhenPred.Utils import two_vars_correlation
+from PhenPred.vae import data_folder, plot_folder
 
 
-_data_folder = "/data/benchmarks/clines/"
-_dirPlots = "/home/egoncalves/PhenPred/reports/vae/"
 _timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
 
@@ -25,18 +24,18 @@ class ProteomicsBenchmark:
         self.timestamp = timestamp
 
         # Original dataset
-        self.df_original = pd.read_csv(f"{_data_folder}/proteomics.csv", index_col=0).T
+        self.df_original = pd.read_csv(f"{data_folder}/proteomics.csv", index_col=0).T
 
         # Fully imputed autoencoder dataset
         self.df_vae = pd.read_csv(
-            f"{_dirPlots}/files/{timestamp}_imputed_proteomics.csv.gz", index_col=0
+            f"{plot_folder}/files/{timestamp}_imputed_proteomics.csv.gz", index_col=0
         )
 
         # MOFA imputed dataset
-        self.df_mofa = pd.read_csv(f"{_data_folder}/proteomicsMOFA.csv", index_col=0).T
+        self.df_mofa = pd.read_csv(f"{data_folder}/proteomicsMOFA.csv", index_col=0).T
 
         # Independent proteomics dataset - CCLE
-        self.df_ccle = pd.read_csv(f"{_data_folder}/proteomics_ccle.csv", index_col=0).T
+        self.df_ccle = pd.read_csv(f"{data_folder}/proteomics_ccle.csv", index_col=0).T
 
         # Samples and features intersection
         self.samples = (
@@ -143,7 +142,7 @@ class ProteomicsBenchmark:
         ax.grid(axis="x", lw=0.1, color="#e1e1e1", zorder=-1)
 
         plt.savefig(
-            f"{_dirPlots}/proteomics/{self.timestamp}_imputed_corr_boxplot.pdf",
+            f"{plot_folder}/proteomics/{self.timestamp}_imputed_corr_boxplot.pdf",
             bbox_inches="tight",
         )
         plt.close()
@@ -186,7 +185,7 @@ class ProteomicsBenchmark:
         g.map_dataframe(annotate)
 
         plt.savefig(
-            f"{_dirPlots}/proteomics/{self.timestamp}_imputed_facetgrid.pdf",
+            f"{plot_folder}/proteomics/{self.timestamp}_imputed_facetgrid.pdf",
             bbox_inches="tight",
         )
         plt.close()

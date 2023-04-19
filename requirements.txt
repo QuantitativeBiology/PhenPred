@@ -9,10 +9,8 @@ statsmodels
 xlrd
 adjustText
 ipython
-cy
 matplotlib_venn
 openpyxl
 python-igraph
-cobra
-yaml
-pytorch
+PyYAML
+umap-learn

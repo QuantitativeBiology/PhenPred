@@ -1,6 +1,10 @@
+import os
 import sys
 
-sys.path.extend(["/home/egoncalves/PhenPred"])
+proj_dir = "/home/egoncalves/PhenPred"
+if not os.path.exists(proj_dir):
+    proj_dir = "/Users/emanuel/Projects/PhenPred"
+sys.path.extend([proj_dir])
 
 import json
 import torch
@@ -16,22 +20,21 @@ from datetime import datetime
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, Dataset
 from sklearn.preprocessing import StandardScaler
-from PhenPred.vae.CLinesLosses import CLinesLosses
-from PhenPred.vae.CLinesDrugResponseBenchmark import DrugResponseBenchmark
-from PhenPred.vae.CLinesProteomicsBenchmark import ProteomicsBenchmark
-from PhenPred.vae.CLinesDataset import CLinesDataset
-from PhenPred.vae.CLinesCVAE import CLinesCVAE
+from PhenPred.vae import data_folder, plot_folder
+from PhenPred.vae.ModelCVAE import CLinesCVAE
+from PhenPred.vae.Losses import CLinesLosses
+from PhenPred.vae.Dataset import CLinesDataset
+from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
+from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
 
 
-# Class variables - paths to csv files
-_data_folder = "/data/benchmarks/clines/"
 _data_files = dict(
-    meth_csv_file=f"{_data_folder}/methylation.csv",
-    gexp_csv_file=f"{_data_folder}/transcriptomics.csv",
-    prot_csv_file=f"{_data_folder}/proteomics.csv",
-    meta_csv_file=f"{_data_folder}/metabolomics.csv",
-    dres_csv_file=f"{_data_folder}/drugresponse.csv",
-    cris_csv_file=f"{_data_folder}/crisprcas9_22Q2.csv",
+    meth_csv_file=f"{data_folder}/methylation.csv",
+    gexp_csv_file=f"{data_folder}/transcriptomics.csv",
+    prot_csv_file=f"{data_folder}/proteomics.csv",
+    meta_csv_file=f"{data_folder}/metabolomics.csv",
+    dres_csv_file=f"{data_folder}/drugresponse.csv",
+    cris_csv_file=f"{data_folder}/crisprcas9_22Q2.csv",
 )
 
 # Class variables - Hyperparameters
@@ -53,7 +56,7 @@ _hyperparameters = dict(
     # hidden_dim_2=0.3,
     probability=0.4,
     group=15,
-    beta=0.1,
+    beta=0.15,
     alpha_c=1,
     optimizer_type="adam",
     w_decay=1e-5,
@@ -66,8 +69,6 @@ class CLinesTrain:
     def __init__(self, data, hypers):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         torch.set_num_threads(28)
-
-        self.dirPlots = "/home/egoncalves/PhenPred/reports/vae/"
 
         self.data = data
         self.hypers = hypers
@@ -123,14 +124,14 @@ class CLinesTrain:
 
             print(
                 f"[{datetime.now().strftime('%H:%M:%S')}] Epoch {epoch + 1}"
-                + f"| Loss (train): {losses_dict['loss_train'][epoch]:.4f}"
-                + f"| Loss (val): {losses_dict['loss_val'][epoch]:.4f}"
+                + f"| Loss (train): {losses_dict['train_total'][epoch]:.4f}"
+                + f"| Loss (val): {losses_dict['val_total'][epoch]:.4f}"
             )
 
         CLinesLosses.plot_losses(
             losses_dict,
             self.hypers["beta"],
-            timestamp=self.timestamp,
+            self.timestamp,
         )
 
     def cross_validation(self):
@@ -182,11 +183,11 @@ class CLinesTrain:
 
                 # Store values
                 for k, v in mse_views.items():
-                    train_loss["mse_views"][k].append(v)
+                    train_loss["mse_views"][k].append(v.detach().numpy())
 
-                train_loss["total"].append(loss)
-                train_loss["mse"].append(mse)
-                train_loss["kl"].append(kl)
+                train_loss["total"].append(loss.detach().numpy())
+                train_loss["mse"].append(mse.detach().numpy())
+                train_loss["kl"].append(kl.detach().numpy())
 
                 with torch.autograd.set_detect_anomaly(True):
                     self.optimizer.zero_grad()
@@ -219,11 +220,11 @@ class CLinesTrain:
 
                     # Store values
                     for k, v in mse_views.items():
-                        val_loss["mse_views"][k].append(v)
+                        val_loss["mse_views"][k].append(v.detach().numpy())
 
-                    val_loss["total"].append(loss)
-                    val_loss["mse"].append(mse)
-                    val_loss["kl"].append(kl)
+                    val_loss["total"].append(loss.detach().numpy())
+                    val_loss["mse"].append(mse.detach().numpy())
+                    val_loss["kl"].append(kl.detach().numpy())
 
         return train_loss, val_loss
 
@@ -259,13 +260,13 @@ class CLinesTrain:
         # Write to file
         for name, df in imputed_datasets.items():
             df.round(5).to_csv(
-                f"{self.dirPlots}/files/{self.timestamp}_imputed_{name}.csv.gz",
+                f"{plot_folder}/files/{self.timestamp}_imputed_{name}.csv.gz",
                 compression="gzip",
             )
 
         for name, df in latent_spaces.items():
             df.round(5).to_csv(
-                f"{self.dirPlots}/files/{self.timestamp}_latent_{name}.csv.gz",
+                f"{plot_folder}/files/{self.timestamp}_latent_{name}.csv.gz",
                 compression="gzip",
             )
 
@@ -308,7 +309,7 @@ if __name__ == "__main__":
     # Write the hyperparameters to json file
     json.dump(
         _hyperparameters,
-        open(f"{train.dirPlots}/files/{train.timestamp}_hyperparameters.json", "w"),
+        open(f"{plot_folder}/files/{train.timestamp}_hyperparameters.json", "w"),
         default=lambda o: "<not serializable>",
         indent=4,
     )
