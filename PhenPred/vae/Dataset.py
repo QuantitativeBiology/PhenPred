@@ -9,6 +9,7 @@ from datetime import datetime
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, Dataset
 from sklearn.preprocessing import StandardScaler
+from PhenPred.vae import data_folder, plot_folder
 
 
 class CLinesDataset(Dataset):
@@ -17,7 +18,7 @@ class CLinesDataset(Dataset):
         self.dfs = {n: pd.read_csv(f, index_col=0).T for n, f in datasets.items()}
 
         self.samplesheet = pd.read_csv(
-            "/data/benchmarks/clines/samplesheet.csv", index_col=0
+            f"{data_folder}/samplesheet.csv", index_col=0
         ).dropna(subset=["cancer_type", "tissue"])
 
         self._samples_union()

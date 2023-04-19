@@ -6,15 +6,13 @@ import PhenPred
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from math import sqrt
 import scipy.stats as stats
 import matplotlib.pyplot as plt
+from math import sqrt
 from datetime import datetime
 from sklearn.metrics import mean_squared_error
+from PhenPred.vae import data_folder, plot_folder
 
-
-_data_folder = "/data/benchmarks/clines/"
-_dirPlots = "/home/egoncalves/PhenPred/reports/vae/"
 _timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
 
@@ -24,22 +22,22 @@ class DrugResponseBenchmark:
 
         # Original dataset
         self.df_original = pd.read_csv(
-            f"{_data_folder}/drugresponse.csv", index_col=0
+            f"{data_folder}/drugresponse.csv", index_col=0
         ).T
 
         # New drug response values
         self.df_original_new = pd.read_csv(
-            f"{_data_folder}/drugresponse_24Jul22.csv", index_col=0
+            f"{data_folder}/drugresponse_24Jul22.csv", index_col=0
         ).T
 
         # Fully imputed autoencoder dataset
         self.df_vae = pd.read_csv(
-            f"{_dirPlots}/files/{timestamp}_imputed_drugresponse.csv.gz", index_col=0
+            f"{plot_folder}/files/{timestamp}_imputed_drugresponse.csv.gz", index_col=0
         )
 
         # MOFA imputed dataset
         self.df_mofa = pd.read_csv(
-            f"{_data_folder}/drugresponseMOFA.csv", index_col=0
+            f"{data_folder}/drugresponseMOFA.csv", index_col=0
         ).T
 
         # Mean imputed dataset
@@ -146,7 +144,7 @@ class DrugResponseBenchmark:
             )
 
             plt.savefig(
-                f"{_dirPlots}/drugresponse/{self.timestamp}_imputed_scatter_{y_var}.png",
+                f"{plot_folder}/drugresponse/{self.timestamp}_imputed_scatter_{y_var}.png",
                 bbox_inches="tight",
             )
             plt.close()
@@ -172,7 +170,7 @@ class DrugResponseBenchmark:
             )
 
             plt.savefig(
-                f"{_dirPlots}/drugresponse/{self.timestamp}_imputed_{y_var}_barplot.pdf",
+                f"{plot_folder}/drugresponse/{self.timestamp}_imputed_{y_var}_barplot.pdf",
                 bbox_inches="tight",
             )
             plt.close()

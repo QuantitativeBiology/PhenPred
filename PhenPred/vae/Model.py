@@ -11,8 +11,8 @@ from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, Dataset
 from sklearn.preprocessing import StandardScaler
 from PhenPred.vae import CLinesVAEPlot as ploter
-from PhenPred.vae.CLinesDrugResponseBenchmark import DrugResponseBenchmark
-from PhenPred.vae.CLinesProteomicsBenchmark import ProteomicsBenchmark
+from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
+from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
 
 
 class OMIC_VAE(nn.Module):

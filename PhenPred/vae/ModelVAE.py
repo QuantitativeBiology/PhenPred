@@ -15,12 +15,12 @@ from datetime import datetime
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, Dataset
 from sklearn.preprocessing import StandardScaler
-from PhenPred.vae.CLinesModel import OMIC_VAE
-from PhenPred.vae.CLinesLosses import CLinesLosses
-from PhenPred.vae.CLinesDataset import CLinesDataset
+from PhenPred.vae.Model import OMIC_VAE
+from PhenPred.vae.Losses import CLinesLosses
+from PhenPred.vae.Dataset import CLinesDataset
 from PhenPred.vae import CLinesVAEPlot as ploter
-from PhenPred.vae.CLinesDrugResponseBenchmark import DrugResponseBenchmark
-from PhenPred.vae.CLinesProteomicsBenchmark import ProteomicsBenchmark
+from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
+from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
 
 
 # Class variables - paths to csv files
