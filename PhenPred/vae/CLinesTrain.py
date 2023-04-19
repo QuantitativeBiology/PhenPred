@@ -1,0 +1,323 @@
+import sys
+
+sys.path.extend(["/home/egoncalves/PhenPred"])
+
+import json
+import torch
+import PhenPred
+import numpy as np
+import pandas as pd
+import torch.nn as nn
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy.stats as stats
+import torch.nn.functional as F
+from datetime import datetime
+from sklearn.model_selection import KFold
+from torch.utils.data import DataLoader, Dataset
+from sklearn.preprocessing import StandardScaler
+from PhenPred.vae.CLinesLosses import CLinesLosses
+from PhenPred.vae.CLinesDrugResponseBenchmark import DrugResponseBenchmark
+from PhenPred.vae.CLinesProteomicsBenchmark import ProteomicsBenchmark
+from PhenPred.vae.CLinesDataset import CLinesDataset
+from PhenPred.vae.CLinesCVAE import CLinesCVAE
+
+
+# Class variables - paths to csv files
+_data_folder = "/data/benchmarks/clines/"
+_data_files = dict(
+    meth_csv_file=f"{_data_folder}/methylation.csv",
+    gexp_csv_file=f"{_data_folder}/transcriptomics.csv",
+    prot_csv_file=f"{_data_folder}/proteomics.csv",
+    meta_csv_file=f"{_data_folder}/metabolomics.csv",
+    dres_csv_file=f"{_data_folder}/drugresponse.csv",
+    cris_csv_file=f"{_data_folder}/crisprcas9_22Q2.csv",
+)
+
+# Class variables - Hyperparameters
+_hyperparameters = dict(
+    datasets=dict(
+        # methylation=_data_files["meth_csv_file"],
+        # transcriptomics=_data_files["gexp_csv_file"],
+        proteomics=_data_files["prot_csv_file"],
+        metabolomics=_data_files["meta_csv_file"],
+        drugresponse=_data_files["dres_csv_file"],
+        # crisprcas9=_data_files["cris_csv_file"],
+    ),
+    num_epochs=5,
+    learning_rate=1e-4,
+    batch_size=32,
+    n_folds=3,
+    latent_dim=30,
+    hidden_dim_1=0.02,
+    # hidden_dim_2=0.3,
+    probability=0.4,
+    group=15,
+    beta=0.1,
+    alpha_c=1,
+    optimizer_type="adam",
+    w_decay=1e-5,
+    loss_type="mse",
+    activation_function=nn.Sigmoid(),
+)
+
+
+class CLinesTrain:
+    def __init__(self, data, hypers):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        torch.set_num_threads(28)
+
+        self.dirPlots = "/home/egoncalves/PhenPred/reports/vae/"
+
+        self.data = data
+        self.hypers = hypers
+
+        self.model = CLinesCVAE(
+            self.data.views,
+            self.hypers,
+            self.data.conditional,
+        ).to(self.device)
+
+        self.optimizer = CLinesLosses.get_optimizer(self.hypers, self.model)
+
+        self.timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+
+    def run(self):
+        self.epoch()
+        self.predictions()
+
+    def epoch(self):
+        losses_dict = {
+            "train_total": [],
+            "train_mse": [],
+            "train_kl": [],
+            "train_mse_views": {d: [] for d in self.data.view_names},
+            "val_total": [],
+            "val_mse": [],
+            "val_kl": [],
+            "val_mse_views": {d: [] for d in self.data.view_names},
+        }
+
+        for epoch in range(self.hypers["num_epochs"]):
+            # -- Cross Validation
+            train_loss, val_loss = self.cross_validation()
+
+            # -- Train Losses (CV + Batch Average)
+            losses_dict["train_total"].append(np.mean(train_loss["total"]))
+            losses_dict["train_mse"].append(np.mean(train_loss["mse"]))
+            losses_dict["train_kl"].append(np.mean(train_loss["kl"]))
+
+            # -- Validation Losses (CV + Batch Average)
+            losses_dict["val_total"].append(np.mean(val_loss["total"]))
+            losses_dict["val_mse"].append(np.mean(val_loss["mse"]))
+            losses_dict["val_kl"].append(np.mean(val_loss["kl"]))
+
+            # -- Train Losses Dataset Specific (CV + Batch Average)
+            for v in self.data.view_names:
+                losses_dict["train_mse_views"][v].append(
+                    np.mean(train_loss["mse_views"][v])
+                )
+                losses_dict["val_mse_views"][v].append(
+                    np.mean(val_loss["mse_views"][v])
+                )
+
+            print(
+                f"[{datetime.now().strftime('%H:%M:%S')}] Epoch {epoch + 1}"
+                + f"| Loss (train): {losses_dict['loss_train'][epoch]:.4f}"
+                + f"| Loss (val): {losses_dict['loss_val'][epoch]:.4f}"
+            )
+
+        CLinesLosses.plot_losses(
+            losses_dict,
+            self.hypers["beta"],
+            timestamp=self.timestamp,
+        )
+
+    def cross_validation(self):
+        train_loss = dict(
+            total=[], mse=[], kl=[], mse_views={d: [] for d in self.data.view_names}
+        )
+        val_loss = dict(
+            total=[], mse=[], kl=[], mse_views={d: [] for d in self.data.view_names}
+        )
+
+        cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True)
+
+        for train_idx, val_idx in cv.split(self.data):
+            # Train Data
+            data_train = torch.utils.data.Subset(self.data, train_idx)
+            dataloader_train = DataLoader(
+                data_train, batch_size=self.hypers["batch_size"], shuffle=True
+            )
+
+            # Validation Data
+            data_test = torch.utils.data.Subset(self.data, val_idx)
+            dataloader_test = DataLoader(
+                data_test, batch_size=self.hypers["batch_size"], shuffle=False
+            )
+
+            # --- TRAINING LOOP
+            self.model.train()
+
+            # dataloader train is divided into batches
+            for views, labels in dataloader_train:
+                n = views[0].size(0)
+
+                views = [view.to(self.device) for view in views]
+
+                # Conditional
+                labels = labels.to(self.device)
+
+                # Forward pass to get the predictions
+                views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
+
+                # Calculate Losses
+                loss, mse, kl, mse_views = CLinesLosses.loss_function(
+                    self.hypers,
+                    views,
+                    views_hat,
+                    mu_joint,
+                    logvar_joint,
+                )
+
+                # Store values
+                for k, v in mse_views.items():
+                    train_loss["mse_views"][k].append(v)
+
+                train_loss["total"].append(loss)
+                train_loss["mse"].append(mse)
+                train_loss["kl"].append(kl)
+
+                with torch.autograd.set_detect_anomaly(True):
+                    self.optimizer.zero_grad()
+                    loss.backward()
+                    self.optimizer.step()
+
+            # --- VALIDATION LOOP
+            self.model.eval()
+
+            with torch.no_grad():
+                for views, labels in dataloader_test:
+                    views = [view.to(self.device) for view in views]
+
+                    # Conditional
+                    labels = labels.to(self.device)
+
+                    # Forward pass to get the predictions
+                    views_hat, mu_joint, logvar_joint = self.model.forward(
+                        views, labels
+                    )
+
+                    # Calculate Losses
+                    loss, mse, kl, mse_views = CLinesLosses.loss_function(
+                        self.hypers,
+                        views,
+                        views_hat,
+                        mu_joint,
+                        logvar_joint,
+                    )
+
+                    # Store values
+                    for k, v in mse_views.items():
+                        val_loss["mse_views"][k].append(v)
+
+                    val_loss["total"].append(loss)
+                    val_loss["mse"].append(mse)
+                    val_loss["kl"].append(kl)
+
+        return train_loss, val_loss
+
+    def predictions(self):
+        omics_dataloader = DataLoader(
+            self.data, batch_size=len(self.data.samples), shuffle=False
+        )
+
+        # Dataframes
+        latent_spaces = dict()
+        imputed_datasets = dict()
+
+        # Make predictions and latent spaces
+        for views, labels in omics_dataloader:
+            views = [view.to(self.device) for view in views]
+
+            # Forward pass to get the predictions
+            views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
+            for name, df in zip(self.data.view_names, views_hat):
+                imputed_datasets[name] = pd.DataFrame(
+                    self.data.view_scalers[name].inverse_transform(df.tolist()),
+                    index=self.data.samples,
+                    columns=self.data.view_feature_names[name],
+                )
+
+            # Create Latent Spaces
+            latent_spaces["joint"] = pd.DataFrame(
+                self.model.reparameterize(mu_joint, logvar_joint).tolist(),
+                index=self.data.samples,
+                columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
+            )
+
+        # Write to file
+        for name, df in imputed_datasets.items():
+            df.round(5).to_csv(
+                f"{self.dirPlots}/files/{self.timestamp}_imputed_{name}.csv.gz",
+                compression="gzip",
+            )
+
+        for name, df in latent_spaces.items():
+            df.round(5).to_csv(
+                f"{self.dirPlots}/files/{self.timestamp}_latent_{name}.csv.gz",
+                compression="gzip",
+            )
+
+
+if __name__ == "__main__":
+    # Load the first dataset
+    clines_db = CLinesDataset(_hyperparameters["datasets"])
+
+    # Train and predictions
+    train = CLinesTrain(clines_db, _hyperparameters)
+    train.run()
+
+    # _timestamp = "2023-04-13_19:21:53"
+    # Plot latent spaces
+    CLinesLosses.plot_latent_spaces(
+        train.timestamp,
+        [],
+        {
+            k: _hyperparameters[k]
+            for k in [
+                "hidden_dim_1",
+                "latent_dim",
+                "probability",
+                "group",
+                "learning_rate",
+                "n_folds",
+                "batch_size",
+            ]
+        },
+    )
+
+    # Run drug benchmark
+    dres_benchmark = DrugResponseBenchmark(train.timestamp)
+    dres_benchmark.run()
+
+    # Run proteomics benchmark
+    proteomics_benchmark = ProteomicsBenchmark(train.timestamp)
+    proteomics_benchmark.run()
+
+    # Write the hyperparameters to json file
+    json.dump(
+        _hyperparameters,
+        open(f"{train.dirPlots}/files/{train.timestamp}_hyperparameters.json", "w"),
+        default=lambda o: "<not serializable>",
+        indent=4,
+    )
+    print("Hyperparameters:\n")
+    print(
+        json.dumps(
+            _hyperparameters,
+            sort_keys=True,
+            indent=4,
+            default=lambda o: "<not serializable>",
+        )
+    )

@@ -15,9 +15,13 @@ from datetime import datetime
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, Dataset
 from sklearn.preprocessing import StandardScaler
+from PhenPred.vae.CLinesModel import OMIC_VAE
+from PhenPred.vae.CLinesLosses import CLinesLosses
+from PhenPred.vae.CLinesDataset import CLinesDataset
 from PhenPred.vae import CLinesVAEPlot as ploter
 from PhenPred.vae.CLinesDrugResponseBenchmark import DrugResponseBenchmark
 from PhenPred.vae.CLinesProteomicsBenchmark import ProteomicsBenchmark
+
 
 # Class variables - paths to csv files
 _data_folder = "/data/benchmarks/clines/"
@@ -40,17 +44,18 @@ _hyperparameters = dict(
         drugresponse=_data_files["dres_csv_file"],
         crisprcas9=_data_files["cris_csv_file"],
     ),
-    num_epochs=45,
+    num_epochs=25,
     learning_rate=1e-4,
     batch_size=32,
     n_folds=3,
     latent_dim=30,
     hidden_dim_1=0.4,
     # hidden_dim_2=0.3,
-    probability=0.6,
+    probability=0.4,
     group=15,
     alpha_kl=0.1,
     alpha_mse=0.9,
+    alpha_c=1,
     optimizer_type="adam",
     w_decay=1e-5,
     loss_type="mse",
@@ -62,286 +67,8 @@ _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.set_num_threads(28)
 
 # Class variables - Misc
-_verbose = True
 _timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 _dirPlots = "/home/egoncalves/PhenPred/reports/vae/"
-
-
-class CLinesDataset(Dataset):
-    def __init__(self, datasets):
-        # Read csv files
-        self.dfs = {n: pd.read_csv(f, index_col=0).T for n, f in datasets.items()}
-
-        # Union samples
-        self.samples = pd.concat(
-            [pd.Series(df.index) for df in self.dfs.values()], axis=0
-        ).value_counts()
-        self.samples = self.samples[
-            self.samples > 1
-        ]  # Keep only samples that are in at least 2 datasets
-        self.samples = set(self.samples.index)
-        self.samples -= {"SIDM00189", "SIDM00650"}
-        self.samples = list(self.samples)
-
-        if _verbose:
-            print(f"[{_timestamp}] Samples = {len(self.samples)}")
-
-        self.dfs = {n: df.reindex(index=self.samples) for n, df in self.dfs.items()}
-
-        # Remove features with more than 50% of missing values
-        for n in ["proteomics", "metabolomics", "drugresponse"]:
-            if n in self.dfs:
-                self.dfs[n] = self.dfs[n].loc[:, self.dfs[n].isnull().mean() < 0.5]
-
-        # Standardize the data
-        self.views, self.view_scalers, self.view_feature_names = dict(), dict(), dict()
-        for n, df in self.dfs.items():
-            self.views[n], self.view_scalers[n] = self.process_df(df)
-            self.view_feature_names[n] = list(df.columns)
-
-        self.view_names = list(self.views.keys())
-
-    def process_df(self, df):
-        # Normalize the data using StandardScaler
-        scaler = StandardScaler()
-        x = scaler.fit_transform(df)
-        x = np.nan_to_num(x, copy=False)
-
-        # Convert to tensor
-        x = torch.tensor(x, dtype=torch.float)
-
-        return x, scaler
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, idx):
-        return [df[idx] for df in self.views.values()]
-
-
-class BottleNeck(nn.Module):
-    def __init__(self, hidden_dim, group, activation_function):
-        super(BottleNeck, self).__init__()
-
-        self.activation_function = activation_function
-        self.hidden_dim = hidden_dim
-        self.group = group
-
-        self.groups = nn.ModuleList()
-        for _ in range(group):
-            group_layers = nn.ModuleList()
-            group_layers.append(
-                nn.Sequential(nn.Linear(hidden_dim, hidden_dim // group))
-            )
-
-            group_layers.append(
-                nn.Sequential(nn.Linear(hidden_dim // group, hidden_dim // group))
-            )
-            self.groups.append(group_layers)
-
-    def forward(self, x):
-        activation = self.activation_function
-
-        # start with the input, which in this case will be the result of the first
-        # fully connected layer
-        identity = torch.narrow(x, 1, 0, self.hidden_dim // self.group * self.group)
-        out = []
-
-        for group_layers in self.groups:
-            group_out = x
-
-            for layer in group_layers:
-                group_out = activation(layer(group_out))
-            out.append(group_out)
-
-        # concatenate, the size should be equal to the hidden size
-        out = torch.cat(out, dim=1)
-
-        # Why do we add here the identity
-        out += identity
-
-        return out
-
-
-class OMIC_VAE(nn.Module):
-    def __init__(
-        self,
-        views,
-        hidden_dim_1,
-        latent_dim,
-        probability,
-        group,
-        activation_function,
-    ):
-        super(OMIC_VAE, self).__init__()
-
-        self.activation_function = activation_function
-
-        # -- Bottlenecks
-        self.omics_bottlenecks = nn.ModuleList()
-        for v in views.values():
-            self.omics_bottlenecks.append(
-                BottleNeck(
-                    hidden_dim=v.shape[1],
-                    group=group,
-                    activation_function=activation_function,
-                )
-            )
-
-        # -- Encoders
-        self.omics_encoders = nn.ModuleList()
-        for v in views.values():
-            self.omics_encoders.append(
-                nn.Sequential(
-                    nn.Linear(
-                        int(v.shape[1] // group * group),
-                        int(hidden_dim_1 * v.shape[1] // group * group),
-                    ),
-                    nn.Dropout(p=probability),
-                    activation_function,
-                )
-            )
-
-        # -- Mean
-        self.mus = nn.ModuleList()
-        for v in views.values():
-            self.mus.append(
-                nn.Sequential(
-                    nn.Linear(
-                        int(hidden_dim_1 * v.shape[1] // group * group), latent_dim
-                    ),
-                )
-            )
-
-        # -- Log-Var
-        self.log_vars = nn.ModuleList()
-        for v in views.values():
-            self.log_vars.append(
-                nn.Sequential(
-                    nn.Linear(
-                        int(hidden_dim_1 * v.shape[1] // group * group), latent_dim
-                    ),
-                )
-            )
-
-        # -- Decoders
-        self.omics_decoders = nn.ModuleList()
-        for v in views.values():
-            self.omics_decoders.append(
-                nn.Sequential(
-                    nn.Linear(
-                        latent_dim, int(hidden_dim_1 * v.shape[1] // group * group)
-                    ),
-                    nn.Dropout(p=probability),
-                    activation_function,
-                    nn.Linear(
-                        int(hidden_dim_1 * v.shape[1] // group * group), v.shape[1]
-                    ),
-                )
-            )
-
-    def encode(self, views):
-        h_bottlenecks = []
-        for view, encoder, bottleneck in zip(
-            views, self.omics_encoders, self.omics_bottlenecks
-        ):
-            h_bottleneck_ = bottleneck(view)
-            h_bottleneck_ = encoder(h_bottleneck_)
-            h_bottlenecks.append(h_bottleneck_)
-        return h_bottlenecks
-
-    def mean_variance(self, h_bottlenecks):
-        means, log_variances = [], []
-        for h_bottleneck, mu, log_var in zip(h_bottlenecks, self.mus, self.log_vars):
-            mean = mu(h_bottleneck)
-            var = log_var(h_bottleneck)
-            means.append(mean)
-            log_variances.append(var)
-        return means, log_variances
-
-    def product_of_experts(self, means, log_variances):
-        # Code taken from Integrating T-cell receptor and transcriptome for 3 large-scale
-        # single-cell immune profiling analysis
-        # formula: var_joint = inv(inv(var_prior) + sum(inv(var_modalities))
-        logvar_joint = torch.sum(
-            torch.stack([1.0 / torch.exp(log_var) for log_var in log_variances]),
-            dim=0,
-        )
-        logvar_joint = torch.log(1.0 / logvar_joint)
-
-        # formula: mu_joint = (mu_prior*inv(var_prior) + sum(mu_modalities*inv(var_modalities))) * var_joint,
-        # where mu_prior = 0.0
-        mu_joint = torch.sum(
-            torch.stack(
-                [mu / torch.exp(log_var) for mu, log_var in zip(means, log_variances)]
-            ),
-            dim=0,
-        )
-        mu_joint = mu_joint * torch.exp(logvar_joint)
-
-        return mu_joint, logvar_joint
-
-    def calculate_sample(self, mean, log_var):
-        std = torch.exp(0.5 * log_var)
-        eps = torch.randn_like(log_var)
-        return mean + eps * std
-
-    def decode(self, z):
-        return [decoder(z) for decoder in self.omics_decoders]
-
-    def forward(self, views):
-        h_bottlenecks = self.encode(views)
-        means, log_variances = self.mean_variance(h_bottlenecks)
-        mu_joint, logvar_joint = self.product_of_experts(means, log_variances)
-        z = self.calculate_sample(mu_joint, logvar_joint)
-        views_hat = self.decode(z)
-        return views_hat
-
-
-def mse_kl(
-    views_hat,
-    views,
-    means,
-    log_variances,
-    alpha=0.1,
-    lambd=1.0,
-):
-    n_samples = views[0].shape[0]
-    if _hyperparameters["loss_type"] == "mse":
-        mse_loss = sum(
-            [
-                nn.MSELoss(reduction="sum")(x, x_hat) / x.shape[1]
-                for x, x_hat in zip(views, views_hat)
-            ]
-        )
-    elif _hyperparameters["loss_type"] == "smoothl1":
-        mse_loss = sum(
-            [
-                nn.SmoothL1Loss(reduction="sum")(x, x_hat) / x.shape[1]
-                for x, x_hat in zip(views, views_hat)
-            ]
-        )
-    else:
-        mse_loss = sum(
-            [
-                torch.sqrt(nn.MSELoss(reduction="sum")(x, x_hat) / x.shape[1])
-                for x, x_hat in zip(views, views_hat)
-            ]
-        )
-
-    # Compute the KL loss
-    kl_loss = 0
-    for mu_i, logvar_i in zip(means, log_variances):
-        kl_loss += (
-            -0.5
-            * torch.sum(1 + logvar_i - torch.pow(mu_i, 2) - torch.exp(logvar_i))
-            / len(mu_i)
-        )
-
-    # Compute the total loss
-    loss = (lambd * mse_loss) / n_samples + (alpha * kl_loss) / n_samples
-
-    return loss, mse_loss / n_samples, kl_loss / n_samples
 
 
 def cross_validation(data, model, optimizer):
@@ -374,47 +101,42 @@ def cross_validation(data, model, optimizer):
         model.train()
 
         # dataloader train is divided into batches
-        for views in dataloader_train:
+        for views, labels in dataloader_train:
             n = views[0].size(0)
 
             views = [view.to(_device) for view in views]
 
+            # Conditional
+            labels = labels.to(_device)
+
             # Forward pass to get the predictions
-            views_hat = model.forward(views)
+            views_hat = model.forward(views, labels)
 
             # Get last layer of encoder with bottleneck
-            h_bottleneck = model.encode(views)
+            h_bottleneck = model.encode(views, labels)
 
             # Get means and log_vars
             means, log_variances = model.mean_variance(h_bottleneck)
             mu_joint, logvar_joint = model.product_of_experts(means, log_variances)
 
             # Calculate Losses
-            loss, mse, kl = mse_kl(
-                views_hat,
+            loss, mse, kl = CLinesLosses.loss_function(
+                _hyperparameters,
                 views,
+                views_hat,
                 mu_joint,
                 logvar_joint,
             )
 
-            if _hyperparameters["loss_type"] == "mse":
-                mse_omics = [
-                    nn.MSELoss(reduction="sum")(x, x_hat) / x.shape[1]
-                    for x, x_hat in zip(views, views_hat)
-                ]
-            elif _hyperparameters["loss_type"] == "smoothl1":
-                mse_omics = [
-                    nn.SmoothL1Loss(reduction="sum")(x, x_hat) / x.shape[1]
-                    for x, x_hat in zip(views, views_hat)
-                ]
-            else:
-                mse_omics = [
-                    torch.sqrt(nn.MSELoss(reduction="sum")(x, x_hat) / x.shape[1])
-                    for x, x_hat in zip(views, views_hat)
-                ]
-
+            # Calculate MSE for each omic
             for i, d in enumerate(data.view_names):
-                mse_list[d].append(mse_omics[i].item() / n)
+                mse_list[d].append(
+                    CLinesLosses.reconstruction_loss(
+                        _hyperparameters, views[i], views_hat[i]
+                    )
+                    / views[i].shape[1]
+                    / n
+                )
 
             loss_train.append(loss.item())
             mse_train.append(mse.item())
@@ -431,22 +153,27 @@ def cross_validation(data, model, optimizer):
         model.eval()
 
         with torch.no_grad():
-            for views in dataloader_test:
+            for views, labels in dataloader_test:
                 views = [view.to(_device) for view in views]
+
+                # Conditional
+                labels = labels.to(_device)
+
                 # Forward pass to get the predictions
-                views_hat = model.forward(views)
+                views_hat = model.forward(views, labels)
 
                 # Get last layer of encoder with bottleneck
-                h_bottleneck = model.encode(views)
+                h_bottleneck = model.encode(views, labels)
 
                 # Get means and log_vars
                 means, log_variances = model.mean_variance(h_bottleneck)
                 mu_joint, logvar_joint = model.product_of_experts(means, log_variances)
 
                 # Calculate Losses
-                loss, mse, kl = mse_kl(
-                    views_hat,
+                loss, mse, kl = CLinesLosses.loss_function(
+                    _hyperparameters,
                     views,
+                    views_hat,
                     mu_joint,
                     logvar_joint,
                 )
@@ -462,26 +189,12 @@ def epoch(
     data,
 ):
     model = OMIC_VAE(
-        views=data.views,
-        hidden_dim_1=_hyperparameters["hidden_dim_1"],
-        latent_dim=_hyperparameters["latent_dim"],
-        probability=_hyperparameters["probability"],
-        group=_hyperparameters["group"],
-        activation_function=_hyperparameters["activation_function"],
+        data.views,
+        _hyperparameters,
+        data.conditional,
     ).to(_device)
 
-    if _hyperparameters["optimizer_type"] == "adam":
-        optimizer = torch.optim.Adam(
-            model.parameters(),
-            lr=_hyperparameters["learning_rate"],
-            weight_decay=_hyperparameters["w_decay"],
-        )
-    else:
-        optimizer = torch.optim.RAdam(
-            model.parameters(),
-            lr=_hyperparameters["learning_rate"],
-            weight_decay=_hyperparameters["w_decay"],
-        )
+    optimizer = CLinesLosses.get_optimizer(_hyperparameters, model)
 
     losses_dict = {
         "loss_train": [],
@@ -518,7 +231,9 @@ def epoch(
 
         # -- Train Losses Dataset Specific (CV + Batch Average)
         for v_name in data.view_names:
-            losses_datasets[v_name].append(np.mean(mse_list[v_name]))
+            losses_datasets[v_name].append(
+                np.mean([v.detach().numpy() for v in mse_list[v_name]])
+            )
 
         print(
             f"[{datetime.now().strftime('%H:%M:%S')}] Epoch {epoch + 1}"
@@ -620,13 +335,9 @@ if __name__ == "__main__":
     model = epoch(clines_db)
 
     # Predictions
-    predictions(
-        clines_db,
-        model,
-    )
+    predictions(clines_db, model)
 
     # _timestamp = "2023-04-13_19:21:53"
-
     # Plot latent spaces
     ploter.plot_latent_spaces(
         _timestamp,
