@@ -27,12 +27,16 @@ class CLinesLosses:
             view_mse_losses[k] = mse_loss_view
 
         # Compute KL divergence loss
-        kl_loss = -0.5 * torch.sum(
-            1 + log_variances - means.pow(2) - log_variances.exp()
-        )
-
+        kl_loss = 0
+        for mu, log_var in zip(means, log_variances):
+            kl_loss += -0.5 * torch.sum(
+                1 + log_var - mu.pow(2) - log_var.exp()
+            ) / len(mu)
+        kl_loss /= hypers["batch_size"]
+        kl_loss *= hypers["beta"]
+        
         # Compute total loss
-        total_loss = hypers["beta"] * kl_loss + mse_loss
+        total_loss = kl_loss + mse_loss
 
         # Return total loss, total MSE loss, and view specific MSE loss
         return total_loss, mse_loss, kl_loss, view_mse_losses
