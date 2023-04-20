@@ -32,7 +32,7 @@ class CLinesCVAE(nn.Module):
             self.encoders.append(
                 nn.Sequential(
                     nn.Linear(
-                        self.views_sizes[n] + self.condi_size,
+                        self.views_sizes[n],
                         int(self.hyper["hidden_dim_1"] * self.views_sizes[n]),
                     ),
                     nn.Dropout(p=self.hyper["probability"]),
@@ -64,7 +64,7 @@ class CLinesCVAE(nn.Module):
             self.decoders.append(
                 nn.Sequential(
                     nn.Linear(
-                        self.hyper["latent_dim"] + self.condi_size,
+                        self.hyper["latent_dim"],
                         int(self.hyper["hidden_dim_1"] * self.views_sizes[n]),
                     ),
                     nn.Dropout(p=self.hyper["probability"]),
@@ -85,8 +85,8 @@ class CLinesCVAE(nn.Module):
     def encode(self, views, labels):
         encoders = []
         for i, k in enumerate(self.views):
-            x = torch.cat((views[i], labels), dim=1)
-            x = self.encoders[i](x)
+            # x = torch.cat((views[i], labels), dim=1)
+            x = self.encoders[i](views[i])
             x = self.latents[i](x)
             encoders.append(x)
         return encoders
@@ -94,8 +94,8 @@ class CLinesCVAE(nn.Module):
     def decode(self, z, labels):
         decoders = []
         for i, k in enumerate(self.views):
-            x = torch.cat((z, labels), dim=1)
-            x = self.decoders[i](x)
+            # x = torch.cat((z, labels), dim=1)
+            x = self.decoders[i](z)
             decoders.append(x)
         return decoders
 
