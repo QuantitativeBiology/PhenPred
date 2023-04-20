@@ -22,8 +22,9 @@ class CLinesCVAE(nn.Module):
 
         # Build models
         self._build_encoders()
-        self._build_latents()
-        self._build_contextualized_attention()
+        self._build_mean_vars()
+        # self._build_latents()
+        # self._build_contextualized_attention()
         self._build_decoders()
 
     def _build_encoders(self):
@@ -51,6 +52,16 @@ class CLinesCVAE(nn.Module):
                     ),
                 )
             )
+    
+    def _build_mean_vars(self):
+        self.mus, self.log_vars = nn.ModuleList(), nn.ModuleList()
+
+        for n in self.views:
+            s_i = int(self.hyper["hidden_dim_1"] * self.views_sizes[n])
+            s_o = self.hyper["latent_dim"]
+
+            self.mus.append(nn.Sequential(nn.Linear(s_i, s_o)))
+            self.log_vars.append(nn.Sequential(nn.Linear(s_i, s_o)))
 
     def _build_contextualized_attention(self):
         self.context_att = ContextualizedAttention(
@@ -87,7 +98,7 @@ class CLinesCVAE(nn.Module):
         for i, k in enumerate(self.views):
             # x = torch.cat((views[i], labels), dim=1)
             x = self.encoders[i](views[i])
-            x = self.latents[i](x)
+            # x = self.latents[i](x)
             encoders.append(x)
         return encoders
 
@@ -101,10 +112,39 @@ class CLinesCVAE(nn.Module):
 
     def forward(self, views, labels):
         encoders = self.encode(views, labels)
-        mu, logvar = self.context_att(encoders, labels)
+        
+        # mu, logvar = self.context_att(encoders, labels)
+        means, log_variances = self.mean_variance(encoders)
+        mu, logvar = self.product_of_experts(means, log_variances)
+        
         z = self.reparameterize(mu, logvar)
         decoders = self.decode(z, labels)
         return decoders, mu, logvar
+    
+    def mean_variance(self, hs):
+        means, logs = [], []
+
+        for h_bottleneck, mu, log_var in zip(hs, self.mus, self.log_vars):
+            means.append(mu(h_bottleneck))
+            logs.append(log_var(h_bottleneck))
+
+        return means, logs
+
+    def product_of_experts(self, means, logs):
+        logvar_joint = torch.sum(
+            torch.stack([1.0 / torch.exp(log_var) for log_var in logs]),
+            dim=0,
+        )
+        logvar_joint = torch.log(1.0 / logvar_joint)
+
+        mu_joint = torch.sum(
+            torch.stack([mu / torch.exp(log_var) for mu, log_var in zip(means, logs)]),
+            dim=0,
+        )
+
+        mu_joint *= torch.exp(logvar_joint)
+
+        return mu_joint, logvar_joint
 
 
 class ContextualizedAttention(nn.Module):

@@ -56,7 +56,7 @@ _hyperparameters = dict(
     # hidden_dim_2=0.3,
     probability=0.4,
     group=15,
-    beta=0.15,
+    beta=0.015,
     alpha_c=1,
     optimizer_type="adam",
     w_decay=1e-5,
@@ -126,6 +126,10 @@ class CLinesTrain:
                 f"[{datetime.now().strftime('%H:%M:%S')}] Epoch {epoch + 1}"
                 + f"| Loss (train): {losses_dict['train_total'][epoch]:.4f}"
                 + f"| Loss (val): {losses_dict['val_total'][epoch]:.4f}"
+                + f"| MSE (train): {losses_dict['train_mse'][epoch]:.4f}"
+                + f"| MSE (val): {losses_dict['val_mse'][epoch]:.4f}"
+                + f"| KL (train): {losses_dict['train_kl'][epoch]:.4f}"
+                + f"| KL (val): {losses_dict['val_kl'][epoch]:.4f}"
             )
 
         CLinesLosses.plot_losses(

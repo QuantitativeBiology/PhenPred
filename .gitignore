@@ -133,3 +133,4 @@ dmypy.json
 .vscode/*
 data/*
 *.csv.gz
+.DS_Store
