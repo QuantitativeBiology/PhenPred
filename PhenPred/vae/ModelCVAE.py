@@ -29,17 +29,21 @@ class CLinesCVAE(nn.Module):
 
     def _build_encoders(self):
         self.encoders = nn.ModuleList()
+
         for n in self.views:
-            self.encoders.append(
-                nn.Sequential(
-                    nn.Linear(
-                        self.views_sizes[n],
-                        int(self.hyper["hidden_dim_1"] * self.views_sizes[n]),
-                    ),
-                    nn.Dropout(p=self.hyper["probability"]),
-                    self.hyper["activation_function"],
-                )
-            )
+            layer_sizes = [self.views_sizes[n]] + [
+                int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"]
+            ]
+
+            layers = []
+            for i in range(len(layer_sizes) - 1):
+                layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
+
+                if i != len(layer_sizes) - 2:
+                    layers.append(nn.Dropout(p=self.hyper["probability"]))
+                    layers.append(self.hyper["activation_function"])
+
+            self.encoders.append(nn.Sequential(*layers))
 
     def _build_latents(self):
         self.latents = nn.ModuleList()
@@ -47,17 +51,17 @@ class CLinesCVAE(nn.Module):
             self.latents.append(
                 nn.Sequential(
                     nn.Linear(
-                        int(self.hyper["hidden_dim_1"] * self.views_sizes[n]),
+                        int(self.hyper["hidden_dims"][-1] * self.views_sizes[n]),
                         self.hyper["latent_dim"],
                     ),
                 )
             )
-    
+
     def _build_mean_vars(self):
         self.mus, self.log_vars = nn.ModuleList(), nn.ModuleList()
 
         for n in self.views:
-            s_i = int(self.hyper["hidden_dim_1"] * self.views_sizes[n])
+            s_i = int(self.hyper["hidden_dims"][-1] * self.views_sizes[n])
             s_o = self.hyper["latent_dim"]
 
             self.mus.append(nn.Sequential(nn.Linear(s_i, s_o)))
@@ -71,21 +75,24 @@ class CLinesCVAE(nn.Module):
 
     def _build_decoders(self):
         self.decoders = nn.ModuleList()
-        for n, v in self.views.items():
-            self.decoders.append(
-                nn.Sequential(
-                    nn.Linear(
-                        self.hyper["latent_dim"],
-                        int(self.hyper["hidden_dim_1"] * self.views_sizes[n]),
-                    ),
-                    nn.Dropout(p=self.hyper["probability"]),
-                    self.hyper["activation_function"],
-                    nn.Linear(
-                        int(self.hyper["hidden_dim_1"] * self.views_sizes[n]),
-                        self.views_sizes[n],
-                    ),
-                )
+        for n in self.views:
+            layer_sizes = (
+                [self.hyper["latent_dim"]]
+                + [
+                    int(v * self.views_sizes[n])
+                    for v in self.hyper["hidden_dims"][::-1]
+                ]
+                + [self.views_sizes[n]]
             )
+
+            layers = []
+            for i in range(len(layer_sizes) - 1):
+                layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
+                if i != len(layer_sizes) - 2:
+                    layers.append(nn.Dropout(p=self.hyper["probability"]))
+                    layers.append(self.hyper["activation_function"])
+
+            self.decoders.append(nn.Sequential(*layers))
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
@@ -112,15 +119,15 @@ class CLinesCVAE(nn.Module):
 
     def forward(self, views, labels):
         encoders = self.encode(views, labels)
-        
+
         # mu, logvar = self.context_att(encoders, labels)
         means, log_variances = self.mean_variance(encoders)
         mu, logvar = self.product_of_experts(means, log_variances)
-        
+
         z = self.reparameterize(mu, logvar)
         decoders = self.decode(z, labels)
         return decoders, mu, logvar
-    
+
     def mean_variance(self, hs):
         means, logs = [], []
 
