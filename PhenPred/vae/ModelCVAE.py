@@ -35,14 +35,13 @@ class CLinesCVAE(nn.Module):
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"]
             ]
 
-            layers, i = [], 1
-            while i < len(layer_sizes):
-                layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-                layers.append(nn.Dropout(p=self.hyper["probability"]))
-                layers.append(self.hyper["activation_function"])
-                i += 1
+        layers = nn.ModuleList()
+        for i in range(1, len(layer_sizes)):
+            layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
+            layers.append(nn.Dropout(p=self.hyper["probability"]))
+            layers.append(self.hyper["activation_function"])
 
-            self.encoders.append(nn.Sequential(*layers))
+        self.encoders.append(nn.Sequential(*layers))
 
     def _build_latents(self):
         self.latents = nn.ModuleList()
@@ -79,12 +78,11 @@ class CLinesCVAE(nn.Module):
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"][::-1]
             ]
 
-            layers, i = [], 1
-            while i < len(layer_sizes):
+            layers = nn.ModuleList()
+            for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hyper["probability"]))
                 layers.append(self.hyper["activation_function"])
-                i += 1
             layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
 
             self.decoders.append(nn.Sequential(*layers))
