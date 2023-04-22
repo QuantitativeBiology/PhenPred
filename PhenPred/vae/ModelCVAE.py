@@ -35,13 +35,12 @@ class CLinesCVAE(nn.Module):
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"]
             ]
 
-            layers = []
-            for i in range(len(layer_sizes) - 1):
-                layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
-
-                if i != len(layer_sizes) - 2:
-                    layers.append(nn.Dropout(p=self.hyper["probability"]))
-                    layers.append(self.hyper["activation_function"])
+            layers, i = [], 1
+            while i < len(layer_sizes):
+                layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
+                layers.append(nn.Dropout(p=self.hyper["probability"]))
+                layers.append(self.hyper["activation_function"])
+                i += 1
 
             self.encoders.append(nn.Sequential(*layers))
 
@@ -76,21 +75,17 @@ class CLinesCVAE(nn.Module):
     def _build_decoders(self):
         self.decoders = nn.ModuleList()
         for n in self.views:
-            layer_sizes = (
-                [self.hyper["latent_dim"]]
-                + [
-                    int(v * self.views_sizes[n])
-                    for v in self.hyper["hidden_dims"][::-1]
-                ]
-                + [self.views_sizes[n]]
-            )
+            layer_sizes = [self.hyper["latent_dim"]] + [
+                int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"][::-1]
+            ]
 
-            layers = []
-            for i in range(len(layer_sizes) - 1):
-                layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
-                if i != len(layer_sizes) - 2:
-                    layers.append(nn.Dropout(p=self.hyper["probability"]))
-                    layers.append(self.hyper["activation_function"])
+            layers, i = [], 1
+            while i < len(layer_sizes):
+                layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
+                layers.append(nn.Dropout(p=self.hyper["probability"]))
+                layers.append(self.hyper["activation_function"])
+                i += 1
+            layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
 
             self.decoders.append(nn.Sequential(*layers))
 
