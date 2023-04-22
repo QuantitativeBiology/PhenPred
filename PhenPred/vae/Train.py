@@ -47,7 +47,7 @@ _hyperparameters = dict(
         drugresponse=_data_files["dres_csv_file"],
         crisprcas9=_data_files["cris_csv_file"],
     ),
-    num_epochs=25,
+    num_epochs=50,
     learning_rate=1e-4,
     batch_size=32,
     n_folds=3,
@@ -61,7 +61,7 @@ _hyperparameters = dict(
     optimizer_type="adam",
     w_decay=1e-5,
     loss_type="mse",
-    activation_function=nn.ReLU(),
+    activation_function=nn.Sigmoid(),
 )
 
 
@@ -74,7 +74,7 @@ class CLinesTrain:
         self.hypers = hypers
 
         self.model = CLinesCVAE(
-                self.data.views,
+            self.data.views,
             self.hypers,
             self.data.conditional,
         ).to(self.device)
