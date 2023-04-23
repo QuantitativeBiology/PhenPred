@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 
 class CLinesCVAE(nn.Module):
-    def __init__(self, views, hyper, condi):
+    def __init__(self, views, hyper, condi=None):
         super(CLinesCVAE, self).__init__()
 
         self.views = views
@@ -16,22 +16,27 @@ class CLinesCVAE(nn.Module):
 
         print("# ---- CLinesCVAE ---- #")
 
-        # Sizes
         self.views_sizes = {n: v.shape[1] for n, v in self.views.items()}
-        self.condi_size = self.condi.shape[1]
 
-        # Build models
+        if self.condi is not None:
+            self.condi_size = self.condi.shape[1]
+
         self._build_encoders()
-        self._build_mean_vars()
-        # self._build_latents()
-        # self._build_contextualized_attention()
+
+        if self.condi is not None:
+            self._build_latents()
+            self._build_contextualized_attention()
+        else:
+            self._build_mean_vars()
+
         self._build_decoders()
 
     def _build_encoders(self):
         self.encoders = nn.ModuleList()
 
         for n in self.views:
-            layer_sizes = [self.views_sizes[n]] + [
+            layer_sizes = [self.views_sizes[n]]
+            layer_sizes += [
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"]
             ]
 
@@ -42,6 +47,16 @@ class CLinesCVAE(nn.Module):
                 layers.append(self.hyper["activation_function"])
 
             self.encoders.append(nn.Sequential(*layers))
+
+    def _build_mean_vars(self):
+        self.mus, self.log_vars = nn.ModuleList(), nn.ModuleList()
+
+        for n in self.views:
+            s_i = int(self.hyper["hidden_dims"][-1] * self.views_sizes[n])
+            s_o = self.hyper["latent_dim"]
+
+            self.mus.append(nn.Sequential(nn.Linear(s_i, s_o)))
+            self.log_vars.append(nn.Sequential(nn.Linear(s_i, s_o)))
 
     def _build_latents(self):
         self.latents = nn.ModuleList()
@@ -55,16 +70,6 @@ class CLinesCVAE(nn.Module):
                 )
             )
 
-    def _build_mean_vars(self):
-        self.mus, self.log_vars = nn.ModuleList(), nn.ModuleList()
-
-        for n in self.views:
-            s_i = int(self.hyper["hidden_dims"][-1] * self.views_sizes[n])
-            s_o = self.hyper["latent_dim"]
-
-            self.mus.append(nn.Sequential(nn.Linear(s_i, s_o)))
-            self.log_vars.append(nn.Sequential(nn.Linear(s_i, s_o)))
-
     def _build_contextualized_attention(self):
         self.context_att = ContextualizedAttention(
             context_dim=self.condi_size,
@@ -74,7 +79,8 @@ class CLinesCVAE(nn.Module):
     def _build_decoders(self):
         self.decoders = nn.ModuleList()
         for n in self.views:
-            layer_sizes = [self.hyper["latent_dim"]] + [
+            layer_sizes = [self.hyper["latent_dim"]]
+            layer_sizes += [
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"][::-1]
             ]
 
@@ -96,26 +102,34 @@ class CLinesCVAE(nn.Module):
     def encode(self, views, labels):
         encoders = []
         for i, k in enumerate(self.views):
-            # x = torch.cat((views[i], labels), dim=1)
-            x = self.encoders[i](views[i])
-            # x = self.latents[i](x)
+            if self.condi is not None:
+                # x = torch.cat((views[i], labels), dim=1)
+                x = self.encoders[i](views[i])
+                x = self.latents[i](x)
+            else:
+                x = self.encoders[i](views[i])
             encoders.append(x)
         return encoders
 
     def decode(self, z, labels):
         decoders = []
         for i, k in enumerate(self.views):
-            # x = torch.cat((z, labels), dim=1)
+            # if self.condi is not None:
+            #     x = self.decoders[i](torch.cat((z, labels), dim=1))
+            # else:
             x = self.decoders[i](z)
+
             decoders.append(x)
         return decoders
 
     def forward(self, views, labels):
         encoders = self.encode(views, labels)
 
-        # mu, logvar = self.context_att(encoders, labels)
-        means, log_variances = self.mean_variance(encoders)
-        mu, logvar = self.product_of_experts(means, log_variances)
+        if self.condi is not None:
+            mu, logvar = self.context_att(encoders, labels)
+        else:
+            means, log_variances = self.mean_variance(encoders)
+            mu, logvar = self.product_of_experts(means, log_variances)
 
         z = self.reparameterize(mu, logvar)
         decoders = self.decode(z, labels)
