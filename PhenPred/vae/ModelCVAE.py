@@ -38,6 +38,7 @@ class CLinesCVAE(nn.Module):
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
+                layers.append(nn.BatchNorm1d(layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hyper["probability"]))
                 layers.append(self.hyper["activation_function"])
 
