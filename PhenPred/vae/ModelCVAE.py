@@ -21,6 +21,7 @@ class CLinesCVAE(nn.Module):
         if self.condi is not None:
             self.condi_size = self.condi.shape[1]
 
+        self._build_groupbottleneck()
         self._build_encoders()
         self._build_mean_vars()
 
@@ -28,6 +29,18 @@ class CLinesCVAE(nn.Module):
             self._build_contextualized_attention()
 
         self._build_decoders()
+
+    def _build_groupbottleneck(self):
+        self.groups = nn.ModuleList()
+
+        for n in self.views:
+            self.groups.append(
+                BottleNeck(
+                    self.views_sizes[n],
+                    self.hyper["group_size"],
+                    self.hyper["activation_function"],
+                )
+            )
 
     def _build_encoders(self):
         self.encoders = nn.ModuleList()
@@ -101,7 +114,8 @@ class CLinesCVAE(nn.Module):
         encoders = []
         for i, k in enumerate(self.views):
             # x = torch.cat((views[i], labels), dim=1)
-            x = self.encoders[i](views[i])
+            x = self.groups[i](views[i])
+            x = self.encoders[i](x)
             encoders.append(x)
         return encoders
 
@@ -195,3 +209,43 @@ class ContextualizedAttention(nn.Module):
         combined_log_var = self.fc_log_var(combined_latent)
 
         return combined_mean, combined_log_var
+
+
+class BottleNeck(nn.Module):
+    def __init__(self, in_features, n_groups, activation_function):
+        super(BottleNeck, self).__init__()
+        self.in_features = in_features
+        self.n_groups = n_groups
+        self.activation_function = activation_function
+        self._build_bottleneck()
+
+    def _build_bottleneck(self):
+        self.groups = nn.ModuleList()
+        size, rest = divmod(self.in_features, self.n_groups)
+
+        # Build groups
+        for _ in range(self.n_groups):
+            group_layer = nn.ModuleList()
+            group_layer.append(nn.Sequential(nn.Linear(self.in_features, size)))
+            group_layer.append(nn.Sequential(nn.Linear(size, size)))
+            self.groups.append(group_layer)
+
+        if rest != 0:
+            self._build_residual_layer(rest)
+
+    def _build_residual_layer(self, rest):
+        group_layer = nn.ModuleList()
+        group_layer.append(nn.Sequential(nn.Linear(self.in_features, rest)))
+        group_layer.append(nn.Sequential(nn.Linear(rest, rest)))
+        self.groups.append(group_layer)
+
+    def forward(self, x):
+        out = []
+        for gl in self.groups:
+            group_out = x
+            for l in gl:
+                group_out = self.activation_function(l(group_out))
+            out.append(group_out)
+        out = torch.cat(out, dim=1)
+        out += torch.narrow(x, 1, 0, self.in_features)
+        return out

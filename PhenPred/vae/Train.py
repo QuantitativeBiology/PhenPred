@@ -47,15 +47,15 @@ _hyperparameters = dict(
         drugresponse=_data_files["dres_csv_file"],
         crisprcas9=_data_files["cris_csv_file"],
     ),
-    num_epochs=50,
+    conditional=False,
+    num_epochs=25,
     learning_rate=1e-4,
     batch_size=32,
     n_folds=3,
     latent_dim=30,
     hidden_dims=[0.5],
-    # hidden_dim_2=0.3,
     probability=0.4,
-    group=15,
+    group_size=1500,
     beta=0.1,
     alpha_c=1,
     optimizer_type="adam",
@@ -76,7 +76,7 @@ class CLinesTrain:
         self.model = CLinesCVAE(
             self.data.views,
             self.hypers,
-            self.data.conditional,
+            self.data.conditional if self.hypers["conditional"] else None,
         ).to(self.device)
 
         self.optimizer = CLinesLosses.get_optimizer(self.hypers, self.model)
@@ -294,7 +294,6 @@ if __name__ == "__main__":
                 "hidden_dims",
                 "latent_dim",
                 "probability",
-                "group",
                 "learning_rate",
                 "n_folds",
                 "batch_size",
