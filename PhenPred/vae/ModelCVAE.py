@@ -22,12 +22,10 @@ class CLinesCVAE(nn.Module):
             self.condi_size = self.condi.shape[1]
 
         self._build_encoders()
+        self._build_mean_vars()
 
         if self.condi is not None:
-            self._build_latents()
             self._build_contextualized_attention()
-        else:
-            self._build_mean_vars()
 
         self._build_decoders()
 
@@ -99,19 +97,15 @@ class CLinesCVAE(nn.Module):
         z = mu + eps * std
         return z
 
-    def encode(self, views, labels):
+    def encode(self, views, labels=None):
         encoders = []
         for i, k in enumerate(self.views):
-            if self.condi is not None:
-                # x = torch.cat((views[i], labels), dim=1)
-                x = self.encoders[i](views[i])
-                x = self.latents[i](x)
-            else:
-                x = self.encoders[i](views[i])
+            # x = torch.cat((views[i], labels), dim=1)
+            x = self.encoders[i](views[i])
             encoders.append(x)
         return encoders
 
-    def decode(self, z, labels):
+    def decode(self, z, labels=None):
         decoders = []
         for i, k in enumerate(self.views):
             # if self.condi is not None:
@@ -124,11 +118,15 @@ class CLinesCVAE(nn.Module):
 
     def forward(self, views, labels):
         encoders = self.encode(views, labels)
+        means, log_variances = self.mean_variance(encoders)
 
         if self.condi is not None:
-            mu, logvar = self.context_att(encoders, labels)
+            zs = [
+                self.reparameterize(mu, logvar)
+                for mu, logvar in zip(means, log_variances)
+            ]
+            mu, logvar = self.context_att(zs, labels)
         else:
-            means, log_variances = self.mean_variance(encoders)
             mu, logvar = self.product_of_experts(means, log_variances)
 
         z = self.reparameterize(mu, logvar)
