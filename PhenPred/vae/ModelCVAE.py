@@ -37,7 +37,7 @@ class CLinesCVAE(nn.Module):
             self.groups.append(
                 BottleNeck(
                     self.views_sizes[n],
-                    self.hyper["group_size"],
+                    self.hyper["n_groups"],
                     self.hyper["activation_function"],
                 )
             )
@@ -223,7 +223,6 @@ class BottleNeck(nn.Module):
         self.groups = nn.ModuleList()
         size, rest = divmod(self.in_features, self.n_groups)
 
-        # Build groups
         for _ in range(self.n_groups):
             group_layer = nn.ModuleList()
             group_layer.append(nn.Sequential(nn.Linear(self.in_features, size)))
