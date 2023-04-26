@@ -53,15 +53,15 @@ _hyperparameters = dict(
     batch_size=32,
     n_folds=3,
     latent_dim=30,
-    hidden_dims=[0.5],
-    probability=0.4,
-    n_groups=20,
+    hidden_dims=[0.55],
+    probability=0.45,
+    n_groups=None,
     beta=0.1,
     alpha_c=1,
     optimizer_type="adam",
     w_decay=1e-5,
     loss_type="mse",
-    activation_function=nn.Sigmoid(),
+    activation_function=nn.ReLU(),
 )
 
 
@@ -166,12 +166,10 @@ class CLinesTrain:
 
             # dataloader train is divided into batches
             for views, labels in dataloader_train:
-                n = views[0].size(0)
-
                 views = [view.to(self.device) for view in views]
 
                 # Conditional
-                labels = labels.to(self.device)
+                labels = labels.to(self.device) if self.hypers["conditional"] else None
 
                 # Forward pass to get the predictions
                 views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
@@ -206,7 +204,9 @@ class CLinesTrain:
                     views = [view.to(self.device) for view in views]
 
                     # Conditional
-                    labels = labels.to(self.device)
+                    labels = (
+                        labels.to(self.device) if self.hypers["conditional"] else None
+                    )
 
                     # Forward pass to get the predictions
                     views_hat, mu_joint, logvar_joint = self.model.forward(
@@ -246,7 +246,10 @@ class CLinesTrain:
             views = [view.to(self.device) for view in views]
 
             # Forward pass to get the predictions
-            views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
+            views_hat, mu_joint, logvar_joint = self.model.forward(
+                views, labels if self.hypers["conditional"] else None
+            )
+
             for name, df in zip(self.data.view_names, views_hat):
                 imputed_datasets[name] = pd.DataFrame(
                     self.data.view_scalers[name].inverse_transform(df.tolist()),

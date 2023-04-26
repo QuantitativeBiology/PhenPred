@@ -21,7 +21,9 @@ class CLinesCVAE(nn.Module):
         if self.condi is not None:
             self.condi_size = self.condi.shape[1]
 
-        self._build_groupbottleneck()
+        if self.hyper["n_groups"] is not None:
+            self._build_groupbottleneck()
+
         self._build_encoders()
         self._build_mean_vars()
 
@@ -112,19 +114,30 @@ class CLinesCVAE(nn.Module):
 
     def encode(self, views, labels=None):
         encoders = []
-        for i, k in enumerate(self.views):
-            # x = torch.cat((views[i], labels), dim=1)
-            x = self.groups[i](views[i])
+        for i, _ in enumerate(self.views):
+            x = views[i]
+
+            if labels is not None:
+                x = torch.cat((x, labels), dim=1)
+
+            if self.hyper["n_groups"] is not None:
+                x = self.groups[i](x)
+
             x = self.encoders[i](x)
             encoders.append(x)
         return encoders
 
     def decode(self, z, labels=None):
         decoders = []
-        for i, k in enumerate(self.views):
-            # if self.condi is not None:
-            #     x = self.decoders[i](torch.cat((z, labels), dim=1))
-            # else:
+        for i, _ in enumerate(self.views):
+            x = z
+
+            if labels is not None:
+                x = torch.cat((x, labels), dim=1)
+
+            if self.hyper["n_groups"] is not None:
+                x = self.groups[i](x)
+
             x = self.decoders[i](z)
 
             decoders.append(x)
