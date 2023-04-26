@@ -49,7 +49,7 @@ _hyperparameters = dict(
     ),
     conditional=False,
     num_epochs=25,
-    learning_rate=1e-4,
+    learning_rate=1e-5,
     batch_size=32,
     n_folds=3,
     latent_dim=30,
