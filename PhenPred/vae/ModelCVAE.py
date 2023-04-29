@@ -135,15 +135,12 @@ class CLinesCVAE(nn.Module):
             if labels is not None:
                 x = torch.cat((x, labels), dim=1)
 
-            if self.hyper["n_groups"] is not None:
-                x = self.groups[i](x)
-
             x = self.decoders[i](z)
 
             decoders.append(x)
         return decoders
 
-    def forward(self, views, labels):
+    def forward(self, views, labels=None):
         encoders = self.encode(views, labels)
         means, log_variances = self.mean_variance(encoders)
 
