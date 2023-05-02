@@ -40,21 +40,21 @@ _data_files = dict(
 # Class variables - Hyperparameters
 _hyperparameters = dict(
     datasets=dict(
-        methylation=_data_files["meth_csv_file"],
-        transcriptomics=_data_files["gexp_csv_file"],
+        # methylation=_data_files["meth_csv_file"],
+        # transcriptomics=_data_files["gexp_csv_file"],
         proteomics=_data_files["prot_csv_file"],
         metabolomics=_data_files["meta_csv_file"],
         drugresponse=_data_files["dres_csv_file"],
-        crisprcas9=_data_files["cris_csv_file"],
+        # crisprcas9=_data_files["cris_csv_file"],
     ),
     conditional=False,
-    num_epochs=150,
+    num_epochs=3,
     learning_rate=1e-5,
     batch_size=32,
     n_folds=3,
     latent_dim=30,
-    hidden_dims=[0.6],
-    probability=0.2,
+    hidden_dims=[0.5],
+    probability=0.4,
     n_groups=None,
     beta=0.15,
     optimizer_type="adam",
@@ -164,8 +164,9 @@ class CLinesTrain:
             self.model.train()
 
             # dataloader train is divided into batches
-            for views, labels in dataloader_train:
+            for views, labels, views_nans in dataloader_train:
                 views = [view.to(self.device) for view in views]
+                views_nans = [view.to(self.device) for view in views_nans]
 
                 # Conditional
                 labels = labels.to(self.device) if self.hypers["conditional"] else None
@@ -175,11 +176,7 @@ class CLinesTrain:
 
                 # Calculate Losses
                 loss, mse, kl, mse_views = CLinesLosses.loss_function(
-                    self.hypers,
-                    views,
-                    views_hat,
-                    mu_joint,
-                    logvar_joint,
+                    self.hypers, views, views_hat, mu_joint, logvar_joint, views_nans
                 )
 
                 # Store values
@@ -199,8 +196,9 @@ class CLinesTrain:
             self.model.eval()
 
             with torch.no_grad():
-                for views, labels in dataloader_test:
+                for views, labels, views_nans in dataloader_test:
                     views = [view.to(self.device) for view in views]
+                    views_nans = [view.to(self.device) for view in views_nans]
 
                     # Conditional
                     labels = (
@@ -219,6 +217,7 @@ class CLinesTrain:
                         views_hat,
                         mu_joint,
                         logvar_joint,
+                        views_nans,
                     )
 
                     # Store values
@@ -241,8 +240,9 @@ class CLinesTrain:
         imputed_datasets = dict()
 
         # Make predictions and latent spaces
-        for views, labels in omics_dataloader:
+        for views, labels, views_nans in omics_dataloader:
             views = [view.to(self.device) for view in views]
+            views_nans = [view.to(self.device) for view in views_nans]
 
             # Forward pass to get the predictions
             views_hat, mu_joint, logvar_joint = self.model.forward(

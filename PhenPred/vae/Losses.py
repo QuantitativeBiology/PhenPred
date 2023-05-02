@@ -17,24 +17,30 @@ from PhenPred.vae import data_folder, plot_folder
 
 class CLinesLosses:
     @classmethod
-    def loss_function(cls, hypers, views, views_hat, means, log_variances):
+    def loss_function(
+        cls, hypers, views, views_hat, means, log_variances, views_nans=None
+    ):
         # Compute reconstruction loss across views
         mse_loss = 0
         view_mse_losses = {}
         for i, k in enumerate(hypers["datasets"]):
-            mse_loss_view = F.mse_loss(views_hat[i], views[i])
+            if views_nans is not None:
+                mask = ~torch.isnan(views_nans[i])
+                mse_loss_view = F.mse_loss(views_hat[i][mask], views[i][mask])
+            else:
+                mse_loss_view = F.mse_loss(views_hat[i], views[i])
             mse_loss += mse_loss_view
             view_mse_losses[k] = mse_loss_view
 
         # Compute KL divergence loss
         kl_loss = 0
         for mu, log_var in zip(means, log_variances):
-            kl_loss += -0.5 * torch.sum(
-                1 + log_var - mu.pow(2) - log_var.exp()
-            ) / len(mu)
+            kl_loss += (
+                -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / len(mu)
+            )
         kl_loss /= hypers["batch_size"]
         kl_loss *= hypers["beta"]
-        
+
         # Compute total loss
         total_loss = kl_loss + mse_loss
 
@@ -59,11 +65,15 @@ class CLinesLosses:
     @classmethod
     def plot_losses(cls, losses_dict, kl_beta, timestamp=""):
         # Plot train and validation losses
-        losses = pd.DataFrame({k:v for k, v in losses_dict.items() if not k.endswith("_views")})
+        losses = pd.DataFrame(
+            {k: v for k, v in losses_dict.items() if not k.endswith("_views")}
+        )
         losses["epoch"] = losses.index
         _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
         sns.lineplot(
-            data=pd.melt(losses.loc[:, ["train_total", "val_total", "epoch"]], ["epoch"]),
+            data=pd.melt(
+                losses.loc[:, ["train_total", "val_total", "epoch"]], ["epoch"]
+            ),
             x="epoch",
             y="value",
             hue="variable",
@@ -90,9 +100,13 @@ class CLinesLosses:
         plt.close("all")
 
         # Plot reconstruction and regularization losses
-        plot_df = pd.melt(losses[[c for c in losses if not c.endswith("_total")]], ["epoch"])
+        plot_df = pd.melt(
+            losses[[c for c in losses if not c.endswith("_total")]], ["epoch"]
+        )
         plot_df["type"] = plot_df["variable"].apply(lambda v: v.split("_")[0]).values
-        plot_df["loss_type"] = plot_df["variable"].apply(lambda v: v.split("_")[1]).values
+        plot_df["loss_type"] = (
+            plot_df["variable"].apply(lambda v: v.split("_")[1]).values
+        )
         _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
         sns.lineplot(
             data=plot_df,
@@ -115,10 +129,12 @@ class CLinesLosses:
         plt.close("all")
 
         # Plot losses views
-        plot_df = pd.concat([
-            pd.DataFrame(losses_dict["train_mse_views"]).assign(type="train"),
-            pd.DataFrame(losses_dict["val_mse_views"]).assign(type="val"),
-        ])
+        plot_df = pd.concat(
+            [
+                pd.DataFrame(losses_dict["train_mse_views"]).assign(type="train"),
+                pd.DataFrame(losses_dict["val_mse_views"]).assign(type="val"),
+            ]
+        )
         plot_df["epoch"] = plot_df.index
         plot_df = pd.melt(plot_df, ["epoch", "type"])
         _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
@@ -149,9 +165,7 @@ class CLinesLosses:
         umap_n_components=2,
     ):
         # Get Tissue Types
-        samplesheet = pd.read_csv(
-            f"{data_folder}/samplesheet.csv", index_col=0
-        )
+        samplesheet = pd.read_csv(f"{data_folder}/samplesheet.csv", index_col=0)
         samplesheet = samplesheet["tissue"].fillna("Other tissue")
 
         # Read latent spaces
