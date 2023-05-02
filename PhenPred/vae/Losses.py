@@ -25,10 +25,13 @@ class CLinesLosses:
         view_mse_losses = {}
         for i, k in enumerate(hypers["datasets"]):
             if views_nans is not None:
-                mask = ~torch.isnan(views_nans[i])
-                mse_loss_view = F.mse_loss(views_hat[i][mask], views[i][mask])
+                mask = (
+                    torch.where(views_nans[i], torch.tensor([0.0]), torch.tensor([1.0]))
+                    == 1.0
+                )
+                mse_loss_view = F.mse_loss(views[i][mask], views_hat[i][mask])
             else:
-                mse_loss_view = F.mse_loss(views_hat[i], views[i])
+                mse_loss_view = F.mse_loss(views[i], views_hat[i])
             mse_loss += mse_loss_view
             view_mse_losses[k] = mse_loss_view
 
