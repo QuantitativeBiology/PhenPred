@@ -40,12 +40,12 @@ _data_files = dict(
 # Class variables - Hyperparameters
 _hyperparameters = dict(
     datasets=dict(
-        methylation=_data_files["meth_csv_file"],
-        transcriptomics=_data_files["gexp_csv_file"],
+        # methylation=_data_files["meth_csv_file"],
+        # transcriptomics=_data_files["gexp_csv_file"],
         proteomics=_data_files["prot_csv_file"],
         metabolomics=_data_files["meta_csv_file"],
         drugresponse=_data_files["dres_csv_file"],
-        crisprcas9=_data_files["cris_csv_file"],
+        # crisprcas9=_data_files["cris_csv_file"],
     ),
     conditional=True,
     num_epochs=150,
