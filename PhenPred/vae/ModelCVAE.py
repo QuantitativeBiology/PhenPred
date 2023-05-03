@@ -112,13 +112,10 @@ class CLinesCVAE(nn.Module):
         z = mu + eps * std
         return z
 
-    def encode(self, views, labels=None):
+    def encode(self, views):
         encoders = []
         for i, _ in enumerate(self.views):
             x = views[i]
-
-            if labels is not None:
-                x = torch.cat((x, labels), dim=1)
 
             if self.hyper["n_groups"] is not None:
                 x = self.groups[i](x)
@@ -127,21 +124,15 @@ class CLinesCVAE(nn.Module):
             encoders.append(x)
         return encoders
 
-    def decode(self, z, labels=None):
+    def decode(self, z):
         decoders = []
         for i, _ in enumerate(self.views):
-            x = z
-
-            if labels is not None:
-                x = torch.cat((x, labels), dim=1)
-
             x = self.decoders[i](z)
-
             decoders.append(x)
         return decoders
 
     def forward(self, views, labels=None):
-        encoders = self.encode(views, labels)
+        encoders = self.encode(views)
         means, log_variances = self.mean_variance(encoders)
 
         if self.condi is not None:
@@ -154,7 +145,7 @@ class CLinesCVAE(nn.Module):
             mu, logvar = self.product_of_experts(means, log_variances)
 
         z = self.reparameterize(mu, logvar)
-        decoders = self.decode(z, labels)
+        decoders = self.decode(z)
         return decoders, mu, logvar
 
     def mean_variance(self, hs):
