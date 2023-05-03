@@ -180,8 +180,8 @@ class ContextualizedAttention(nn.Module):
         self.context_dim = context_dim
         self.latent_dim = latent_dim
 
-        self.fc_mean = nn.Linear(latent_dim, latent_dim)
-        self.fc_log_var = nn.Linear(latent_dim, latent_dim)
+        self.fc_mean = nn.Linear(latent_dim + context_dim, latent_dim)
+        self.fc_log_var = nn.Linear(latent_dim + context_dim, latent_dim)
 
     def forward(self, views, labels):
         # Stack latents
@@ -196,11 +196,13 @@ class ContextualizedAttention(nn.Module):
         # Compute attention weights
         attention_weights = F.softmax(combined_input, dim=1)
 
-        # Extract attention weights for latents
-        attention_latents = attention_weights[:, :, : self.latent_dim]
+        # # Extract attention weights for latents
+        # attention_latents = attention_weights[:, :, : self.latent_dim]
 
-        # Element-wise multiplication with broadcasting
-        weighted_latents = attention_latents * latents
+        # # Element-wise multiplication with broadcasting
+        # weighted_latents = attention_latents * latents
+
+        weighted_latents = attention_weights * combined_input
 
         # Weighted sum of the latents using attention weights
         combined_latent = torch.sum(weighted_latents, dim=1)
