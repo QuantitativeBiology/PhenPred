@@ -48,8 +48,8 @@ _hyperparameters = dict(
         crisprcas9=_data_files["cris_csv_file"],
     ),
     conditional=True,
-    num_epochs=50,
-    learning_rate=1e-4,
+    num_epochs=150,
+    learning_rate=1e-5,
     batch_size=32,
     n_folds=3,
     latent_dim=30,
@@ -60,7 +60,7 @@ _hyperparameters = dict(
     optimizer_type="adam",
     w_decay=1e-5,
     loss_type="mse",
-    activation_function=nn.Sigmoid(),
+    activation_function=nn.LeakyReLU(),
 )
 
 
