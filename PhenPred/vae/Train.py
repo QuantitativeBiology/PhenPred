@@ -47,14 +47,14 @@ _hyperparameters = dict(
         drugresponse=_data_files["dres_csv_file"],
         crisprcas9=_data_files["cris_csv_file"],
     ),
-    conditional=False,
+    conditional=True,
     num_epochs=50,
     learning_rate=1e-4,
     batch_size=32,
     n_folds=3,
     latent_dim=30,
-    hidden_dims=[0.6],
-    probability=0.3,
+    hidden_dims=[0.5],
+    probability=0.4,
     n_groups=None,
     beta=0.15,
     optimizer_type="adam",
@@ -166,12 +166,7 @@ class CLinesTrain:
             # dataloader train is divided into batches
             for views, labels, views_nans in dataloader_train:
                 views = [view.to(self.device) for view in views]
-
-                views_nans = [view.to(self.device) for view in views_nans]
-                views_nans = [
-                    torch.where(v, torch.tensor([0.0]), torch.tensor([1.0])) == 1.0
-                    for v in views_nans
-                ]
+                views_nans = [~view.to(self.device) for view in views_nans]
 
                 # Conditional
                 labels = labels.to(self.device) if self.hypers["conditional"] else None
@@ -250,9 +245,7 @@ class CLinesTrain:
             views_nans = [~view.to(self.device) for view in views_nans]
 
             # Forward pass to get the predictions
-            views_hat, mu_joint, logvar_joint = self.model.forward(
-                views, labels if self.hypers["conditional"] else None
-            )
+            views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
 
             for name, df in zip(self.data.view_names, views_hat):
                 imputed_datasets[name] = pd.DataFrame(
