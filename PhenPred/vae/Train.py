@@ -48,19 +48,19 @@ _hyperparameters = dict(
         crisprcas9=_data_files["cris_csv_file"],
     ),
     conditional=False,
-    num_epochs=150,
-    learning_rate=1e-5,
+    num_epochs=50,
+    learning_rate=1e-4,
     batch_size=32,
     n_folds=3,
     latent_dim=30,
-    hidden_dims=[0.5],
-    probability=0.4,
+    hidden_dims=[0.6],
+    probability=0.3,
     n_groups=None,
     beta=0.15,
     optimizer_type="adam",
     w_decay=1e-5,
     loss_type="mse",
-    activation_function=nn.LeakyReLU(),
+    activation_function=nn.Sigmoid(),
 )
 
 
@@ -166,7 +166,12 @@ class CLinesTrain:
             # dataloader train is divided into batches
             for views, labels, views_nans in dataloader_train:
                 views = [view.to(self.device) for view in views]
+
                 views_nans = [view.to(self.device) for view in views_nans]
+                views_nans = [
+                    torch.where(v, torch.tensor([0.0]), torch.tensor([1.0])) == 1.0
+                    for v in views_nans
+                ]
 
                 # Conditional
                 labels = labels.to(self.device) if self.hypers["conditional"] else None
@@ -198,7 +203,7 @@ class CLinesTrain:
             with torch.no_grad():
                 for views, labels, views_nans in dataloader_test:
                     views = [view.to(self.device) for view in views]
-                    views_nans = [view.to(self.device) for view in views_nans]
+                    views_nans = [~view.to(self.device) for view in views_nans]
 
                     # Conditional
                     labels = (
@@ -242,7 +247,7 @@ class CLinesTrain:
         # Make predictions and latent spaces
         for views, labels, views_nans in omics_dataloader:
             views = [view.to(self.device) for view in views]
-            views_nans = [view.to(self.device) for view in views_nans]
+            views_nans = [~view.to(self.device) for view in views_nans]
 
             # Forward pass to get the predictions
             views_hat, mu_joint, logvar_joint = self.model.forward(
