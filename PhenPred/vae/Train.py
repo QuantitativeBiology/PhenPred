@@ -69,10 +69,6 @@ class CLinesTrain:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         torch.set_num_threads(28)
 
-        model = CreateModel()
-        model = nn.DataParallel(model)
-        model.to(self.device)
-
         self.data = data
         self.hypers = hypers
 
@@ -81,6 +77,9 @@ class CLinesTrain:
             self.hypers,
             self.data.conditional if self.hypers["conditional"] else None,
         ).to(self.device)
+
+        self.model = nn.DataParallel(self.model)
+        self.model.to(self.device)
 
         self.optimizer = CLinesLosses.get_optimizer(self.hypers, self.model)
 
