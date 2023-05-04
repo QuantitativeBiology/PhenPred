@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class CLinesCVAE(nn.Module):
+class CLinesCVAE(nn.DataParallel):
     def __init__(self, views, hyper, condi=None):
         super(CLinesCVAE, self).__init__()
 
