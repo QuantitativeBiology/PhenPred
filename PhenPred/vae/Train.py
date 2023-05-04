@@ -69,6 +69,10 @@ class CLinesTrain:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         torch.set_num_threads(28)
 
+        model = CreateModel()
+        model = nn.DataParallel(model)
+        model.to(self.device)
+
         self.data = data
         self.hypers = hypers
 
