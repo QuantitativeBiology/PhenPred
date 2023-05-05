@@ -17,6 +17,19 @@ from PhenPred.vae import data_folder, plot_folder
 
 class CLinesLosses:
     @classmethod
+    def activation_function(cls, name):
+        if name == "relu":
+            return nn.ReLU()
+        elif name == "leaky_relu":
+            return nn.LeakyReLU()
+        elif name == "sigmoid":
+            return nn.Sigmoid()
+        elif name == "tanh":
+            return nn.Tanh()
+        else:
+            return nn.Identity()
+
+    @classmethod
     def loss_function(
         cls, hypers, views, views_hat, means, log_variances, views_nans=None
     ):

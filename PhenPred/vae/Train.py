@@ -47,20 +47,21 @@ _hyperparameters = dict(
         drugresponse=_data_files["dres_csv_file"],
         crisprcas9=_data_files["cris_csv_file"],
     ),
-    conditional=True,
-    num_epochs=150,
+    conditional=False,
+    num_epochs=250,
     learning_rate=1e-5,
-    batch_size=4,
+    batch_size=32,
     n_folds=3,
     latent_dim=30,
-    hidden_dims=[0.5],
+    hidden_dims=[0.6],
     probability=0.4,
     n_groups=None,
-    beta=0.15,
+    beta=0.1,
     optimizer_type="adam",
     w_decay=1e-5,
     loss_type="mse",
     activation_function=nn.LeakyReLU(),
+    activation_function_name="leaky_relu",
 )
 
 
@@ -316,15 +317,6 @@ if __name__ == "__main__":
     json.dump(
         _hyperparameters,
         open(f"{plot_folder}/files/{train.timestamp}_hyperparameters.json", "w"),
-        default=lambda o: "<not serializable>",
         indent=4,
-    )
-    print("Hyperparameters:\n")
-    print(
-        json.dumps(
-            _hyperparameters,
-            sort_keys=True,
-            indent=4,
-            default=lambda o: "<not serializable>",
-        )
+        default=lambda o: "<not serializable>",
     )
