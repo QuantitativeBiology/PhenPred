@@ -1,0 +1,27 @@
+{
+    "datasets": {
+        "methylation": "/data/benchmarks/clines//methylation.csv",
+        "transcriptomics": "/data/benchmarks/clines//transcriptomics.csv",
+        "proteomics": "/data/benchmarks/clines//proteomics.csv",
+        "metabolomics": "/data/benchmarks/clines//metabolomics.csv",
+        "drugresponse": "/data/benchmarks/clines//drugresponse.csv",
+        "crisprcas9": "/data/benchmarks/clines//crisprcas9_22Q2.csv"
+    },
+    "conditional": false,
+    "num_epochs": 5,
+    "learning_rate": 0.0001,
+    "batch_size": 32,
+    "n_folds": 3,
+    "latent_dim": 30,
+    "hidden_dims": [
+        0.6
+    ],
+    "probability": 0.4,
+    "n_groups": null,
+    "beta": 0.1,
+    "optimizer_type": "adam",
+    "w_decay": 1e-05,
+    "loss_type": "mse",
+    "activation_function": "<not serializable>",
+    "activation_function_name": "sigmoid"
+}
