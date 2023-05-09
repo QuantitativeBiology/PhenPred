@@ -26,6 +26,7 @@ from PhenPred.vae.Losses import CLinesLosses
 from PhenPred.vae.Dataset import CLinesDataset
 from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
 from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
+from PhenPred.vae.BenchmarkGenomics import GenomicsBenchmark
 
 
 _data_files = dict(
@@ -48,20 +49,21 @@ _hyperparameters = dict(
         crisprcas9=_data_files["cris_csv_file"],
     ),
     conditional=False,
-    num_epochs=250,
-    learning_rate=1e-5,
-    batch_size=32,
+    num_epochs=50,
+    learning_rate=6.39e-5,
+    batch_size=55,
     n_folds=3,
-    latent_dim=30,
-    hidden_dims=[0.6],
+    latent_dim=50,
+    hidden_dims=[0.8],
     probability=0.4,
     n_groups=None,
-    beta=0.1,
+    beta=0.16,
     optimizer_type="adam",
     w_decay=1e-5,
     loss_type="mse",
-    activation_function=nn.LeakyReLU(),
-    activation_function_name="leaky_relu",
+    reconstruction_loss="mse",
+    activation_function=nn.ReLU(),
+    activation_function_name="relu",
 )
 
 
@@ -282,12 +284,13 @@ class CLinesTrain:
 if __name__ == "__main__":
     # Load the first dataset
     clines_db = CLinesDataset(_hyperparameters["datasets"])
+    clines_db.plot_samples_overlap()
+    clines_db.plot_datasets_missing_values()
 
     # Train and predictions
     train = CLinesTrain(clines_db, _hyperparameters)
     train.run()
 
-    # _timestamp = "2023-04-13_19:21:53"
     # Plot latent spaces
     CLinesLosses.plot_latent_spaces(
         train.timestamp,
@@ -312,6 +315,11 @@ if __name__ == "__main__":
     # Run proteomics benchmark
     proteomics_benchmark = ProteomicsBenchmark(train.timestamp)
     proteomics_benchmark.run()
+
+    # # Run genomics benchmark
+    # timestamp = "2023-05-07_15:53:56"
+    # genomics_benchmark = GenomicsBenchmark(timestamp)
+    # genomics_benchmark.run()
 
     # Write the hyperparameters to json file
     json.dump(

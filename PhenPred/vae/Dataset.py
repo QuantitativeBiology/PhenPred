@@ -4,7 +4,10 @@ import PhenPred
 import numpy as np
 import pandas as pd
 import torch.nn as nn
+import seaborn as sns
+import matplotlib as mpl
 import scipy.stats as stats
+import matplotlib.pyplot as plt
 from datetime import datetime
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, Dataset
@@ -60,11 +63,16 @@ class CLinesDataset(Dataset):
 
         self.dfs = {n: df.reindex(index=self.samples) for n, df in self.dfs.items()}
 
-    def _remove_features_missing_values(self):
+    def _remove_features_missing_values(self, miss_threshold=0.85):
         # Remove features with more than 50% of missing values
         for n in ["proteomics", "metabolomics", "drugresponse"]:
             if n in self.dfs:
-                self.dfs[n] = self.dfs[n].loc[:, self.dfs[n].isnull().mean() < 0.5]
+                print(f"Remove miss features: {miss_threshold}")
+                print(f"\tBefore: {self.dfs[n].shape}")
+                self.dfs[n] = self.dfs[n].loc[
+                    :, self.dfs[n].isnull().mean() < miss_threshold
+                ]
+                print(f"\tAfter: {self.dfs[n].shape}")
 
     def process_df(self, df):
         # Normalize the data using StandardScaler
@@ -77,6 +85,89 @@ class CLinesDataset(Dataset):
         x = torch.tensor(x, dtype=torch.float)
 
         return x, scaler, x_nan
+
+    def plot_samples_overlap(self):
+        plot_df = (
+            pd.DataFrame({n: (~df.isnull()).sum(1) != 0 for n, df in self.dfs.items()})
+            .astype(int)
+            .T
+        )
+        plot_df = plot_df[plot_df.sum().sort_values(ascending=False).index]
+        plot_df = plot_df.loc[:, plot_df.sum() > 0]
+        plot_df = plot_df.loc[plot_df.sum(1).sort_values(ascending=False).index]
+
+        plot_df.T.to_csv(f"{plot_folder}/datasets_overlap.csv")
+
+        nsamples = plot_df.sum(1)
+
+        cmap = mpl.colors.LinearSegmentedColormap.from_list(
+            "Custom cmap",
+            ["white", "#656565"],
+            2,
+        )
+
+        _, ax = plt.subplots(1, 1, figsize=(2, 1.5), dpi=600)
+
+        sns.heatmap(plot_df, xticklabels=False, cmap=cmap, cbar=False, ax=ax)
+
+        for i, c in enumerate(plot_df.index):
+            ax.text(
+                20, i + 0.5, f"N={nsamples[c]:,}", ha="left", va="center", fontsize=6
+            )
+
+        ax.set_title(f"Cancer cell lines multi-omics dataset (N={plot_df.shape[1]})")
+
+        plt.savefig(f"{plot_folder}/datasets_overlap.pdf", bbox_inches="tight")
+        plt.close("all")
+
+    def plot_datasets_missing_values(
+        self, datasets_names=["proteomics", "metabolomics", "drugresponse"]
+    ):
+        for n in datasets_names:
+            plot_df = ~self.dfs[n].isnull()
+            plot_df = plot_df.loc[plot_df.sum(1) != 0].astype(int)
+            plot_df = plot_df[plot_df.sum().sort_values(ascending=False).index]
+            plot_df = plot_df.loc[:, plot_df.sum() > 0]
+            plot_df = plot_df.loc[plot_df.sum(1).sort_values(ascending=False).index]
+
+            cmap = mpl.colors.LinearSegmentedColormap.from_list(
+                "Custom cmap",
+                ["white", "#656565"],
+                2,
+            )
+
+            miss_rate = 1 - plot_df.sum().sum() / np.prod(plot_df.shape)
+
+            _, ax = plt.subplots(1, 1, figsize=(2, 1.5), dpi=600)
+
+            sns.heatmap(
+                plot_df,
+                cmap=cmap,
+                cbar=False,
+                xticklabels=False,
+                yticklabels=False,
+                ax=ax,
+            )
+
+            ax.set_xlabel(f"Features (N={plot_df.shape[1]:,})")
+            ax.set_ylabel(f"Samples (N={plot_df.shape[0]:,})")
+
+            ax.text(
+                0.5,
+                0.5,
+                f"{miss_rate*100:.2f}%\nMissing rate",
+                ha="center",
+                va="center",
+                fontsize=8,
+                transform=ax.transAxes,
+            )
+
+            ax.set_title(f"{n} dataset")
+
+            plt.savefig(
+                f"{plot_folder}/datasets_missing_values_{n}.png", bbox_inches="tight"
+            )
+            plt.close("all")
 
     def __len__(self):
         return len(self.samples)

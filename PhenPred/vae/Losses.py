@@ -30,15 +30,33 @@ class CLinesLosses:
             return nn.Identity()
 
     @classmethod
+    def reconstruction_loss(cls, name):
+        if name == "mse":
+            return F.mse_loss
+        elif name == "bce":
+            return F.binary_cross_entropy
+        elif name == "gauss":
+            return nn.GaussianNLLLoss
+        else:
+            return F.mse_loss
+
+    @classmethod
     def loss_function(
-        cls, hypers, views, views_hat, means, log_variances, views_nans=None
+        cls,
+        hypers,
+        views,
+        views_hat,
+        means,
+        log_variances,
+        views_nans=None,
     ):
         # Compute reconstruction loss across views
         mse_loss = 0
         view_mse_losses = {}
         for i, k in enumerate(hypers["datasets"]):
             if views_nans is not None:
-                mse_loss_view = F.mse_loss(
+                loss_func = cls.reconstruction_loss(hypers["reconstruction_loss"])
+                mse_loss_view = loss_func(
                     views[i][views_nans[i]], views_hat[i][views_nans[i]]
                 )
             else:
