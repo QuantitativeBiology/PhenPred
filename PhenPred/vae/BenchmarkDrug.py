@@ -21,9 +21,7 @@ class DrugResponseBenchmark:
         self.timestamp = timestamp
 
         # Original dataset
-        self.df_original = pd.read_csv(
-            f"{data_folder}/drugresponse.csv", index_col=0
-        ).T
+        self.df_original = pd.read_csv(f"{data_folder}/drugresponse.csv", index_col=0).T
 
         # New drug response values
         self.df_original_new = pd.read_csv(
@@ -36,9 +34,7 @@ class DrugResponseBenchmark:
         )
 
         # MOFA imputed dataset
-        self.df_mofa = pd.read_csv(
-            f"{data_folder}/drugresponseMOFA.csv", index_col=0
-        ).T
+        self.df_mofa = pd.read_csv(f"{data_folder}/drugresponseMOFA.csv", index_col=0).T
 
         # Mean imputed dataset
         self.df_mean = self.df_original.fillna(self.df_original.mean())

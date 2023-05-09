@@ -178,6 +178,7 @@ class ProteomicsBenchmark:
                 transform=ax.transAxes,
                 ha="right",
             )
+            ax.axline((1, 1), slope=1, color="black", lw=0.5, ls="-", zorder=-1)
 
         g = sns.FacetGrid(plot_df, col="impute")
 

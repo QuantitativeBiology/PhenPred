@@ -1,0 +1,25 @@
+{
+    "datasets": {
+        "proteomics": "data/clines//proteomics.csv",
+        "metabolomics": "data/clines//metabolomics.csv",
+        "drugresponse": "data/clines//drugresponse.csv"
+    },
+    "conditional": false,
+    "num_epochs": 50,
+    "learning_rate": 6.39e-05,
+    "batch_size": 55,
+    "n_folds": 3,
+    "latent_dim": 50,
+    "hidden_dims": [
+        0.8
+    ],
+    "probability": 0.4,
+    "n_groups": null,
+    "beta": 0.16,
+    "optimizer_type": "adam",
+    "w_decay": 1e-05,
+    "loss_type": "mse",
+    "reconstruction_loss": "mse",
+    "activation_function": "<not serializable>",
+    "activation_function_name": "relu"
+}
