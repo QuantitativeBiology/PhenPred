@@ -12,7 +12,7 @@ from datetime import datetime
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, Dataset
 from sklearn.preprocessing import StandardScaler
-from PhenPred.vae import data_folder, plot_folder
+from PhenPred.vae import data_folder, plot_folder, files_folder
 
 
 class CLinesDataset(Dataset):
@@ -24,6 +24,11 @@ class CLinesDataset(Dataset):
             f"{data_folder}/samplesheet.csv", index_col=0
         ).dropna(subset=["cancer_type", "tissue"])
 
+        if "crisprcas9" in datasets:
+            self.dfs["crisprcas9"] = self.transform_crispr(
+                self.dfs["crisprcas9"].dropna().T
+            ).T
+
         self._samples_union()
         self._remove_features_missing_values()
         self._standardize_dfs()
@@ -34,6 +39,39 @@ class CLinesDataset(Dataset):
         print(
             f"[{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}] Samples = {len(self.samples)}"
         )
+
+    @classmethod
+    def transform_crispr(cls, df, essential=None, non_essential=None, metric=np.median):
+        if essential is None:
+            essential = cls.get_essential_genes(return_series=False)
+
+        if non_essential is None:
+            non_essential = cls.get_non_essential_genes(return_series=False)
+
+        ess_metric = metric(df.reindex(essential).dropna(), axis=0)
+        ness_metric = metric(df.reindex(non_essential).dropna(), axis=0)
+
+        df = df.subtract(ness_metric).divide(ness_metric - ess_metric)
+
+        return df
+
+    @classmethod
+    def get_essential_genes(cls, dfile="EssentialGenes.csv", return_series=True):
+        geneset = set(pd.read_csv(f"{files_folder}/{dfile}", sep="\t")["gene"])
+
+        if return_series:
+            geneset = pd.Series(list(geneset)).rename("essential")
+
+        return geneset
+
+    @classmethod
+    def get_non_essential_genes(cls, dfile="NonessentialGenes.csv", return_series=True):
+        geneset = set(pd.read_csv(f"{files_folder}/{dfile}", sep="\t")["gene"])
+
+        if return_series:
+            geneset = pd.Series(list(geneset)).rename("non-essential")
+
+        return geneset
 
     def _conditional_df(self, field):
         self.conditional = pd.get_dummies(self.samplesheet[field].loc[self.samples])
@@ -100,9 +138,10 @@ class CLinesDataset(Dataset):
 
         nsamples = plot_df.sum(1)
 
+        cmap = sns.color_palette("tab20").as_hex()
         cmap = mpl.colors.LinearSegmentedColormap.from_list(
             "Custom cmap",
-            ["white", "#656565"],
+            [cmap[0], cmap[1]],
             2,
         )
 
@@ -115,7 +154,7 @@ class CLinesDataset(Dataset):
                 20, i + 0.5, f"N={nsamples[c]:,}", ha="left", va="center", fontsize=6
             )
 
-        ax.set_title(f"Cancer cell lines multi-omics dataset (N={plot_df.shape[1]})")
+        ax.set_title(f"Cancer cell lines multi-omics dataset (N={plot_df.shape[1]:,})")
 
         plt.savefig(f"{plot_folder}/datasets_overlap.pdf", bbox_inches="tight")
         plt.close("all")
@@ -130,9 +169,10 @@ class CLinesDataset(Dataset):
             plot_df = plot_df.loc[:, plot_df.sum() > 0]
             plot_df = plot_df.loc[plot_df.sum(1).sort_values(ascending=False).index]
 
+            cmap = sns.color_palette("tab20").as_hex()
             cmap = mpl.colors.LinearSegmentedColormap.from_list(
                 "Custom cmap",
-                ["white", "#656565"],
+                [cmap[0], cmap[1]],
                 2,
             )
 

@@ -11,3 +11,9 @@ plot_folder = "/home/egoncalves/PhenPred/reports/vae/"
 
 if not os.path.exists(plot_folder):
     plot_folder = "reports/vae/"
+
+# Files folder path - INESC-ID server
+files_folder = "/home/egoncalves/PhenPred/data/"
+
+if not os.path.exists(files_folder):
+    files_folder = "data/"
