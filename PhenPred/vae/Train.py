@@ -27,6 +27,7 @@ from PhenPred.vae.Dataset import CLinesDataset
 from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
 from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
 from PhenPred.vae.BenchmarkGenomics import GenomicsBenchmark
+from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 
 
 _data_files = dict(
@@ -308,6 +309,8 @@ if __name__ == "__main__":
         },
     )
 
+    # timestamp = "2023-05-09_14:28:53"
+
     # Run drug benchmark
     dres_benchmark = DrugResponseBenchmark(train.timestamp)
     dres_benchmark.run()
@@ -316,10 +319,9 @@ if __name__ == "__main__":
     proteomics_benchmark = ProteomicsBenchmark(train.timestamp)
     proteomics_benchmark.run()
 
-    # # Run genomics benchmark
-    # timestamp = "2023-05-07_15:53:56"
-    # genomics_benchmark = GenomicsBenchmark(timestamp)
-    # genomics_benchmark.run()
+    # Run CRISPR benchmark
+    crispr_benchmark = CRISPRBenchmark(train.timestamp)
+    crispr_benchmark.run()
 
     # Write the hyperparameters to json file
     json.dump(
