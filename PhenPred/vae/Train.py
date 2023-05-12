@@ -28,6 +28,7 @@ from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
 from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
 from PhenPred.vae.BenchmarkGenomics import GenomicsBenchmark
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
+from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
 
 
 _data_files = dict(
@@ -50,7 +51,7 @@ _hyperparameters = dict(
         crisprcas9=_data_files["cris_csv_file"],
     ),
     conditional=False,
-    num_epochs=250,
+    num_epochs=3,
     learning_rate=1.5e-5,
     batch_size=55,
     n_folds=3,
@@ -322,6 +323,9 @@ if __name__ == "__main__":
     # Run CRISPR benchmark
     crispr_benchmark = CRISPRBenchmark(train.timestamp)
     crispr_benchmark.run()
+
+    # Run Latent Spaces Benchmark
+    latent_benchmark = LatentSpaceBenchmark(train.timestamp)
 
     # Write the hyperparameters to json file
     json.dump(
