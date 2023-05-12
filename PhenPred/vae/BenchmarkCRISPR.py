@@ -272,9 +272,9 @@ class CRISPRBenchmark:
             ("CTNNB1", "TCF7L2", "APC_mut"),
             ("PAX8", "PARD3", "loss.cnaPANCAN399"),
             ("WRN", "RPL22L1", "msi_status"),
-            ("KRAS", "KRAS", "KRAS_mut"),
+            ("KRAS", "DOCK5", "KRAS_mut"),
         ]:
-            # y_id, x_id, z_id = ("WRN", "RPL22L1", "msi_status")
+            # y_id, x_id, z_id = ("KRAS", "DOCK5", "KRAS_mut")
 
             plot_df = pd.concat(
                 [
