@@ -51,7 +51,7 @@ _hyperparameters = dict(
         crisprcas9=_data_files["cris_csv_file"],
     ),
     conditional=False,
-    num_epochs=350,
+    num_epochs=700,
     learning_rate=1e-5,
     batch_size=55,
     n_folds=3,
