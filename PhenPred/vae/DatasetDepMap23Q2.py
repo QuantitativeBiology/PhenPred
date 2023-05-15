@@ -16,22 +16,7 @@ from PhenPred.vae import data_folder, plot_folder, files_folder
 
 
 class CLinesDatasetDepMap23Q2(Dataset):
-    def __init__(self, decimals=4, datasets=None, conditional_field="tissue"):
-        # Datasets
-        self.datasets = (
-            dict(
-                copynumber=f"{data_folder}/depmap23Q2/OmicsCNGene.csv",
-                methylation=f"{data_folder}/methylation.csv",
-                transcriptomics=f"{data_folder}/depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
-                proteomics=f"{data_folder}/proteomics.csv",
-                metabolomics=f"{data_folder}/metabolomics.csv",
-                drugresponse=f"{data_folder}/drugresponse.csv",
-                crisprcas9=f"{data_folder}/depmap23Q2/CRISPRGeneDependency.csv",
-            )
-            if datasets is None
-            else datasets
-        )
-
+    def __init__(self, datasets, decimals=4, conditional_field="tissue"):
         # Read csv files
         self.dfs = {
             n: pd.read_csv(f, index_col=0).round(decimals)
