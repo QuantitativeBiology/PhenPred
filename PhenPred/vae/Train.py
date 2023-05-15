@@ -50,6 +50,15 @@ _data_files = dict(
 
 # Class variables - Hyperparameters
 _hyperparameters = dict(
+    datasets=dict(
+        copynumber=f"{data_folder}/depmap23Q2/OmicsCNGene.csv",
+        methylation=f"{data_folder}/methylation.csv",
+        transcriptomics=f"{data_folder}/depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
+        proteomics=f"{data_folder}/proteomics.csv",
+        metabolomics=f"{data_folder}/metabolomics.csv",
+        drugresponse=f"{data_folder}/drugresponse.csv",
+        crisprcas9=f"{data_folder}/depmap23Q2/CRISPRGeneDependency.csv",
+    ),
     conditional=False,
     num_epochs=10,
     learning_rate=1e-5,
@@ -285,8 +294,7 @@ class CLinesTrain:
 
 if __name__ == "__main__":
     # Load the first dataset
-    # clines_db = CLinesDataset(_hyperparameters["datasets"])
-    clines_db = CLinesDatasetDepMap23Q2()
+    clines_db = CLinesDatasetDepMap23Q2(datasets=_hyperparameters["datasets"])
     clines_db.plot_samples_overlap()
     clines_db.plot_datasets_missing_values()
 
