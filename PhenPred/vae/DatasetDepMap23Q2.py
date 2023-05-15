@@ -54,6 +54,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._samples_union()
         self._remove_features_missing_values()
         self._standardize_dfs()
+        self._conditional_df(conditional_field)
 
         self.view_names = list(self.views.keys())
 
