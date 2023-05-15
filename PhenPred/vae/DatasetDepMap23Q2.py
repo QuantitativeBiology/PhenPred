@@ -17,6 +17,10 @@ from PhenPred.vae import data_folder, plot_folder, files_folder
 
 class CLinesDatasetDepMap23Q2(Dataset):
     def __init__(self, datasets, decimals=4, conditional_field="tissue"):
+        self.datasets = datasets
+        self.decimals = decimals
+        self.conditional_field = conditional_field
+
         # Read csv files
         self.dfs = {
             n: pd.read_csv(f, index_col=0).round(decimals)
