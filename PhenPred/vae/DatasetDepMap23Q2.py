@@ -15,33 +15,93 @@ from sklearn.preprocessing import StandardScaler
 from PhenPred.vae import data_folder, plot_folder, files_folder
 
 
-class CLinesDataset(Dataset):
-    def __init__(self, datasets, conditional_field="tissue", decimals=4):
+class CLinesDatasetDepMap23Q2(Dataset):
+    def __init__(self, decimals=4, datasets=None, conditional_field="tissue"):
+        # Datasets
+        self.datasets = (
+            dict(
+                copynumber=f"{data_folder}/depmap23Q2/OmicsCNGene.csv",
+                methylation=f"{data_folder}/methylation.csv",
+                transcriptomics=f"{data_folder}/depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
+                proteomics=f"{data_folder}/proteomics.csv",
+                metabolomics=f"{data_folder}/metabolomics.csv",
+                drugresponse=f"{data_folder}/drugresponse.csv",
+                crisprcas9=f"{data_folder}/depmap23Q2/CRISPRGeneDependency.csv",
+            )
+            if datasets is None
+            else datasets
+        )
+
         # Read csv files
         self.dfs = {
-            n: pd.read_csv(f, index_col=0).T.round(decimals)
-            for n, f in datasets.items()
+            n: pd.read_csv(f, index_col=0).round(decimals)
+            for n, f in self.datasets.items()
         }
 
-        self.samplesheet = pd.read_csv(
-            f"{data_folder}/samplesheet.csv", index_col=0
-        ).dropna(subset=["cancer_type", "tissue"])
+        self.dfs = {
+            n: df if n in ["crisprcas9", "transcriptomics", "copynumber"] else df.T
+            for n, df in self.dfs.items()
+        }
 
-        if "crisprcas9" in datasets:
-            self.dfs["crisprcas9"] = self.transform_crispr(
-                self.dfs["crisprcas9"].dropna().T
-            ).T
+        for n in ["crisprcas9", "transcriptomics", "copynumber"]:
+            self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
 
+        if "copynumber" in self.dfs:
+            self.dfs["copynumber"] = self.dfs["copynumber"].dropna(how="all", axis=1)
+
+        # Build samplesheet and parse sample IDs
+        self._build_samplesheet()
         self._samples_union()
         self._remove_features_missing_values()
         self._standardize_dfs()
-        self._conditional_df(conditional_field)
 
         self.view_names = list(self.views.keys())
 
         print(
             f"[{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}] Samples = {len(self.samples)}"
         )
+
+    def _map_genesymbols(self):
+        gene_map = (
+            pd.read_csv(f"{data_folder}/gene_symbols_hgnc.csv")
+            .groupby("Input")["Approved symbol"]
+            .first()
+        )
+
+        for n, df in self.dfs.items():
+            if n in ["methylation", "transcriptomics", "proteomics", "crisprcas9"]:
+                self.dfs[n] = df.rename(index=gene_map)
+
+    def _build_samplesheet(self):
+        col_rename = dict(
+            ModelID="BROAD_ID",
+            SangerModelID="model_id",
+            SampleCollectionSite="tissue",
+            OncotreeLineage="cancer_type",
+        )
+        cols = ["model_id", "BROAD_ID", "tissue", "cancer_type"]
+
+        ss_cmp = pd.read_csv(f"{data_folder}/model_list_20230505.csv")
+        ss_depmap = pd.read_csv(f"{data_folder}/depmap23Q2/Model.csv").rename(
+            columns=col_rename
+        )
+
+        # Map sample IDs to Sanger IDs
+        self.samplesheet = pd.concat(
+            [
+                ss_cmp[cols].dropna().assign(source="sanger"),
+                ss_depmap[cols].dropna().assign(source="broad"),
+            ]
+        )
+
+        # Replace datafram columns using dict
+        self.dfs = {
+            n: df.rename(index=self.samplesheet.groupby("BROAD_ID").first()["model_id"])
+            for n, df in self.dfs.items()
+        }
+
+        # Build samplesheet
+        self.samplesheet = self.samplesheet.groupby("model_id").first()
 
     @classmethod
     def transform_crispr(cls, df, essential=None, non_essential=None, metric=np.median):
@@ -104,9 +164,9 @@ class CLinesDataset(Dataset):
 
         self.dfs = {n: df.reindex(index=self.samples) for n, df in self.dfs.items()}
 
-    def _remove_features_missing_values(self, miss_threshold=0.85):
+    def _remove_features_missing_values(self, miss_threshold=0.9):
         # Remove features with more than 50% of missing values
-        for n in ["proteomics", "metabolomics", "drugresponse"]:
+        for n in ["proteomics", "metabolomics", "drugresponse", "crisprcas9"]:
             if n in self.dfs:
                 print(f"Remove miss features: {miss_threshold}")
                 print(f"\tBefore: {self.dfs[n].shape}")
@@ -159,11 +219,20 @@ class CLinesDataset(Dataset):
 
         ax.set_title(f"Cancer cell lines multi-omics dataset (N={plot_df.shape[1]:,})")
 
-        plt.savefig(f"{plot_folder}/datasets_overlap.pdf", bbox_inches="tight")
+        plt.savefig(
+            f"{plot_folder}/datasets_overlap_DepMap23Q2.pdf", bbox_inches="tight"
+        )
         plt.close("all")
 
     def plot_datasets_missing_values(
-        self, datasets_names=["proteomics", "metabolomics", "drugresponse"]
+        self,
+        datasets_names=[
+            "proteomics",
+            "metabolomics",
+            "drugresponse",
+            "crisprcas9",
+            "copynumber",
+        ],
     ):
         for n in datasets_names:
             plot_df = ~self.dfs[n].isnull()
@@ -208,7 +277,8 @@ class CLinesDataset(Dataset):
             ax.set_title(f"{n} dataset")
 
             plt.savefig(
-                f"{plot_folder}/datasets_missing_values_{n}.png", bbox_inches="tight"
+                f"{plot_folder}/datasets_missing_values_DepMap23Q2_{n}.png",
+                bbox_inches="tight",
             )
             plt.close("all")
 
