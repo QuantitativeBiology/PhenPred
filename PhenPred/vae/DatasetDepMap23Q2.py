@@ -33,7 +33,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
         }
 
         for n in ["crisprcas9", "transcriptomics", "copynumber"]:
-            self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
+            if n in self.dfs:
+                self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
 
         if "copynumber" in self.dfs:
             self.dfs["copynumber"] = self.dfs["copynumber"].dropna(how="all", axis=1)
@@ -225,6 +226,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
         ],
     ):
         for n in datasets_names:
+            if n not in self.dfs:
+                continue
+
             plot_df = ~self.dfs[n].isnull()
             plot_df = plot_df.loc[plot_df.sum(1) != 0].astype(int)
             plot_df = plot_df[plot_df.sum().sort_values(ascending=False).index]
