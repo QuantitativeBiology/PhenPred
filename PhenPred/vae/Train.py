@@ -51,7 +51,7 @@ _data_files = dict(
 # Class variables - Hyperparameters
 _hyperparameters = dict(
     datasets=dict(
-        copynumber=f"{data_folder}/depmap23Q2/OmicsCNGene.csv",
+        # copynumber=f"{data_folder}/depmap23Q2/OmicsCNGene.csv",
         methylation=f"{data_folder}/methylation.csv",
         transcriptomics=f"{data_folder}/depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
         proteomics=f"{data_folder}/proteomics.csv",
