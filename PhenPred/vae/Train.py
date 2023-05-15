@@ -1,5 +1,12 @@
+# %load_ext autoreload
+# %autoreload 2
+
 import os
 import sys
+
+from sympy import hyper
+
+from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
 proj_dir = "/home/egoncalves/PhenPred"
 if not os.path.exists(proj_dir):
@@ -29,6 +36,7 @@ from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
 from PhenPred.vae.BenchmarkGenomics import GenomicsBenchmark
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
+from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
 
 _data_files = dict(
@@ -42,16 +50,8 @@ _data_files = dict(
 
 # Class variables - Hyperparameters
 _hyperparameters = dict(
-    datasets=dict(
-        methylation=_data_files["meth_csv_file"],
-        transcriptomics=_data_files["gexp_csv_file"],
-        proteomics=_data_files["prot_csv_file"],
-        metabolomics=_data_files["meta_csv_file"],
-        drugresponse=_data_files["dres_csv_file"],
-        crisprcas9=_data_files["cris_csv_file"],
-    ),
     conditional=False,
-    num_epochs=700,
+    num_epochs=10,
     learning_rate=1e-5,
     batch_size=55,
     n_folds=3,
@@ -285,7 +285,8 @@ class CLinesTrain:
 
 if __name__ == "__main__":
     # Load the first dataset
-    clines_db = CLinesDataset(_hyperparameters["datasets"])
+    # clines_db = CLinesDataset(_hyperparameters["datasets"])
+    clines_db = CLinesDatasetDepMap23Q2()
     clines_db.plot_samples_overlap()
     clines_db.plot_datasets_missing_values()
 
