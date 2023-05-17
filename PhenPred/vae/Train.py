@@ -39,27 +39,17 @@ from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
 
-_data_files = dict(
-    meth_csv_file=f"{data_folder}/methylation.csv",
-    gexp_csv_file=f"{data_folder}/transcriptomics.csv",
-    prot_csv_file=f"{data_folder}/proteomics.csv",
-    meta_csv_file=f"{data_folder}/metabolomics.csv",
-    dres_csv_file=f"{data_folder}/drugresponse.csv",
-    cris_csv_file=f"{data_folder}/crisprcas9_22Q2.csv",
-)
-
 # Class variables - Hyperparameters
 _hyperparameters = dict(
     datasets=dict(
-        # copynumber=f"{data_folder}/depmap23Q2/OmicsCNGene.csv",
         methylation=f"{data_folder}/methylation.csv",
-        # transcriptomics=f"{data_folder}/depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
-        transcriptomics=f"{data_folder}/transcriptomics.csv",
+        transcriptomics=f"{data_folder}/depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
+        # transcriptomics=f"{data_folder}/transcriptomics.csv",
         proteomics=f"{data_folder}/proteomics.csv",
         metabolomics=f"{data_folder}/metabolomics.csv",
         drugresponse=f"{data_folder}/drugresponse.csv",
-        # crisprcas9=f"{data_folder}/depmap23Q2/CRISPRGeneDependency.csv",
-        crisprcas9=f"{data_folder}/crisprcas9_22Q2.csv",
+        crisprcas9=f"{data_folder}/depmap23Q2/CRISPRGeneDependency.csv",
+        # crisprcas9=f"{data_folder}/crisprcas9_22Q2.csv",
     ),
     conditional=False,
     num_epochs=10,
@@ -296,7 +286,7 @@ class CLinesTrain:
 
 if __name__ == "__main__":
     # Load the first dataset
-    clines_db = CLinesDataset(datasets=_hyperparameters["datasets"])
+    clines_db = CLinesDatasetDepMap23Q2(datasets=_hyperparameters["datasets"])
     clines_db.plot_samples_overlap()
     clines_db.plot_datasets_missing_values()
 
@@ -320,7 +310,7 @@ if __name__ == "__main__":
             ]
         },
         data=clines_db,
-        markers=clines_db.dfs["transcriptomics"][["VIM"]],
+        markers=clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
     )
 
     # timestamp = "2023-05-09_14:28:53"

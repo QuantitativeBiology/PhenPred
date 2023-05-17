@@ -970,15 +970,16 @@ class GIPlot(CrispyPlot):
         df = plot_df.dropna(subset=[x, y, z])
 
         if ax is None:
-            _, ax = plt.subplots(1, 1, figsize=(2.5, 2), dpi=600)
+            _, ax = plt.subplots(1, 1, figsize=(3, 2.5), dpi=600)
 
         sc = ax.scatter(
             df[x],
             df[y],
             c=df[z],
             marker="o",
-            edgecolor="",
-            s=3,
+            edgecolor=None,
+            s=5,
+            linewidths=0,
             cmap=cmap,
             alpha=joint_alpha,
             norm=MidpointNormalize(midpoint=mid_point) if mid_point_norm else None,
@@ -995,7 +996,7 @@ class GIPlot(CrispyPlot):
                 y,
                 data=plot_df,
                 line_kws=dict(lw=1.0, color=cls.PAL_DTRACE[1]),
-                marker="",
+                scatter=False,
                 lowess=lowess,
                 truncate=True,
                 ax=ax,
