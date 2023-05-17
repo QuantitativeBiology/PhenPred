@@ -202,7 +202,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def process_df(self, df):
         # Normalize the data using StandardScaler
         scaler = StandardScaler()
-        x = scaler.fit_transform(df)
+        x = scaler.fit_transform(df).round(self.decimals)
+
         x_nan = np.isnan(x)
         x = np.nan_to_num(x, copy=False)
 
