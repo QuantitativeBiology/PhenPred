@@ -53,7 +53,7 @@ _hyperparameters = dict(
         # crisprcas9=f"{data_folder}/crisprcas9_22Q2.csv",
     ),
     conditional=False,
-    num_epochs=600,
+    num_epochs=100,
     learning_rate=1e-5,
     batch_size=77,
     n_folds=3,
