@@ -22,10 +22,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.conditional_field = conditional_field
 
         # Read csv files
-        self.dfs = {
-            n: pd.read_csv(f, index_col=0).round(decimals)
-            for n, f in self.datasets.items()
-        }
+        self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
 
         self.dfs = {
             n: df if n in ["crisprcas9", "transcriptomics", "copynumber"] else df.T
@@ -169,7 +166,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def process_df(self, df):
         # Normalize the data using StandardScaler
         scaler = StandardScaler()
-        x = scaler.fit_transform(df)
+        x = scaler.fit_transform(df).round(self.decimals)
+
         x_nan = np.isnan(x)
         x = np.nan_to_num(x, copy=False)
 
