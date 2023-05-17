@@ -16,16 +16,20 @@ from PhenPred.vae import data_folder, plot_folder, files_folder
 
 
 class CLinesDatasetDepMap23Q2(Dataset):
-    def __init__(self, datasets, decimals=4, conditional_field="tissue"):
+    def __init__(
+        self,
+        datasets,
+        decimals=4,
+        conditional_field="tissue",
+        feature_miss_rate_thres=0.9,
+    ):
         self.datasets = datasets
         self.decimals = decimals
         self.conditional_field = conditional_field
+        self.feature_miss_rate_thres = feature_miss_rate_thres
 
         # Read csv files
-        self.dfs = {
-            n: pd.read_csv(f, index_col=0).round(decimals)
-            for n, f in self.datasets.items()
-        }
+        self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
 
         self.dfs = {
             n: df if n in ["crisprcas9", "transcriptomics", "copynumber"] else df.T
@@ -72,10 +76,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
         )
         cols = ["model_id", "BROAD_ID", "tissue", "cancer_type"]
 
+        # Import samplesheets
         ss_cmp = pd.read_csv(f"{data_folder}/model_list_20230505.csv")
-        ss_depmap = pd.read_csv(f"{data_folder}/depmap23Q2/Model.csv").rename(
-            columns=col_rename
-        )
+
+        ss_depmap = pd.read_csv(f"{data_folder}/depmap23Q2/Model.csv")
+        ss_depmap.rename(columns=col_rename, inplace=True)
 
         # Map sample IDs to Sanger IDs
         self.samplesheet = pd.concat(
@@ -93,6 +98,34 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         # Build samplesheet
         self.samplesheet = self.samplesheet.groupby("model_id").first()
+
+        # Match tissue names
+        self.samplesheet["tissue"].replace(
+            dict(
+                large_intestine="Large Intestine",
+                lung="Lung",
+                ovary="Ovary",
+                upper_aerodigestive_tract="Other tissue",
+                ascites="Other tissue",
+                pleural_effusion="Other tissue",
+            ),
+            inplace=True,
+        )
+
+        # Growth properties
+        self.samplesheet["growth_properties_sanger"] = (
+            ss_cmp.set_index("model_id")
+            .reindex(self.samplesheet.index)["growth_properties"]
+            .fillna("Unknown")
+            .values
+        )
+
+        self.samplesheet["growth_properties_broad"] = (
+            ss_depmap.set_index("BROAD_ID")
+            .reindex(self.samplesheet["BROAD_ID"])["GrowthPattern"]
+            .fillna("Unknown")
+            .values
+        )
 
     @classmethod
     def transform_crispr(cls, df, essential=None, non_essential=None, metric=np.median):
@@ -155,14 +188,14 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         self.dfs = {n: df.reindex(index=self.samples) for n, df in self.dfs.items()}
 
-    def _remove_features_missing_values(self, miss_threshold=0.9):
+    def _remove_features_missing_values(self):
         # Remove features with more than 50% of missing values
         for n in ["proteomics", "metabolomics", "drugresponse", "crisprcas9"]:
             if n in self.dfs:
-                print(f"Remove miss features: {miss_threshold}")
+                print(f"Remove miss features: {self.feature_miss_rate_thres}")
                 print(f"\tBefore: {self.dfs[n].shape}")
                 self.dfs[n] = self.dfs[n].loc[
-                    :, self.dfs[n].isnull().mean() < miss_threshold
+                    :, self.dfs[n].isnull().mean() < self.feature_miss_rate_thres
                 ]
                 print(f"\tAfter: {self.dfs[n].shape}")
 
