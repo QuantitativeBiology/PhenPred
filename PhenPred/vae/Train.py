@@ -53,11 +53,13 @@ _hyperparameters = dict(
     datasets=dict(
         # copynumber=f"{data_folder}/depmap23Q2/OmicsCNGene.csv",
         methylation=f"{data_folder}/methylation.csv",
-        transcriptomics=f"{data_folder}/depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
+        # transcriptomics=f"{data_folder}/depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
+        transcriptomics=f"{data_folder}/transcriptomics.csv",
         proteomics=f"{data_folder}/proteomics.csv",
         metabolomics=f"{data_folder}/metabolomics.csv",
         drugresponse=f"{data_folder}/drugresponse.csv",
-        crisprcas9=f"{data_folder}/depmap23Q2/CRISPRGeneDependency.csv",
+        # crisprcas9=f"{data_folder}/depmap23Q2/CRISPRGeneDependency.csv",
+        crisprcas9=f"{data_folder}/crisprcas9_22Q2.csv",
     ),
     conditional=False,
     num_epochs=10,
@@ -294,7 +296,7 @@ class CLinesTrain:
 
 if __name__ == "__main__":
     # Load the first dataset
-    clines_db = CLinesDatasetDepMap23Q2(datasets=_hyperparameters["datasets"])
+    clines_db = CLinesDataset(datasets=_hyperparameters["datasets"])
     clines_db.plot_samples_overlap()
     clines_db.plot_datasets_missing_values()
 
@@ -304,9 +306,9 @@ if __name__ == "__main__":
 
     # Plot latent spaces
     CLinesLosses.plot_latent_spaces(
-        train.timestamp,
-        [],
-        {
+        timestamp=train.timestamp,
+        view_names=[],
+        configs={
             k: _hyperparameters[k]
             for k in [
                 "hidden_dims",
@@ -317,6 +319,8 @@ if __name__ == "__main__":
                 "batch_size",
             ]
         },
+        data=clines_db,
+        markers=clines_db.dfs["transcriptomics"][["VIM"]],
     )
 
     # timestamp = "2023-05-09_14:28:53"
