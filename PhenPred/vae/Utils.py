@@ -20,7 +20,7 @@ def two_vars_correlation(
             var2.reindex(idx_set).dropna().index
         )
 
-    if len(idx_set) <= min_n:
+    if (len(idx_set) <= min_n) or (var1.std() == 0) or (var2.std() == 0):
         return dict(corr=np.nan, pval=np.nan, len=len(idx_set))
 
     if method == "spearman":

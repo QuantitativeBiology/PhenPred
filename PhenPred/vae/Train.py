@@ -39,17 +39,9 @@ from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
 
-_data_files = dict(
-    meth_csv_file=f"{data_folder}/methylation.csv",
-    gexp_csv_file=f"{data_folder}/transcriptomics.csv",
-    prot_csv_file=f"{data_folder}/proteomics.csv",
-    meta_csv_file=f"{data_folder}/metabolomics.csv",
-    dres_csv_file=f"{data_folder}/drugresponse.csv",
-    cris_csv_file=f"{data_folder}/crisprcas9_22Q2.csv",
-)
-
 # Class variables - Hyperparameters
 _hyperparameters = dict(
+    dataname="depmap23Q2",
     datasets=dict(
         # copynumber=f"{data_folder}/depmap23Q2/OmicsCNGene.csv",
         methylation=f"{data_folder}/methylation.csv",
@@ -60,12 +52,12 @@ _hyperparameters = dict(
         crisprcas9=f"{data_folder}/depmap23Q2/CRISPRGeneDependency.csv",
     ),
     conditional=False,
-    num_epochs=10,
+    num_epochs=600,
     learning_rate=1e-5,
-    batch_size=55,
+    batch_size=77,
     n_folds=3,
     latent_dim=50,
-    hidden_dims=[0.5, 0.3],
+    hidden_dims=[0.7, 0.4],
     probability=0.4,
     n_groups=None,
     beta=0.1,
@@ -75,6 +67,7 @@ _hyperparameters = dict(
     reconstruction_loss="mse",
     activation_function=nn.ReLU(),
     activation_function_name="relu",
+    feature_miss_rate_thres=0.85,
 )
 
 
@@ -120,14 +113,14 @@ class CLinesTrain:
             train_loss, val_loss = self.cross_validation()
 
             # -- Train Losses (CV + Batch Average)
-            losses_dict["train_total"].append(np.mean(train_loss["total"]))
-            losses_dict["train_mse"].append(np.mean(train_loss["mse"]))
-            losses_dict["train_kl"].append(np.mean(train_loss["kl"]))
+            losses_dict["train_total"].append(np.nanmean(train_loss["total"]))
+            losses_dict["train_mse"].append(np.nanmean(train_loss["mse"]))
+            losses_dict["train_kl"].append(np.nanmean(train_loss["kl"]))
 
             # -- Validation Losses (CV + Batch Average)
-            losses_dict["val_total"].append(np.mean(val_loss["total"]))
-            losses_dict["val_mse"].append(np.mean(val_loss["mse"]))
-            losses_dict["val_kl"].append(np.mean(val_loss["kl"]))
+            losses_dict["val_total"].append(np.nanmean(val_loss["total"]))
+            losses_dict["val_mse"].append(np.nanmean(val_loss["mse"]))
+            losses_dict["val_kl"].append(np.nanmean(val_loss["kl"]))
 
             # -- Train Losses Dataset Specific (CV + Batch Average)
             for v in self.data.view_names:
@@ -294,7 +287,10 @@ class CLinesTrain:
 
 if __name__ == "__main__":
     # Load the first dataset
-    clines_db = CLinesDatasetDepMap23Q2(datasets=_hyperparameters["datasets"])
+    clines_db = CLinesDatasetDepMap23Q2(
+        datasets=_hyperparameters["datasets"],
+        feature_miss_rate_thres=_hyperparameters["feature_miss_rate_thres"],
+    )
     clines_db.plot_samples_overlap()
     clines_db.plot_datasets_missing_values()
 
@@ -304,19 +300,10 @@ if __name__ == "__main__":
 
     # Plot latent spaces
     CLinesLosses.plot_latent_spaces(
-        train.timestamp,
-        [],
-        {
-            k: _hyperparameters[k]
-            for k in [
-                "hidden_dims",
-                "latent_dim",
-                "probability",
-                "learning_rate",
-                "n_folds",
-                "batch_size",
-            ]
-        },
+        timestamp=train.timestamp,
+        view_names=[],
+        data=clines_db,
+        markers=clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
     )
 
     # timestamp = "2023-05-09_14:28:53"
@@ -330,11 +317,12 @@ if __name__ == "__main__":
     proteomics_benchmark.run()
 
     # Run CRISPR benchmark
-    crispr_benchmark = CRISPRBenchmark(train.timestamp)
+    crispr_benchmark = CRISPRBenchmark(train.timestamp, clines_db)
     crispr_benchmark.run()
 
     # Run Latent Spaces Benchmark
-    latent_benchmark = LatentSpaceBenchmark(train.timestamp)
+    latent_benchmark = LatentSpaceBenchmark(train.timestamp, clines_db)
+    latent_benchmark.run()
 
     # Write the hyperparameters to json file
     json.dump(

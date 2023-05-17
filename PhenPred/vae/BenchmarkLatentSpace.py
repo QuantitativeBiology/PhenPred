@@ -17,41 +17,44 @@ from PhenPred.vae.Utils import two_vars_correlation, LModel
 
 
 class LatentSpaceBenchmark:
-    def __init__(self, timestamp):
+    def __init__(self, timestamp, data):
+        self.data = data
         self.timestamp = timestamp
 
         self.latent_space = pd.read_csv(
             f"{plot_folder}/files/{self.timestamp}_latent_joint.csv.gz", index_col=0
         )
 
-        self.ss_cmp = pd.read_csv(
-            f"{data_folder}/cmp_model_list_20230307.csv", index_col=0
-        )
+        self.ss = data.samplesheet.copy()
 
         self.ss_ccell = pd.read_csv(
             f"{data_folder}/samplesheet_cancercell.csv", index_col=0
         )
 
-        self.prot = pd.read_csv(f"{data_folder}/proteomics.csv", index_col=0)
-        self.gexp = pd.read_csv(f"{data_folder}/transcriptomics.csv", index_col=0)
-        self.methy = pd.read_csv(f"{data_folder}/methylation.csv", index_col=0)
-        self.drespo = pd.read_csv(f"{data_folder}/drugresponse.csv", index_col=0)
+        covariates_prot = self.data.dfs["proteomics"][["CDH1", "VIM"]].add_suffix(
+            "_prot"
+        )
+        covariates_trans = self.data.dfs["transcriptomics"][["CDH1", "VIM"]].add_suffix(
+            "_gexp"
+        )
 
         self.covariates = pd.concat(
             [
                 self.ss_ccell["CopyNumberAttenuation"],
                 self.ss_ccell["GeneExpressionCorrelation"],
                 self.ss_ccell["CopyNumberInstability"],
-                self.prot.loc[["CDH1", "VIM"]].T.add_suffix("_prot"),
-                self.gexp.loc[["CDH1", "VIM"]].T.add_suffix("_gexp"),
-                pd.get_dummies(self.ss_ccell["media"]),
-                pd.get_dummies(self.ss_ccell["growth_properties"]),
-                pd.get_dummies(self.ss_ccell["growth_properties"]),
                 self.ss_ccell[["ploidy", "mutational_burden", "growth", "size"]],
                 self.ss_ccell["replicates_correlation"].rename("RepsCorrelation"),
-                self.prot.mean().rename("MeanProteomics"),
-                self.methy.mean().rename("MeanMethylation"),
-                self.drespo.mean().rename("MeanDrugResponse"),
+                covariates_prot,
+                covariates_trans,
+                pd.get_dummies(self.ss_ccell["media"]),
+                pd.get_dummies(self.ss["growth_properties_sanger"]).add_prefix(
+                    "sanger_"
+                ),
+                pd.get_dummies(self.ss["growth_properties_broad"]).add_prefix("broad_"),
+                self.data.dfs["proteomics"].mean(1).rename("MeanProteomics"),
+                self.data.dfs["methylation"].mean(1).rename("MeanMethylation"),
+                self.data.dfs["drugresponse"].mean(1).rename("MeanDrugResponse"),
             ],
             axis=1,
         )
@@ -72,7 +75,7 @@ class LatentSpaceBenchmark:
                     self.latent_space[l][fc_samples], self.covariates[c][fc_samples]
                 )["corr"]
 
-        latents_corr = pd.DataFrame(latents_corr)
+        latents_corr = pd.DataFrame(latents_corr).dropna()
 
         return latents_corr
 
@@ -117,6 +120,8 @@ class LatentSpaceBenchmark:
             cmap="RdYlGn",
             center=0,
             linewidths=0.0,
+            xticklabels=True,
+            yticklabels=True,
             col_cluster=False,
             cbar_kws={"shrink": 0.5},
             figsize=(8, 3.5),

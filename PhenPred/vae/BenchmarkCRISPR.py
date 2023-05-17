@@ -17,13 +17,12 @@ from PhenPred.vae.Utils import two_vars_correlation, LModel
 
 
 class CRISPRBenchmark:
-    def __init__(self, timestamp):
+    def __init__(self, timestamp, data, min_obs=10):
         self.timestamp = timestamp
+        self.min_obs = min_obs
 
         # Original dataset
-        self.df_original = pd.read_csv(
-            f"{data_folder}/crisprcas9_22Q2.csv", index_col=0
-        ).T.dropna()
+        self.df_original = data.dfs["crisprcas9"].dropna(how="all").dropna(axis=1)
 
         # VAE imputed dataset
         self.df_vae = pd.read_csv(
@@ -34,12 +33,12 @@ class CRISPRBenchmark:
         self.genomics = pd.read_csv(f"{data_folder}/genomics.csv", index_col=0).T
 
         # Sample sheet
-        self.ss = pd.read_csv(f"{data_folder}/cmp_model_list_20230307.csv", index_col=0)
+        self.ss = data.samplesheet.copy()
 
     def run(self):
         self.sample_correlation()
 
-        lm_genomics = self.genomic_associations()
+        lm_genomics = self.genomic_associations(min_obs=self.min_obs)
 
         self.plot_associations(lm_genomics)
         self.gene_skew_correlation()
@@ -80,7 +79,7 @@ class CRISPRBenchmark:
                 self.df_vae.apply(skew).astype(float).rename("vae"),
             ],
             axis=1,
-        )
+        ).dropna()
 
         _, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=600)
 
@@ -127,11 +126,16 @@ class CRISPRBenchmark:
         )
         plt.close()
 
-    def genomic_associations(self):
+    def genomic_associations(self, min_obs=10):
         # Covariates
         covs = pd.concat(
             [
-                self.ss["growth_properties"].str.get_dummies(),
+                self.ss["growth_properties_sanger"]
+                .str.get_dummies()
+                .add_prefix("sanger_"),
+                self.ss["growth_properties_broad"]
+                .str.get_dummies()
+                .add_prefix("broad_"),
                 self.ss["tissue"].str.get_dummies()[
                     ["Haematopoietic and Lymphoid", "Lung"]
                 ],
