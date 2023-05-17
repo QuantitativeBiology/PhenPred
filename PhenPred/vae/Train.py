@@ -43,13 +43,14 @@ from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 _hyperparameters = dict(
     dataname="depmap23Q2",
     datasets=dict(
-        # copynumber=f"{data_folder}/depmap23Q2/OmicsCNGene.csv",
         methylation=f"{data_folder}/methylation.csv",
         transcriptomics=f"{data_folder}/depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
+        # transcriptomics=f"{data_folder}/transcriptomics.csv",
         proteomics=f"{data_folder}/proteomics.csv",
         metabolomics=f"{data_folder}/metabolomics.csv",
         drugresponse=f"{data_folder}/drugresponse.csv",
         crisprcas9=f"{data_folder}/depmap23Q2/CRISPRGeneDependency.csv",
+        # crisprcas9=f"{data_folder}/crisprcas9_22Q2.csv",
     ),
     conditional=False,
     num_epochs=600,
