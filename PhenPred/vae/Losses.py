@@ -10,8 +10,10 @@ import scipy.stats as stats
 import torch.nn.functional as F
 from datetime import datetime
 from PhenPred import PALETTE_TTYPE
+from PhenPred import PALETTE_TTYPE
 from sklearn.model_selection import KFold
 from matplotlib.ticker import MaxNLocator
+from PhenPred.vae.PlotUtils import GIPlot
 from PhenPred.vae.PlotUtils import GIPlot
 from PhenPred.vae import data_folder, plot_folder
 
@@ -256,11 +258,44 @@ class CLinesLosses:
             ax.get_yaxis().set_visible(False)
             sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
 
+            ax.get_legend().get_title().set_fontsize("6")
+
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
+            sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
+
             plt.savefig(
                 f"{plot_folder}/latent/{timestamp}_umap_{l_name}.pdf",
                 bbox_inches="tight",
             )
             plt.close()
+
+        # Plot projections by marker
+        if markers is not None:
+            for l_name, l_space in latent_space_umaps.items():
+                for m in markers:
+                    plot_df = pd.concat([l_space, markers[m]], axis=1).dropna()
+
+                    ax = GIPlot.gi_continuous_plot(
+                        x="UMAP_1",
+                        y="UMAP_2",
+                        z=m,
+                        plot_df=plot_df,
+                        corr_annotation=False,
+                        mid_point_norm=False,
+                        mid_point=None,
+                        cmap="viridis",
+                    )
+
+                    ax.get_xaxis().set_visible(False)
+                    ax.get_yaxis().set_visible(False)
+                    sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
+
+                    plt.savefig(
+                        f"{plot_folder}/latent/{timestamp}_umap_by_marker_{m}_{l_name}.pdf",
+                        bbox_inches="tight",
+                    )
+                    plt.close()
 
         # Plot projections by marker
         if markers is not None:
