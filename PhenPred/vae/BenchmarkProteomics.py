@@ -18,6 +18,7 @@ from sklearn.metrics import mean_squared_error
 from PhenPred.vae import data_folder, plot_folder
 from PhenPred.vae.Utils import LModel
 from PhenPred.Utils import two_vars_correlation
+from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 
 
 _timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
@@ -26,6 +27,9 @@ _timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 class ProteomicsBenchmark:
     def __init__(self, timestamp):
         self.timestamp = timestamp
+
+        # Import MOFA dataset
+        self.mofa_db = CLinesDatasetMOFA()
 
         # Sample sheet
         self.ss = pd.read_csv(f"{data_folder}/cmp_model_list_20230307.csv", index_col=0)
@@ -43,7 +47,8 @@ class ProteomicsBenchmark:
         )
 
         # MOFA imputed dataset
-        self.df_mofa = pd.read_csv(f"{data_folder}/proteomicsMOFA.csv", index_col=0).T
+        self.df_mofa_imputed = self.mofa_db.imputed["proteomics"]
+        self.df_mofa_predicted = self.mofa_db.predicted["proteomics"]
 
         # Independent proteomics dataset - CCLE
         self.df_ccle = pd.read_csv(f"{data_folder}/proteomics_ccle.csv", index_col=0).T
@@ -63,14 +68,16 @@ class ProteomicsBenchmark:
         self.samples = (
             set(self.df_original.index)
             .intersection(set(self.df_vae.index))
-            .intersection(set(self.df_mofa.index))
+            .intersection(set(self.df_mofa_imputed.index))
+            .intersection(set(self.df_mofa_predicted.index))
             .intersection(set(self.df_ccle.index))
         )
 
         self.features = (
             set(self.df_original.columns)
             .intersection(set(self.df_vae.columns))
-            .intersection(set(self.df_mofa.columns))
+            .intersection(set(self.df_mofa_imputed.columns))
+            .intersection(set(self.df_mofa_predicted.columns))
             .intersection(set(self.df_ccle.columns))
         )
 
@@ -97,22 +104,31 @@ class ProteomicsBenchmark:
             index=self.samples, columns=self.features
         )
 
-        df_original_imp_mofa = df_original.copy().fillna(
-            self.df_mofa.reindex(index=self.samples, columns=self.features)
+        df_original_mofa_imputed = self.df_mofa_imputed.reindex(
+            index=self.samples, columns=self.features
         )
 
-        df_original_imp_vae = df_original.copy().fillna(
+        df_original_mofa_predicted = self.df_mofa_predicted.reindex(
+            index=self.samples, columns=self.features
+        )
+
+        df_original_vae_imputed = df_original.copy().fillna(
             self.df_vae.reindex(index=self.samples, columns=self.features)
         )
 
-        df_original_imp_mean = df_original.copy().fillna(df_original.mean())
+        df_original_vae_predicted = self.df_vae.reindex(
+            index=self.samples, columns=self.features
+        )
+
+        df_original_mean_imputed = df_original.copy().fillna(df_original.mean())
 
         return dict(
             original=df_original,
-            mofa=df_original_imp_mofa,
-            mean=df_original_imp_mean,
-            vae=df_original_imp_vae,
-            vae_full=self.df_vae.reindex(index=self.samples, columns=self.features),
+            mofa_imputed=df_original_mofa_imputed,
+            mofa_predicted=df_original_mofa_predicted,
+            vae_imputed=df_original_vae_imputed,
+            vae_predicted=df_original_vae_predicted,
+            mean=df_original_mean_imputed,
         )
 
     def compare_imputed_ccle(self):
@@ -186,7 +202,13 @@ class ProteomicsBenchmark:
         )
         plot_df = pd.melt(
             plot_df.reset_index(),
-            value_vars=["mean", "mofa", "vae", "vae_full"],
+            value_vars=[
+                "mean",
+                "mofa_imputed",
+                "mofa_predicted",
+                "vae_imputed",
+                "vae_predicted",
+            ],
             var_name="impute",
             value_name="corr",
             id_vars=["sample", "original"],

@@ -4,10 +4,6 @@
 import os
 import sys
 
-from sympy import hyper
-
-from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
-
 proj_dir = "/home/egoncalves/PhenPred"
 if not os.path.exists(proj_dir):
     proj_dir = "/Users/emanuel/Projects/PhenPred"
@@ -37,39 +33,11 @@ from PhenPred.vae.BenchmarkGenomics import GenomicsBenchmark
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
+from PhenPred.vae.Hypers import Hypers
 
 
 # Class variables - Hyperparameters
-_hyperparameters = dict(
-    dataname="depmap23Q2",
-    datasets=dict(
-        methylation=f"{data_folder}/methylation.csv",
-        transcriptomics=f"{data_folder}/depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
-        # transcriptomics=f"{data_folder}/transcriptomics.csv",
-        proteomics=f"{data_folder}/proteomics.csv",
-        metabolomics=f"{data_folder}/metabolomics.csv",
-        drugresponse=f"{data_folder}/drugresponse.csv",
-        crisprcas9=f"{data_folder}/depmap23Q2/CRISPRGeneEffect.csv",
-        # crisprcas9=f"{data_folder}/crisprcas9_22Q2.csv",
-    ),
-    conditional=False,
-    num_epochs=1000,
-    learning_rate=1e-5,
-    batch_size=77,
-    n_folds=3,
-    latent_dim=50,
-    hidden_dims=[0.7, .4],
-    probability=0.4,
-    n_groups=None,
-    beta=0.1,
-    optimizer_type="adam",
-    w_decay=1e-5,
-    loss_type="mse",
-    reconstruction_loss="mse",
-    activation_function=nn.ReLU(),
-    activation_function_name="relu",
-    feature_miss_rate_thres=0.85,
-)
+_hyperparameters = Hypers.read_hyperparameters()
 
 
 class CLinesTrain:
@@ -296,6 +264,7 @@ if __name__ == "__main__":
     clines_db.plot_datasets_missing_values()
 
     # Train and predictions
+    # train.timestamp = "2023-05-18_19:49:05"
     train = CLinesTrain(clines_db, _hyperparameters)
     train.run()
 
@@ -306,8 +275,6 @@ if __name__ == "__main__":
         data=clines_db,
         markers=clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
     )
-
-    # timestamp = "2023-05-09_14:28:53"
 
     # Run drug benchmark
     dres_benchmark = DrugResponseBenchmark(train.timestamp)

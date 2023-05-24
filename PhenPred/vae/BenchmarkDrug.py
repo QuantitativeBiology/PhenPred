@@ -12,6 +12,7 @@ from math import sqrt
 from datetime import datetime
 from sklearn.metrics import mean_squared_error
 from PhenPred.vae import data_folder, plot_folder
+from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 
 _timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
@@ -19,6 +20,9 @@ _timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 class DrugResponseBenchmark:
     def __init__(self, timestamp):
         self.timestamp = timestamp
+
+        # Import MOFA dataset
+        self.mofa_db = CLinesDatasetMOFA()
 
         # Original dataset
         self.df_original = pd.read_csv(f"{data_folder}/drugresponse.csv", index_col=0).T
@@ -34,7 +38,7 @@ class DrugResponseBenchmark:
         )
 
         # MOFA imputed dataset
-        self.df_mofa = pd.read_csv(f"{data_folder}/drugresponseMOFA.csv", index_col=0).T
+        self.df_mofa = self.mofa_db.imputed["drugresponse"]
 
         # Mean imputed dataset
         self.df_mean = self.df_original.fillna(self.df_original.mean())
