@@ -55,7 +55,7 @@ class MOFABencharmk:
         else:
             self.outfile = outfile
 
-        ent.save(outfile=self.outfile + ".hdf5")
+        self.ent.save(outfile=self.outfile + ".hdf5")
 
     def load_mofa(self, outfile=None):
         if outfile is None:
