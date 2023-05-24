@@ -105,7 +105,7 @@ class MOFABencharmk:
     def parse_data_for_mofa(self):
         mofa_db, mofa_db_cols = [], ["sample", "group", "feature", "value", "view"]
 
-        for n, df in clines_db.dfs.items():
+        for n, df in self.clines_db.dfs.items():
             df_melt = df.stack().reset_index()
             df_melt.columns = ["sample", "feature", "value"]
             df_melt["group"] = "groupA"
@@ -154,74 +154,3 @@ class MOFABencharmk:
             for k, df in r2.items()
         }
         return rsquare
-
-
-if __name__ == "__main__":
-    pass
-
-    hypers = Hypers.read_hyperparameters()
-
-    # Load the first dataset
-    clines_db = CLinesDatasetDepMap23Q2(
-        datasets=hypers["datasets"],
-        feature_miss_rate_thres=hypers["feature_miss_rate_thres"],
-    )
-
-    # Prepare data for MOFA
-    # [57983884 rows x 5 columns]
-
-    mofa_db, mofa_db_cols = [], ["sample", "group", "feature", "value", "view"]
-    for n, df in clines_db.dfs.items():
-        df_melt = df.stack().reset_index()
-        df_melt.columns = ["sample", "feature", "value"]
-        df_melt["group"] = "groupA"
-        df_melt["view"] = n
-        mofa_db.append(df_melt[mofa_db_cols])
-    mofa_db = pd.concat(mofa_db)
-
-    # Run MOFA
-    ent = entry_point()
-
-    ent.set_data_options(scale_groups=True, scale_views=True)
-    ent.set_data_df(mofa_db)
-    ent.set_model_options(
-        factors=hypers["latent_dim"],
-        spikeslab_weights=True,
-        ard_factors=True,
-        ard_weights=True,
-    )
-    ent.set_train_options(
-        iter=1000,
-        convergence_mode="slow",
-        startELBO=1,
-        freqELBO=1,
-        dropR2=1e-4,
-        verbose=False,
-    )
-
-    ent.build()
-    ent.run()
-
-    # Save the output
-    outfile = f"{data_folder}/mofa/MOFA_{hypers['dataname']}"
-    outfile += f"_Factors{hypers['latent_dim']}"
-
-    ent.save(outfile=outfile + ".hdf5")
-
-    # Load the output
-    mofa_file = h5py.File(outfile + ".hdf5", "r")
-
-    # Get the factors, weights and rsquare
-    factors = get_factors(mofa_file)
-    weights = get_weights(mofa_file)
-    rsquare = get_rsquare(mofa_file)
-
-    # Save the factors, weights and rsquare
-    factors.to_csv(outfile + "_factors.csv")
-
-    for n in weights:
-        weights[n].to_csv(outfile + f"_weights_{n}.csv")
-
-    rsquare["groupA"].to_csv(outfile + f"_rsquare.csv")
-
-    # Execute the following R script: PhenPred/vae/BenchmarkMOFA.R
