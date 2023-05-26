@@ -273,7 +273,13 @@ if __name__ == "__main__":
         timestamp=train.timestamp,
         view_names=[],
         data=clines_db,
-        markers=clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
+        markers=pd.concat(
+            [
+                clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
+                clines_db.dfs["metabolomics"][["1-methylnicotinamide"]],
+            ],
+            axis=1,
+        ),
     )
 
     # Run drug benchmark
