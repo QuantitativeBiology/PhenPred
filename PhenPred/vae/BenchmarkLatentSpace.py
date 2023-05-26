@@ -13,7 +13,7 @@ from scipy.stats import pearsonr, spearmanr
 from PhenPred.vae.PlotUtils import GIPlot
 from sklearn.metrics import mean_squared_error
 from PhenPred.vae import data_folder, plot_folder
-from PhenPred.vae.Utils import two_vars_correlation, LModel
+from PhenPred.vae.Utils import two_vars_correlation_vae, LModel
 
 
 class LatentSpaceBenchmark:
@@ -71,7 +71,7 @@ class LatentSpaceBenchmark:
                     .dropna()
                     .index
                 )
-                latents_corr[l][c] = two_vars_correlation(
+                latents_corr[l][c] = two_vars_correlation_vae(
                     self.latent_space[l][fc_samples], self.covariates[c][fc_samples]
                 )["corr"]
 

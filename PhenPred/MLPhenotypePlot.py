@@ -3,7 +3,7 @@
 
 import sys
 
-sys.path.extend(['/Volumes/GoogleDrive-108722195023672559969/My Drive/Grants/2023 ERC STG/PhenPred'])
+sys.path.extend(['/home/scai/PhenPred'])
 
 import pandas as pd
 import seaborn as sns

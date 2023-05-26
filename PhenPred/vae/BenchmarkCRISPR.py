@@ -13,7 +13,7 @@ from scipy.stats import pearsonr, spearmanr
 from PhenPred.vae.PlotUtils import GIPlot
 from sklearn.metrics import mean_squared_error
 from PhenPred.vae import data_folder, plot_folder
-from PhenPred.vae.Utils import two_vars_correlation, LModel
+from PhenPred.vae.Utils import two_vars_correlation_vae, LModel
 
 
 class CRISPRBenchmark:
@@ -49,7 +49,7 @@ class CRISPRBenchmark:
 
         samples_corr = pd.DataFrame(
             {
-                s: two_vars_correlation(
+                s: two_vars_correlation_vae(
                     self.df_original.loc[s, genes], self.df_vae.loc[s, genes]
                 )
                 for s in samples

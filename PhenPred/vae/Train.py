@@ -4,15 +4,14 @@
 import os
 import sys
 
-from sympy import hyper
 
-from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
+proj_dir = "/home/scai/PhenPred"
 
-proj_dir = "/home/egoncalves/PhenPred"
-if not os.path.exists(proj_dir):
-    proj_dir = "/Users/emanuel/Projects/PhenPred"
 sys.path.extend([proj_dir])
 
+
+from sympy import hyper
+from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 import json
 import torch
 import PhenPred
@@ -53,7 +52,7 @@ _hyperparameters = dict(
         # crisprcas9=f"{data_folder}/crisprcas9_22Q2.csv",
     ),
     conditional=False,
-    num_epochs=1000,
+    num_epochs=50,
     learning_rate=1e-5,
     batch_size=77,
     n_folds=3,

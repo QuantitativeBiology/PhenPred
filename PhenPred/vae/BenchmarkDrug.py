@@ -1,6 +1,6 @@
 import sys
 
-sys.path.extend(["/home/egoncalves/PhenPred"])
+sys.path.extend(["/home/scai/PhenPred"])
 
 import PhenPred
 import numpy as np

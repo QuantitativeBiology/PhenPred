@@ -6,7 +6,7 @@ from sklearn.linear_model import LinearRegression
 from statsmodels.stats.multitest import multipletests
 
 
-def two_vars_correlation(
+def two_vars_correlation_vae(
     var1, var2, idx_set=None, method="pearson", min_n=15, verbose=0
 ):
     if verbose > 0:

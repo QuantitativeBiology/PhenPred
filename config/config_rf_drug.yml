@@ -1,6 +1,6 @@
 ---
 DATA:
-  dir: "/Volumes/GoogleDrive-108722195023672559969/Shared drives/QuantitativeBiology/Datasets"
+  dir: "/home/scai/PhenPred/data/clines"
   min_count: 100
   append_tissue: True
 

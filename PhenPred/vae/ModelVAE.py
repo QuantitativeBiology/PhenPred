@@ -1,6 +1,6 @@
 import sys
 
-sys.path.extend(["/home/egoncalves/PhenPred"])
+sys.path.extend(["/home/scai/PhenPred"])
 
 import json
 import torch
@@ -24,7 +24,7 @@ from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
 
 
 # Class variables - paths to csv files
-_data_folder = "/data/benchmarks/clines/"
+_data_folder = "/home/scai/PhenPred/data/clines/"
 _data_files = dict(
     meth_csv_file=f"{_data_folder}/methylation.csv",
     gexp_csv_file=f"{_data_folder}/transcriptomics.csv",
@@ -68,7 +68,7 @@ torch.set_num_threads(28)
 
 # Class variables - Misc
 _timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-_dirPlots = "/home/egoncalves/PhenPred/reports/vae/"
+_dirPlots = "/home/scai/PhenPred/reports/vae/"
 
 
 def cross_validation(data, model, optimizer):
