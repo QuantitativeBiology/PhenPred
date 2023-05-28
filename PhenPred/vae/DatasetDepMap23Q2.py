@@ -22,6 +22,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         decimals=4,
         conditional_field="tissue",
         feature_miss_rate_thres=0.9,
+        covariates=None,
     ):
         self.datasets = datasets
         self.decimals = decimals
@@ -30,7 +31,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         # Read csv files
         self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
-
         self.dfs = {
             n: df if n in ["crisprcas9", "transcriptomics", "copynumber"] else df.T
             for n, df in self.dfs.items()
@@ -49,6 +49,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._remove_features_missing_values()
         self._standardize_dfs()
         self._conditional_df(conditional_field)
+
+        if covariates is not None:
+            self.covariates = pd.get_dummies(
+                self.samplesheet.loc[self.samples, covariates]
+            )
 
         self.view_names = list(self.views.keys())
 
@@ -316,5 +321,5 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def __getitem__(self, idx):
         x = [df[idx] for df in self.views.values()]
         x_nans = [df[idx] for df in self.view_nans.values()]
-        y = self.conditional.iloc[idx].values
+        y = self.covariates.iloc[idx].values
         return x, y, x_nans

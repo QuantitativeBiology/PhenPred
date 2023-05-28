@@ -7,19 +7,19 @@ import torch.nn.functional as F
 
 
 class CLinesCVAE(nn.Module):
-    def __init__(self, views, hyper, condi=None):
+    def __init__(self, views, hyper, conditional=None, covariates_n=0):
         super(CLinesCVAE, self).__init__()
 
         self.views = views
         self.hyper = hyper
-        self.condi = condi
+        self.conditional = conditional
+        self.covariates_n = covariates_n
 
         print("# ---- CLinesCVAE ---- #")
-
         self.views_sizes = {n: v.shape[1] for n, v in self.views.items()}
 
-        if self.condi is not None:
-            self.condi_size = self.condi.shape[1]
+        if self.conditional is not None:
+            self.conditional_size = self.conditional.shape[1]
 
         if self.hyper["n_groups"] is not None:
             self._build_groupbottleneck()
@@ -27,7 +27,7 @@ class CLinesCVAE(nn.Module):
         self._build_encoders()
         self._build_mean_vars()
 
-        if self.condi is not None:
+        if self.conditional is not None:
             self._build_contextualized_attention()
 
         self._build_decoders()
@@ -48,7 +48,8 @@ class CLinesCVAE(nn.Module):
         self.encoders = nn.ModuleList()
 
         for n in self.views:
-            layer_sizes = [self.views_sizes[n]]
+            layer_sizes = [self.views_sizes[n] + self.covariates_n]
+
             layer_sizes += [
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"]
             ]
@@ -85,7 +86,7 @@ class CLinesCVAE(nn.Module):
 
     def _build_contextualized_attention(self):
         self.context_att = ContextualizedAttention(
-            context_dim=self.condi_size,
+            context_dim=self.conditional_size,
             latent_dim=self.hyper["latent_dim"],
         )
 
@@ -93,6 +94,7 @@ class CLinesCVAE(nn.Module):
         self.decoders = nn.ModuleList()
         for n in self.views:
             layer_sizes = [self.hyper["latent_dim"]]
+
             layer_sizes += [
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"][::-1]
             ]
@@ -102,7 +104,10 @@ class CLinesCVAE(nn.Module):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hyper["probability"]))
                 layers.append(self.hyper["activation_function"])
-            layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
+
+            layers.append(
+                nn.Linear(layer_sizes[-1], self.views_sizes[n] + self.covariates_n)
+            )
 
             self.decoders.append(nn.Sequential(*layers))
 
@@ -112,10 +117,13 @@ class CLinesCVAE(nn.Module):
         z = mu + eps * std
         return z
 
-    def encode(self, views):
+    def encode(self, views, labels=None):
         encoders = []
         for i, _ in enumerate(self.views):
             x = views[i]
+
+            if self.covariates_n != 0:
+                x = torch.cat([x, labels], dim=1)
 
             if self.hyper["n_groups"] is not None:
                 x = self.groups[i](x)
@@ -132,10 +140,10 @@ class CLinesCVAE(nn.Module):
         return decoders
 
     def forward(self, views, labels=None):
-        encoders = self.encode(views)
+        encoders = self.encode(views, labels)
         means, log_variances = self.mean_variance(encoders)
 
-        if self.condi is not None:
+        if self.conditional is not None:
             zs = [
                 self.reparameterize(mu, logvar)
                 for mu, logvar in zip(means, log_variances)
