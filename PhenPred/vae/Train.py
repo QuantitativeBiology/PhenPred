@@ -52,6 +52,7 @@ class CLinesTrain:
             self.data.views,
             self.hypers,
             self.data.conditional if self.hypers["conditional"] else None,
+            0 if self.hypers["covariates"] is None else self.data.covariates.shape[1],
         ).to(self.device)
 
         self.model = nn.DataParallel(self.model)
@@ -70,10 +71,12 @@ class CLinesTrain:
             "train_total": [],
             "train_mse": [],
             "train_kl": [],
+            "train_cov": [],
             "train_mse_views": {d: [] for d in self.data.view_names},
             "val_total": [],
             "val_mse": [],
             "val_kl": [],
+            "val_cov": [],
             "val_mse_views": {d: [] for d in self.data.view_names},
         }
 
@@ -85,11 +88,13 @@ class CLinesTrain:
             losses_dict["train_total"].append(np.nanmean(train_loss["total"]))
             losses_dict["train_mse"].append(np.nanmean(train_loss["mse"]))
             losses_dict["train_kl"].append(np.nanmean(train_loss["kl"]))
+            losses_dict["train_cov"].append(np.nanmean(train_loss["cov"]))
 
             # -- Validation Losses (CV + Batch Average)
             losses_dict["val_total"].append(np.nanmean(val_loss["total"]))
             losses_dict["val_mse"].append(np.nanmean(val_loss["mse"]))
             losses_dict["val_kl"].append(np.nanmean(val_loss["kl"]))
+            losses_dict["val_cov"].append(np.nanmean(val_loss["cov"]))
 
             # -- Train Losses Dataset Specific (CV + Batch Average)
             for v in self.data.view_names:
@@ -102,12 +107,14 @@ class CLinesTrain:
 
             print(
                 f"[{datetime.now().strftime('%H:%M:%S')}] Epoch {epoch + 1}"
-                + f"| Loss (train): {losses_dict['train_total'][epoch]:.4f}"
-                + f"| Loss (val): {losses_dict['val_total'][epoch]:.4f}"
-                + f"| MSE (train): {losses_dict['train_mse'][epoch]:.4f}"
-                + f"| MSE (val): {losses_dict['val_mse'][epoch]:.4f}"
-                + f"| KL (train): {losses_dict['train_kl'][epoch]:.4f}"
-                + f"| KL (val): {losses_dict['val_kl'][epoch]:.4f}"
+                + f"| Loss (train): {losses_dict['train_total'][epoch]:.3f}"
+                + f"| Loss (val): {losses_dict['val_total'][epoch]:.3f}"
+                + f"| MSE (train): {losses_dict['train_mse'][epoch]:.3f}"
+                + f"| MSE (val): {losses_dict['val_mse'][epoch]:.3f}"
+                + f"| KL (train): {losses_dict['train_kl'][epoch]:.3f}"
+                + f"| KL (val): {losses_dict['val_kl'][epoch]:.3f}"
+                + f"| Cov (train): {losses_dict['train_cov'][epoch]:.3f}"
+                + f"| Cov (val): {losses_dict['val_cov'][epoch]:.3f}"
             )
 
         CLinesLosses.plot_losses(
@@ -118,10 +125,18 @@ class CLinesTrain:
 
     def cross_validation(self):
         train_loss = dict(
-            total=[], mse=[], kl=[], mse_views={d: [] for d in self.data.view_names}
+            total=[],
+            mse=[],
+            kl=[],
+            cov=[],
+            mse_views={d: [] for d in self.data.view_names},
         )
         val_loss = dict(
-            total=[], mse=[], kl=[], mse_views={d: [] for d in self.data.view_names}
+            total=[],
+            mse=[],
+            kl=[],
+            cov=[],
+            mse_views={d: [] for d in self.data.view_names},
         )
 
         cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True)
@@ -147,28 +162,39 @@ class CLinesTrain:
                 views = [view.to(self.device) for view in views]
                 views_nans = [~view.to(self.device) for view in views_nans]
 
-                # Conditional
-                labels = labels.to(self.device) if self.hypers["conditional"] else None
+                # Covariates
+                labels = (
+                    labels.to(self.device)
+                    if self.hypers["covariates"] is not None
+                    else None
+                )
 
                 # Forward pass to get the predictions
                 views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
 
                 # Calculate Losses
-                loss, mse, kl, mse_views = CLinesLosses.loss_function(
-                    self.hypers, views, views_hat, mu_joint, logvar_joint, views_nans
+                loss = CLinesLosses.loss_function(
+                    self.hypers,
+                    views,
+                    views_hat,
+                    mu_joint,
+                    logvar_joint,
+                    views_nans,
+                    labels,
                 )
 
                 # Store values
-                for k, v in mse_views.items():
+                for k, v in loss["mse_views"].items():
                     train_loss["mse_views"][k].append(v.cpu().detach().numpy())
 
-                train_loss["total"].append(loss.cpu().detach().numpy())
-                train_loss["mse"].append(mse.cpu().detach().numpy())
-                train_loss["kl"].append(kl.cpu().detach().numpy())
+                train_loss["total"].append(loss["total"].cpu().detach().numpy())
+                train_loss["mse"].append(loss["mse"].cpu().detach().numpy())
+                train_loss["kl"].append(loss["kl"].cpu().detach().numpy())
+                train_loss["cov"].append(loss["covariate"].cpu().detach().numpy())
 
                 with torch.autograd.set_detect_anomaly(True):
                     self.optimizer.zero_grad()
-                    loss.backward()
+                    loss["total"].backward()
                     self.optimizer.step()
 
             # --- VALIDATION LOOP
@@ -179,9 +205,11 @@ class CLinesTrain:
                     views = [view.to(self.device) for view in views]
                     views_nans = [~view.to(self.device) for view in views_nans]
 
-                    # Conditional
+                    # covariates
                     labels = (
-                        labels.to(self.device) if self.hypers["conditional"] else None
+                        labels.to(self.device)
+                        if self.hypers["covariates"] is not None
+                        else None
                     )
 
                     # Forward pass to get the predictions
@@ -190,22 +218,24 @@ class CLinesTrain:
                     )
 
                     # Calculate Losses
-                    loss, mse, kl, mse_views = CLinesLosses.loss_function(
+                    loss = CLinesLosses.loss_function(
                         self.hypers,
                         views,
                         views_hat,
                         mu_joint,
                         logvar_joint,
                         views_nans,
+                        labels,
                     )
 
                     # Store values
-                    for k, v in mse_views.items():
+                    for k, v in loss["mse_views"].items():
                         val_loss["mse_views"][k].append(v.cpu().detach().numpy())
 
-                    val_loss["total"].append(loss.cpu().detach().numpy())
-                    val_loss["mse"].append(mse.cpu().detach().numpy())
-                    val_loss["kl"].append(kl.cpu().detach().numpy())
+                    val_loss["total"].append(loss["total"].cpu().detach().numpy())
+                    val_loss["mse"].append(loss["mse"].cpu().detach().numpy())
+                    val_loss["kl"].append(loss["kl"].cpu().detach().numpy())
+                    val_loss["cov"].append(loss["covariate"].cpu().detach().numpy())
 
         return train_loss, val_loss
 
@@ -225,6 +255,10 @@ class CLinesTrain:
 
             # Forward pass to get the predictions
             views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
+
+            if self.hypers["covariates"] is not None:
+                covariates_n = self.data.covariates.shape[1]
+                views_hat = [v[:, :-covariates_n] for v in views_hat]
 
             for name, df in zip(self.data.view_names, views_hat):
                 imputed_datasets[name] = pd.DataFrame(
@@ -259,6 +293,7 @@ if __name__ == "__main__":
     clines_db = CLinesDatasetDepMap23Q2(
         datasets=_hyperparameters["datasets"],
         feature_miss_rate_thres=_hyperparameters["feature_miss_rate_thres"],
+        covariates=_hyperparameters["covariates"],
     )
     clines_db.plot_samples_overlap()
     clines_db.plot_datasets_missing_values()
