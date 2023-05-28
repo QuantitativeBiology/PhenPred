@@ -52,20 +52,27 @@ class CLinesLosses:
         means,
         log_variances,
         views_nans=None,
+        covariates=None,
     ):
+        if covariates is not None:
+            covariates_n = covariates.shape[1]
+
         # Compute reconstruction loss across views
-        mse_loss = 0
-        view_mse_losses = {}
+        mse_loss, view_mse_loss = 0, {}
         for i, k in enumerate(hypers["datasets"]):
+            X, X_ = views[i], views_hat[i]
+
+            if covariates_n != 0:
+                X_ = X_[:, :-covariates_n]
+
             if views_nans is not None:
-                loss_func = cls.reconstruction_loss(hypers["reconstruction_loss"])
-                mse_loss_view = loss_func(
-                    views[i][views_nans[i]], views_hat[i][views_nans[i]]
-                )
-            else:
-                mse_loss_view = F.mse_loss(views[i], views_hat[i])
-            mse_loss += mse_loss_view
-            view_mse_losses[k] = mse_loss_view
+                X, X_ = X[views_nans[i]], X_[views_nans[i]]
+
+            loss_func = cls.reconstruction_loss(hypers["reconstruction_loss"])
+            v_mse_loss = loss_func(X_, X)
+
+            mse_loss += v_mse_loss
+            view_mse_loss[k] = v_mse_loss
 
         # Compute KL divergence loss
         kl_loss = 0
@@ -73,14 +80,39 @@ class CLinesLosses:
             kl_loss += (
                 -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / len(mu)
             )
+
         kl_loss /= hypers["batch_size"]
         kl_loss *= hypers["beta"]
 
+        # Compute batch covariate loss
+        covariate_loss, view_covariate_loss = 0, {}
+        if covariates_n != 0:
+            for i, k in enumerate(hypers["datasets"]):
+                X, X_ = covariates, views_hat[i][:, -covariates_n:]
+
+                # calculate cross_entropy loss between two matrices
+                v_covariate_loss = torch.mean(
+                    torch.stack(
+                        [F.cross_entropy(X_, X[:, i]) for i in range(X_.shape[1])]
+                    )
+                )
+
+                covariate_loss += v_covariate_loss
+                view_covariate_loss[k] = v_covariate_loss
+            covariate_loss /= len(hypers["datasets"])
+
         # Compute total loss
-        total_loss = kl_loss + mse_loss
+        total_loss = kl_loss + mse_loss + covariate_loss
 
         # Return total loss, total MSE loss, and view specific MSE loss
-        return total_loss, mse_loss, kl_loss, view_mse_losses
+        return dict(
+            total=total_loss,
+            mse=mse_loss,
+            kl=kl_loss,
+            covariate=covariate_loss,
+            mse_views=view_mse_loss,
+            covariate_views=view_covariate_loss,
+        )
 
     @classmethod
     def get_optimizer(cls, hyper, model):
