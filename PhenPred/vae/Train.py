@@ -52,7 +52,6 @@ class CLinesTrain:
             self.data.views,
             self.hypers,
             self.data.conditional if self.hypers["conditional"] else None,
-            0 if self.hypers["covariates"] is None else self.data.covariates.shape[1],
         ).to(self.device)
 
         self.model = nn.DataParallel(self.model)
@@ -106,15 +105,11 @@ class CLinesTrain:
                 )
 
             print(
-                f"[{datetime.now().strftime('%H:%M:%S')}] Epoch {epoch + 1}"
-                + f"| Loss (train): {losses_dict['train_total'][epoch]:.3f}"
-                + f"| Loss (val): {losses_dict['val_total'][epoch]:.3f}"
-                + f"| MSE (train): {losses_dict['train_mse'][epoch]:.3f}"
-                + f"| MSE (val): {losses_dict['val_mse'][epoch]:.3f}"
-                + f"| KL (train): {losses_dict['train_kl'][epoch]:.3f}"
-                + f"| KL (val): {losses_dict['val_kl'][epoch]:.3f}"
-                + f"| Cov (train): {losses_dict['train_cov'][epoch]:.3f}"
-                + f"| Cov (val): {losses_dict['val_cov'][epoch]:.3f}"
+                f"[{datetime.now().strftime('%H:%M:%S')}] Epoch {epoch + 1} Loss (train / val)"
+                + f"| Total: {losses_dict['train_total'][epoch]:.3f} / {losses_dict['val_total'][epoch]:.3f}"
+                + f"| MSE: {losses_dict['train_mse'][epoch]:.3f} / {losses_dict['val_mse'][epoch]:.3f}"
+                + f"| KL: {losses_dict['train_kl'][epoch]:.3f} / {losses_dict['val_kl'][epoch]:.3f}"
+                + f"| Cov: {losses_dict['train_cov'][epoch]:.3f} / {losses_dict['val_cov'][epoch]:.3f}"
             )
 
         CLinesLosses.plot_losses(
@@ -163,24 +158,24 @@ class CLinesTrain:
                 views_nans = [~view.to(self.device) for view in views_nans]
 
                 # Covariates
-                labels = (
-                    labels.to(self.device)
-                    if self.hypers["covariates"] is not None
-                    else None
-                )
+                labels = labels.to(self.device)
 
                 # Forward pass to get the predictions
                 views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
 
+                # Sample from joint latent space
+                z_joint = self.model.module.reparameterize(mu_joint, logvar_joint)
+
                 # Calculate Losses
                 loss = CLinesLosses.loss_function(
-                    self.hypers,
-                    views,
-                    views_hat,
-                    mu_joint,
-                    logvar_joint,
-                    views_nans,
-                    labels,
+                    hypers=self.hypers,
+                    views=views,
+                    views_hat=views_hat,
+                    means=mu_joint,
+                    log_variances=logvar_joint,
+                    z_joint=z_joint,
+                    views_nans=views_nans,
+                    covariates=None if self.hypers["covariates"] is None else labels,
                 )
 
                 # Store values
@@ -206,26 +201,26 @@ class CLinesTrain:
                     views_nans = [~view.to(self.device) for view in views_nans]
 
                     # covariates
-                    labels = (
-                        labels.to(self.device)
-                        if self.hypers["covariates"] is not None
-                        else None
-                    )
+                    labels = labels.to(self.device)
 
                     # Forward pass to get the predictions
-                    views_hat, mu_joint, logvar_joint = self.model.forward(
-                        views, labels
-                    )
+                    views_hat, mu_joint, logvar_joint = self.model.forward(views)
+
+                    # Sample from joint latent space
+                    z_joint = self.model.module.reparameterize(mu_joint, logvar_joint)
 
                     # Calculate Losses
                     loss = CLinesLosses.loss_function(
-                        self.hypers,
-                        views,
-                        views_hat,
-                        mu_joint,
-                        logvar_joint,
-                        views_nans,
-                        labels,
+                        hypers=self.hypers,
+                        views=views,
+                        views_hat=views_hat,
+                        means=mu_joint,
+                        log_variances=logvar_joint,
+                        z_joint=z_joint,
+                        views_nans=views_nans,
+                        covariates=None
+                        if self.hypers["covariates"] is None
+                        else labels,
                     )
 
                     # Store values
@@ -255,10 +250,6 @@ class CLinesTrain:
 
             # Forward pass to get the predictions
             views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
-
-            if self.hypers["covariates"] is not None:
-                covariates_n = self.data.covariates.shape[1]
-                views_hat = [v[:, :-covariates_n] for v in views_hat]
 
             for name, df in zip(self.data.view_names, views_hat):
                 imputed_datasets[name] = pd.DataFrame(

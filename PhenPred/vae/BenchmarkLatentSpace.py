@@ -144,6 +144,8 @@ class LatentSpaceBenchmark:
             annot_kws={"fontsize": 3},
             cbar=False,
             fmt=".1f",
+            vmin=-1,
+            vmax=1,
             ax=axs[0, 0],
         )
 
@@ -187,6 +189,8 @@ class LatentSpaceBenchmark:
             annot_kws={"fontsize": 3},
             cbar=False,
             fmt=".1f",
+            vmin=-1,
+            vmax=1,
             ax=axs[1, 0],
         )
 
@@ -226,6 +230,8 @@ class LatentSpaceBenchmark:
             center=0,
             xticklabels=False,
             yticklabels=False,
+            vmin=-1,
+            vmax=1,
             linewidths=0.0,
             cbar_kws={"shrink": 0.5},
             figsize=(4, 4),
@@ -247,6 +253,8 @@ class LatentSpaceBenchmark:
             latents_corr,
             cmap="RdYlGn",
             center=0,
+            vmin=-1,
+            vmax=1,
             linewidths=0.0,
             xticklabels=True,
             yticklabels=True,

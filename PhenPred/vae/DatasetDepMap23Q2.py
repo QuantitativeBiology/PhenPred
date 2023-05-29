@@ -14,6 +14,8 @@ from torch.utils.data import DataLoader, Dataset
 from sklearn.preprocessing import StandardScaler
 from PhenPred.vae import data_folder, plot_folder, files_folder
 
+# TODO: Conditinal e covariates are largely overlapping features. Merge.
+
 
 class CLinesDatasetDepMap23Q2(Dataset):
     def __init__(
