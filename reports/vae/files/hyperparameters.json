@@ -9,7 +9,7 @@
         "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv"
     },
     "conditional": false,
-    "num_epochs": 300,
+    "num_epochs": 1000,
     "learning_rate": 1e-5,
     "batch_size": 77,
     "n_folds": 3,

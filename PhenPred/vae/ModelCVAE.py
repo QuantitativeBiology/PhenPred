@@ -7,19 +7,16 @@ import torch.nn.functional as F
 
 
 class CLinesCVAE(nn.Module):
-    def __init__(self, views, hyper, conditional=None, covariates_n=0):
+    def __init__(self, views, hyper, conditional=None):
         super(CLinesCVAE, self).__init__()
 
         self.views = views
         self.hyper = hyper
         self.conditional = conditional
-        self.covariates_n = covariates_n
+        self.conditional_size = 0 if conditional is None else conditional.shape[1]
 
         print("# ---- CLinesCVAE ---- #")
         self.views_sizes = {n: v.shape[1] for n, v in self.views.items()}
-
-        if self.conditional is not None:
-            self.conditional_size = self.conditional.shape[1]
 
         if self.hyper["n_groups"] is not None:
             self._build_groupbottleneck()
@@ -48,7 +45,7 @@ class CLinesCVAE(nn.Module):
         self.encoders = nn.ModuleList()
 
         for n in self.views:
-            layer_sizes = [self.views_sizes[n] + self.covariates_n]
+            layer_sizes = [self.views_sizes[n] + self.conditional_size]
 
             layer_sizes += [
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"]
@@ -106,7 +103,7 @@ class CLinesCVAE(nn.Module):
                 layers.append(self.hyper["activation_function"])
 
             layers.append(
-                nn.Linear(layer_sizes[-1], self.views_sizes[n] + self.covariates_n)
+                nn.Linear(layer_sizes[-1], self.views_sizes[n] + self.conditional_size)
             )
 
             self.decoders.append(nn.Sequential(*layers))
@@ -122,7 +119,7 @@ class CLinesCVAE(nn.Module):
         for i, _ in enumerate(self.views):
             x = views[i]
 
-            if self.covariates_n != 0:
+            if self.conditional_size != 0:
                 x = torch.cat([x, labels], dim=1)
 
             if self.hyper["n_groups"] is not None:
@@ -132,10 +129,16 @@ class CLinesCVAE(nn.Module):
             encoders.append(x)
         return encoders
 
-    def decode(self, z):
+    def decode(self, z, labels=None):
         decoders = []
         for i, _ in enumerate(self.views):
-            x = self.decoders[i](z)
+            z_ = z
+
+            if self.conditional_size != 0:
+                z_ = torch.cat([z_, labels], dim=1)
+
+            x = self.decoders[i](z_)
+
             decoders.append(x)
         return decoders
 
