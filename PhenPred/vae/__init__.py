@@ -17,3 +17,9 @@ files_folder = "/home/scai/PhenPred/data/"
 
 if not os.path.exists(files_folder):
     files_folder = "data/"
+
+# Log folder path - INESC-ID server
+logs_folder = "/home/scai/PhenPred/logs/"
+
+if not os.path.exists(logs_folder):
+    logs_folder = "logs/"

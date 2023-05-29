@@ -104,6 +104,8 @@ class CLinesLosses:
             {k: v for k, v in losses_dict.items() if not k.endswith("_views")}
         )
         losses["epoch"] = losses.index
+        losses.to_csv(f"{plot_folder}/losses/{timestamp}_losses.csv", index=False)
+
         _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
         sns.lineplot(
             data=pd.melt(

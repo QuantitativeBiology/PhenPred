@@ -30,6 +30,9 @@ class CLinesCVAE(nn.Module):
         if self.condi is not None:
             self._build_contextualized_attention()
 
+        if self.hyper["mlp_join"]:
+            self._build_mlp()
+
         self._build_decoders()
 
     def _build_groupbottleneck(self):
@@ -89,10 +92,17 @@ class CLinesCVAE(nn.Module):
             latent_dim=self.hyper["latent_dim"],
         )
 
+    def _build_mlp(self):
+        self.mlp_mu = MLP(self.hyper["latent_dim"]*len(self.views), self.hyper["latent_dim"])
+        self.mlp_var = MLP(self.hyper["latent_dim"] * len(self.views), self.hyper["latent_dim"])
+
     def _build_decoders(self):
         self.decoders = nn.ModuleList()
         for n in self.views:
-            layer_sizes = [self.hyper["latent_dim"]]
+            if self.hyper["concat_join"]:
+                layer_sizes = [self.hyper["latent_dim"]*len(self.views)]
+            else:
+                layer_sizes = [self.hyper["latent_dim"]]
             layer_sizes += [
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"][::-1]
             ]
@@ -111,6 +121,15 @@ class CLinesCVAE(nn.Module):
         eps = torch.randn_like(std)
         z = mu + eps * std
         return z
+
+    def reparameterize_2(self, mu, logvar):
+        if self.training:
+            std = torch.exp(0.5 * logvar)
+            eps = torch.randn_like(std)
+            return mu + std * eps
+        else:
+            # Reconstruction mode
+            return mu
 
     def encode(self, views):
         encoders = []
@@ -141,10 +160,15 @@ class CLinesCVAE(nn.Module):
                 for mu, logvar in zip(means, log_variances)
             ]
             mu, logvar = self.context_att(zs, labels)
+        elif self.hyper["mlp_join"]:
+            mu, logvar = self.mlp_combine(means, log_variances)
+        elif self.hyper["concat_join"]:
+            mu = torch.cat(means, dim=1)
+            logvar = torch.cat(log_variances, dim=1)
         else:
-            mu, logvar = self.product_of_experts(means, log_variances)
+            mu, logvar = self.product_of_experts_2(means, log_variances)
 
-        z = self.reparameterize(mu, logvar)
+        z = self.reparameterize_2(mu, logvar)
         decoders = self.decode(z)
         return decoders, mu, logvar
 
@@ -173,6 +197,36 @@ class CLinesCVAE(nn.Module):
 
         return mu_joint, logvar_joint
 
+    def mlp_combine(self, means, logs):
+        mu_joint = torch.cat(means, dim=1)
+        logvar_joint = torch.cat(logs, dim=1)
+        mu = self.mlp_mu(mu_joint)
+        log_var = self.mlp_var(logvar_joint)
+        return mu, log_var
+
+    def product_of_experts_2(self, mu_list, logvar_list):
+        # Convert logvar to precision (inverse variance)
+        precision_list = [torch.exp(-logvar) for logvar in logvar_list]
+
+        # Compute the combined precision and mu
+        combined_precision = torch.sum(torch.stack(precision_list), dim=0)
+        combined_mu = torch.sum(torch.stack([precision * mu for precision, mu in zip(precision_list, mu_list)]), dim=0)
+
+        # Convert back to logvar
+        combined_logvar = -torch.log(combined_precision)
+
+        return combined_mu / combined_precision, combined_logvar
+
+class MLP(nn.Module):
+    def __init__(self, input_dim, output_dim, hidden_dim=128):
+        super(MLP, self).__init__()
+        self.layer1 = nn.Linear(input_dim, hidden_dim)
+        self.layer2 = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, x):
+        x = F.relu(self.layer1(x))
+        x = self.layer2(x)
+        return x
 
 class ContextualizedAttention(nn.Module):
     def __init__(self, context_dim, latent_dim):

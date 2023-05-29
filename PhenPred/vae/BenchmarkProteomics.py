@@ -89,8 +89,8 @@ class ProteomicsBenchmark:
 
     def run(self):
         self.compare_imputed_ccle()
-        self.ccle_compare_by_genes()
-        self.associations()
+        # self.ccle_compare_by_genes()
+        # self.associations()
 
     def place_imputed_values_in_nans(self):
         df_original = self.df_original.copy().reindex(

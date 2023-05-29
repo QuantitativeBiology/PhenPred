@@ -4,11 +4,9 @@
 import os
 import sys
 
-
 proj_dir = "/home/scai/PhenPred"
 
 sys.path.extend([proj_dir])
-
 
 from sympy import hyper
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
@@ -26,7 +24,7 @@ from datetime import datetime
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, Dataset
 from sklearn.preprocessing import StandardScaler
-from PhenPred.vae import data_folder, plot_folder
+from PhenPred.vae import data_folder, plot_folder, logs_folder
 from PhenPred.vae.ModelCVAE import CLinesCVAE
 from PhenPred.vae.Losses import CLinesLosses
 from PhenPred.vae.Dataset import CLinesDataset
@@ -36,7 +34,9 @@ from PhenPred.vae.BenchmarkGenomics import GenomicsBenchmark
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
-
+from sklearn.metrics import mean_squared_error
+from math import sqrt
+import logging
 
 # Class variables - Hyperparameters
 _hyperparameters = dict(
@@ -52,12 +52,14 @@ _hyperparameters = dict(
         # crisprcas9=f"{data_folder}/crisprcas9_22Q2.csv",
     ),
     conditional=False,
-    num_epochs=50,
-    learning_rate=1e-5,
-    batch_size=77,
+    mlp_join=False,
+    concat_join=True,
+    num_epochs=1000,
+    learning_rate=5e-5,
+    batch_size=100,
     n_folds=3,
     latent_dim=50,
-    hidden_dims=[0.7, .4],
+    hidden_dims=[0.7, .3],
     probability=0.4,
     n_groups=None,
     beta=0.1,
@@ -91,6 +93,105 @@ class CLinesTrain:
         self.optimizer = CLinesLosses.get_optimizer(self.hypers, self.model)
 
         self.timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        self._prepare_drug_validation()
+        log_file = f"{self.timestamp}.log"
+        self.logger = logging.getLogger('multi-drug')
+        self.logger.setLevel(logging.DEBUG)
+        fh = logging.FileHandler(os.path.join(logs_folder, log_file))
+        formatter = logging.Formatter('%(message)s')
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
+        self.logger.info(hypers)
+
+    def _prepare_drug_validation(self):
+        # Original dataset
+        self.df_original = pd.read_csv(f"{data_folder}/drugresponse.csv", index_col=0).T
+
+        # New drug response values
+        self.df_original_new = pd.read_csv(
+            f"{data_folder}/drugresponse_24Jul22.csv", index_col=0
+        ).T
+
+        # MOFA imputed dataset
+        self.df_mofa = pd.read_csv(f"{data_folder}/drugresponseMOFA.csv", index_col=0).T
+
+        # Mean imputed dataset
+        self.df_mean = self.df_original.fillna(self.df_original.mean())
+
+        # Intersection samples
+        self.samples = (
+            set(self.df_original.index)
+            .intersection(set(self.df_original_new.index))
+            .intersection(set(self.data.samples))
+            .intersection(set(self.df_mofa.index))
+            .intersection(set(self.df_mean.index))
+        )
+        self.samples = list(self.samples)
+
+        # Intersection features
+        self.features = (
+            set(self.df_original.columns)
+            .intersection(set(self.df_original_new.columns))
+            .intersection(set(self.data.view_feature_names["drugresponse"]))
+            .intersection(set(self.df_mofa.columns))
+            .intersection(set(self.df_mean.columns))
+        )
+        self.features = list(self.features)
+
+    def _calculate_drug_validation(self):
+        omics_dataloader = DataLoader(
+            self.data, batch_size=len(self.data.samples), shuffle=False
+        )
+        self.model.eval()
+
+        # Dataframes
+        latent_spaces = dict()
+        imputed_datasets = dict()
+
+        # Make predictions and latent spaces
+        for views, labels, views_nans in omics_dataloader:
+            views = [view.to(self.device) for view in views]
+            views_nans = [~view.to(self.device) for view in views_nans]
+
+            # Forward pass to get the predictions
+            views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
+
+            for name, df in zip(self.data.view_names, views_hat):
+                imputed_datasets[name] = pd.DataFrame(
+                    self.data.view_scalers[name].inverse_transform(df.tolist()),
+                    index=self.data.samples,
+                    columns=self.data.view_feature_names[name],
+                )
+        df_vae = imputed_datasets["drugresponse"]
+        df_new_values = (
+            self.df_original_new.loc[self.samples, self.features].unstack().dropna()
+        )
+        df_new_values = df_new_values.loc[
+            self.df_original.loc[self.samples, self.features]
+            .unstack()
+            .loc[df_new_values.index]
+            .isna()
+        ]
+        df_new_values = pd.concat(
+            [
+                df_new_values.rename("original"),
+                self.df_mofa.unstack().loc[df_new_values.index].rename("MOFA"),
+                self.df_mean.unstack().loc[df_new_values.index].rename("mean"),
+                df_vae.unstack().loc[df_new_values.index].rename("VAE"),
+            ],
+            axis=1,
+        )
+        plot_df = df_new_values[["original", "VAE"]].dropna()
+        rmse = sqrt(mean_squared_error(plot_df["original"], plot_df["VAE"]))
+        s, _ = stats.spearmanr(
+            plot_df["original"],
+            plot_df["VAE"],
+        )
+        r, _ = stats.pearsonr(
+            plot_df["original"],
+            plot_df["VAE"],
+        )
+        return rmse, s, r
 
     def run(self):
         self.epoch()
@@ -110,7 +211,10 @@ class CLinesTrain:
 
         for epoch in range(self.hypers["num_epochs"]):
             # -- Cross Validation
-            train_loss, val_loss = self.cross_validation()
+            # train_loss, val_loss = self.cross_validation()
+            train_loss, val_loss = self.full_train()
+
+
 
             # -- Train Losses (CV + Batch Average)
             losses_dict["train_total"].append(np.nanmean(train_loss["total"]))
@@ -130,22 +234,69 @@ class CLinesTrain:
                 losses_dict["val_mse_views"][v].append(
                     np.mean(val_loss["mse_views"][v])
                 )
-
-            print(
-                f"[{datetime.now().strftime('%H:%M:%S')}] Epoch {epoch + 1}"
-                + f"| Loss (train): {losses_dict['train_total'][epoch]:.4f}"
-                + f"| Loss (val): {losses_dict['val_total'][epoch]:.4f}"
-                + f"| MSE (train): {losses_dict['train_mse'][epoch]:.4f}"
-                + f"| MSE (val): {losses_dict['val_mse'][epoch]:.4f}"
-                + f"| KL (train): {losses_dict['train_kl'][epoch]:.4f}"
-                + f"| KL (val): {losses_dict['val_kl'][epoch]:.4f}"
-            )
+            msg = f"[{datetime.now().strftime('%H:%M:%S')}] Epoch {epoch + 1}" \
+                f"| Loss (train): {losses_dict['train_total'][epoch]:.4f}" \
+                f"| Loss (val): {losses_dict['val_total'][epoch]:.4f}" \
+                f"| MSE (train): {losses_dict['train_mse'][epoch]:.4f}" \
+                f"| MSE (val): {losses_dict['val_mse'][epoch]:.4f}" \
+                f"| KL (train): {losses_dict['train_kl'][epoch]:.4f}" \
+                f"| KL (val): {losses_dict['val_kl'][epoch]:.4f}"
+            if (epoch + 1) % 10 == 0:
+                rmse, s, r = self._calculate_drug_validation()
+                msg += f"| R: {r:.4f}"
+                msg += f"| rho: {s:.4f}"
+                msg += f"| RMSE: {rmse:.4f}"
+            print(msg)
+            self.logger.info(msg)
 
         CLinesLosses.plot_losses(
             losses_dict,
             self.hypers["beta"],
             self.timestamp,
         )
+
+    def full_train(self):
+        train_loss = dict(
+            total=[], mse=[], kl=[], mse_views={d: [] for d in self.data.view_names}
+        )
+
+        dataloader_train = DataLoader(
+            self.data, batch_size=self.hypers["batch_size"], shuffle=True
+        )
+
+        # --- TRAINING LOOP
+        self.model.train()
+
+        # dataloader train is divided into batches
+        for views, labels, views_nans in dataloader_train:
+            views = [view.to(self.device) for view in views]
+            views_nans = [~view.to(self.device) for view in views_nans]
+
+            # Conditional
+            labels = labels.to(self.device) if self.hypers["conditional"] else None
+
+            # Forward pass to get the predictions
+            views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
+
+            # Calculate Losses
+            loss, mse, kl, mse_views = CLinesLosses.loss_function(
+                self.hypers, views, views_hat, mu_joint, logvar_joint, views_nans
+            )
+
+            # Store values
+            for k, v in mse_views.items():
+                train_loss["mse_views"][k].append(v.cpu().detach().numpy())
+
+            train_loss["total"].append(loss.cpu().detach().numpy())
+            train_loss["mse"].append(mse.cpu().detach().numpy())
+            train_loss["kl"].append(kl.cpu().detach().numpy())
+
+            with torch.autograd.set_detect_anomaly(True):
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+        return train_loss, train_loss
+
 
     def cross_validation(self):
         train_loss = dict(
@@ -155,7 +306,7 @@ class CLinesTrain:
             total=[], mse=[], kl=[], mse_views={d: [] for d in self.data.view_names}
         )
 
-        cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True)
+        cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True, random_state=42)
 
         for train_idx, val_idx in cv.split(self.data):
             # Train Data
@@ -240,10 +391,12 @@ class CLinesTrain:
 
         return train_loss, val_loss
 
+
     def predictions(self):
         omics_dataloader = DataLoader(
             self.data, batch_size=len(self.data.samples), shuffle=False
         )
+        self.model.eval()
 
         # Dataframes
         latent_spaces = dict()
@@ -266,9 +419,9 @@ class CLinesTrain:
 
             # Create Latent Spaces
             latent_spaces["joint"] = pd.DataFrame(
-                self.model.module.reparameterize(mu_joint, logvar_joint).tolist(),
+                self.model.module.reparameterize_2(mu_joint, logvar_joint).tolist(),
                 index=self.data.samples,
-                columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
+                columns=[f"Latent_{i + 1}" for i in range(self.hypers["latent_dim"])],
             )
 
         # Write to file
@@ -317,12 +470,12 @@ if __name__ == "__main__":
     proteomics_benchmark.run()
 
     # Run CRISPR benchmark
-    crispr_benchmark = CRISPRBenchmark(train.timestamp, clines_db)
-    crispr_benchmark.run()
+    # crispr_benchmark = CRISPRBenchmark(train.timestamp, clines_db)
+    # crispr_benchmark.run()
 
     # Run Latent Spaces Benchmark
-    latent_benchmark = LatentSpaceBenchmark(train.timestamp, clines_db)
-    latent_benchmark.run()
+    # latent_benchmark = LatentSpaceBenchmark(train.timestamp, clines_db)
+    # latent_benchmark.run()
 
     # Write the hyperparameters to json file
     json.dump(
