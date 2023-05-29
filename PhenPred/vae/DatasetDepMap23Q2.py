@@ -14,6 +14,8 @@ from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.preprocessing import StandardScaler, PowerTransformer, normalize
 
+# TODO: Conditinal e covariates are largely overlapping features. Merge.
+
 
 class CLinesDatasetDepMap23Q2(Dataset):
     def __init__(
