@@ -9,10 +9,11 @@ from math import sqrt
 from scipy.stats import skew
 from datetime import datetime
 from scipy.special import stdtr
-from scipy.stats import pearsonr, spearmanr
 from PhenPred.vae.PlotUtils import GIPlot
+from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import mean_squared_error
 from PhenPred.vae import data_folder, plot_folder
+from statsmodels.stats.multitest import multipletests
 from PhenPred.vae.Utils import two_vars_correlation, LModel
 
 
@@ -20,6 +21,7 @@ class CRISPRBenchmark:
     def __init__(self, timestamp, data, min_obs=10):
         self.timestamp = timestamp
         self.min_obs = min_obs
+        self.data = data
 
         # Original dataset
         self.df_original = data.dfs["crisprcas9"].dropna(how="all").dropna(axis=1)
@@ -27,6 +29,12 @@ class CRISPRBenchmark:
         # VAE imputed dataset
         self.df_vae = pd.read_csv(
             f"{plot_folder}/files/{timestamp}_imputed_crisprcas9.csv.gz", index_col=0
+        )
+
+        # VAE imputed trancriptomics dataset
+        self.df_vae_transcriptomics = pd.read_csv(
+            f"{plot_folder}/files/{timestamp}_imputed_transcriptomics.csv.gz",
+            index_col=0,
         )
 
         # Genomics
@@ -39,6 +47,10 @@ class CRISPRBenchmark:
         self.sample_correlation()
 
         lm_genomics = self.genomic_associations(min_obs=self.min_obs)
+        lm_genomics.to_csv(
+            f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz",
+            compression="gzip",
+        )
 
         self.plot_associations(lm_genomics)
         self.gene_skew_correlation()
@@ -66,11 +78,9 @@ class CRISPRBenchmark:
             title=f"Sample correlation (N={len(samples):,})",
         )
 
-        plt.savefig(
-            f"{plot_folder}/crispr/{self.timestamp}_samples_corr_histogram.pdf",
-            bbox_inches="tight",
+        PhenPred.save_figure(
+            f"{plot_folder}/crispr/{self.timestamp}_samples_corr_histogram"
         )
-        plt.close()
 
     def gene_skew_correlation(self):
         plot_df = pd.concat(
@@ -120,11 +130,9 @@ class CRISPRBenchmark:
 
         ax.axline((1, 1), slope=1, color="black", lw=0.5, ls="-", zorder=-1)
 
-        plt.savefig(
-            f"{plot_folder}/crispr/{self.timestamp}_gene_skew_corrplot.pdf",
-            bbox_inches="tight",
+        PhenPred.save_figure(
+            f"{plot_folder}/crispr/{self.timestamp}_gene_skew_corrplot"
         )
-        plt.close()
 
     def genomic_associations(self, min_obs=10):
         # Covariates
@@ -264,11 +272,9 @@ class CRISPRBenchmark:
             ylabel="VAE log-ratio p-value (-log10)",
         )
 
-        plt.savefig(
-            f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_pval_scatter.pdf",
-            bbox_inches="tight",
+        PhenPred.save_figure(
+            f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_pval_scatter",
         )
-        plt.close()
 
         for y_id, x_id, z_id in [
             ("BRAF", "MAPK1", "BRAF_mut"),
@@ -361,11 +367,9 @@ class CRISPRBenchmark:
 
             plt.gcf().set_size_inches(2, 2)
 
-            plt.savefig(
-                f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}_original.pdf",
-                bbox_inches="tight",
+            PhenPred.save_figure(
+                f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}_original",
             )
-            plt.close("all")
 
             # Tissue
             pal = GIPlot.PAL_TISSUE_2
@@ -419,11 +423,75 @@ class CRISPRBenchmark:
 
                 plt.gcf().set_size_inches(2, 2)
 
-                plt.savefig(
-                    f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}_tissue.pdf",
-                    bbox_inches="tight",
+                PhenPred.save_figure(
+                    f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}_tissue",
                 )
-                plt.close("all")
+
+    def gexp_associations(self):
+        samples = list(
+            set(self.df_vae.dropna().index).intersection(
+                self.df_vae_transcriptomics.dropna().index
+            )
+        )
+
+        x = self.df_vae_transcriptomics.loc[samples]
+        y = self.df_vae.loc[samples]
+
+        # Warping
+        cholsigmainv = np.linalg.cholesky(np.linalg.inv(np.cov(x)))
+        warped_x = x.T @ cholsigmainv
+        warped_intercept = cholsigmainv.sum(axis=0)
+
+        # Skewness
+        y_features = y.apply(skew).astype(float)
+        y_features = y_features.index.tolist()
+
+        x_features = x.apply(skew).astype(float)
+        x_features = x_features.index.tolist()
+
+        #
+        GLS_coef = pd.DataFrame(
+            np.empty((len(x_features), len(y_features))),
+            index=x_features,
+            columns=y_features,
+        )
+        GLS_se = pd.DataFrame(
+            np.empty((len(x_features), len(y_features))),
+            index=x_features,
+            columns=y_features,
+        )
+
+        for gene_index in x_features:
+            X = np.stack((warped_intercept, warped_x.loc[gene_index]), axis=1)
+            coef, residues = np.linalg.lstsq(X, y[y_features], rcond=None)[:2]
+            df = warped_x.shape[1] - 2
+            GLS_coef.loc[gene_index] = coef[1]
+            GLS_se.loc[gene_index] = np.sqrt(
+                np.linalg.pinv(X.T @ X)[1, 1] * residues / df
+            )
+
+        # P-value
+        df = warped_x.shape[1] - 2
+        GLS_p = 2 * stdtr(df, -np.abs(GLS_coef / GLS_se))
+
+        # FDR correction per column
+        GLS_fdr = GLS_p.apply(lambda x: multipletests(x, method="fdr_bh")[1], axis=0)
+
+        # Melt and merge all GLS matrices
+        gexp_associations = (
+            pd.concat(
+                [
+                    GLS_coef.stack().rename("coef"),
+                    GLS_se.stack().rename("se"),
+                    GLS_p.stack().rename("pval"),
+                    GLS_fdr.stack().rename("fdr"),
+                ],
+                axis=1,
+            )
+            .reset_index()
+            .rename(columns={"level_0": "gexp", "level_1": "crispr"})
+            .sort_values("pval")
+        )
 
     def gls(self):
         """

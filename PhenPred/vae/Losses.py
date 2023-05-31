@@ -1,4 +1,3 @@
-import umap
 import torch
 import PhenPred
 import numpy as np
@@ -10,10 +9,8 @@ import scipy.stats as stats
 import torch.nn.functional as F
 from sklearn import metrics
 from datetime import datetime
-from PhenPred import PALETTE_TTYPE
 from sklearn.model_selection import KFold
 from matplotlib.ticker import MaxNLocator
-from PhenPred.vae.PlotUtils import GIPlot
 from PhenPred.vae import data_folder, plot_folder
 
 
@@ -168,11 +165,7 @@ class CLinesLosses:
             bbox_to_anchor=(1, 1),
         )
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-        plt.savefig(
-            f"{plot_folder}/losses/{timestamp}_train_validation_loss.pdf",
-            bbox_inches="tight",
-        )
-        plt.close("all")
+        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_train_validation_loss")
 
         # Plot reconstruction and regularization losses
         plot_df = pd.melt(
@@ -197,11 +190,7 @@ class CLinesLosses:
             xlabel="Epoch",
             ylabel="Loss",
         )
-        plt.savefig(
-            f"{plot_folder}/losses/{timestamp}_reconst_reg_loss.pdf",
-            bbox_inches="tight",
-        )
-        plt.close("all")
+        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_reconst_reg_loss")
 
         # Plot losses views
         plot_df = pd.concat(
@@ -222,147 +211,7 @@ class CLinesLosses:
             ax=ax,
         )
         ax.set(xlabel="Epoch", ylabel="Reconstruction Loss")
-        plt.savefig(
-            f"{plot_folder}/losses/{timestamp}_reconst_omics_loss.pdf",
-            bbox_inches="tight",
-        )
-        plt.close("all")
-
-    @classmethod
-    def plot_latent_spaces(
-        cls,
-        timestamp,
-        view_names,
-        umap_neighbors=25,
-        umap_min_dist=0.25,
-        umap_metric="euclidean",
-        umap_n_components=2,
-        markers=None,
-        data=None,
-    ):
-        # Get Tissue Types
-        if data is None:
-            samplesheet = pd.read_csv(f"{data_folder}/samplesheet.csv", index_col=0)
-            samplesheet = samplesheet["tissue"].fillna("Other tissue")
-        else:
-            samplesheet = data.samplesheet.copy()
-            samplesheet = samplesheet["tissue"].fillna("Other tissue")
-
-        # Read latent spaces
-        latent_spaces = {
-            n: pd.read_csv(
-                f"{plot_folder}/files/{timestamp}_latent_{n}.csv.gz", index_col=0
-            )
-            for n in view_names + ["joint"]
-        }
-
-        # Get UMAP projections
-        latent_space_umaps = {
-            k: pd.DataFrame(
-                umap.UMAP(
-                    n_neighbors=umap_neighbors,
-                    min_dist=umap_min_dist,
-                    metric=umap_metric,
-                    n_components=umap_n_components,
-                ).fit_transform(v),
-                columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
-                index=v.index,
-            )
-            for k, v in latent_spaces.items()
-        }
-
-        # Plot projections by tissue type
-        for l_name, l_space in latent_space_umaps.items():
-            plot_df = pd.concat([l_space, samplesheet], axis=1)
-
-            _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
-            sns.scatterplot(
-                data=plot_df,
-                x="UMAP_1",
-                y="UMAP_2",
-                hue="tissue",
-                palette=PALETTE_TTYPE,
-                alpha=0.95,
-                ax=ax,
-            )
-            ax.set(
-                xlabel="UMAP_1",
-                ylabel="UMAP_2",
-                xticklabels=[],
-                yticklabels=[],
-            )
-            sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
-            ax.get_legend().get_title().set_fontsize("6")
-
-            ax.get_xaxis().set_visible(False)
-            ax.get_yaxis().set_visible(False)
-            sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
-
-            ax.get_legend().get_title().set_fontsize("6")
-
-            ax.get_xaxis().set_visible(False)
-            ax.get_yaxis().set_visible(False)
-            sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
-
-            plt.savefig(
-                f"{plot_folder}/latent/{timestamp}_umap_{l_name}.pdf",
-                bbox_inches="tight",
-            )
-            plt.close()
-
-        # Plot projections by marker
-        if markers is not None:
-            for l_name, l_space in latent_space_umaps.items():
-                for m in markers:
-                    plot_df = pd.concat([l_space, markers[m]], axis=1).dropna()
-
-                    ax = GIPlot.gi_continuous_plot(
-                        x="UMAP_1",
-                        y="UMAP_2",
-                        z=m,
-                        plot_df=plot_df,
-                        corr_annotation=False,
-                        mid_point_norm=False,
-                        mid_point=None,
-                        cmap="viridis",
-                    )
-
-                    ax.get_xaxis().set_visible(False)
-                    ax.get_yaxis().set_visible(False)
-                    sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
-
-                    plt.savefig(
-                        f"{plot_folder}/latent/{timestamp}_umap_by_marker_{m}_{l_name}.pdf",
-                        bbox_inches="tight",
-                    )
-                    plt.close()
-
-        # Plot projections by marker
-        if markers is not None:
-            for l_name, l_space in latent_space_umaps.items():
-                for m in markers:
-                    plot_df = pd.concat([l_space, markers[m]], axis=1).dropna()
-
-                    ax = GIPlot.gi_continuous_plot(
-                        x="UMAP_1",
-                        y="UMAP_2",
-                        z=m,
-                        plot_df=plot_df,
-                        corr_annotation=False,
-                        mid_point_norm=False,
-                        mid_point=None,
-                        cmap="viridis",
-                    )
-
-                    ax.get_xaxis().set_visible(False)
-                    ax.get_yaxis().set_visible(False)
-                    sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
-
-                    plt.savefig(
-                        f"{plot_folder}/latent/{timestamp}_umap_by_marker_{m}_{l_name}.pdf",
-                        bbox_inches="tight",
-                    )
-                    plt.close()
+        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_reconst_omics_loss")
 
     @classmethod
     def activation_function(cls, name):
