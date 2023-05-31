@@ -91,3 +91,15 @@ PALETTE_TTYPE = {
     "Unknown": "#a32638",
     "Eye": "#ff1493",
 }
+
+
+def save_figure(path, extensions=["png", "pdf"], dpi=300, transparent=False, **kwargs):
+    for e in extensions:
+        plt.savefig(
+            path + "." + e,
+            bbox_inches="tight",
+            dpi=dpi,
+            transparent=transparent,
+            **kwargs,
+        )
+    plt.close("all")

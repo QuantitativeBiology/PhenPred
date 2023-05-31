@@ -190,11 +190,9 @@ class ProteomicsBenchmark:
         ax.xaxis.set_major_locator(plticker.MultipleLocator(base=0.1))
         ax.grid(axis="x", lw=0.1, color="#e1e1e1", zorder=-1)
 
-        plt.savefig(
-            f"{plot_folder}/proteomics/{self.timestamp}_imputed_corr_boxplot.pdf",
-            bbox_inches="tight",
+        PhenPred.save_figure(
+            f"{plot_folder}/proteomics/{self.timestamp}_imputed_corr_boxplot",
         )
-        plt.close()
 
         # Grid plot
         plot_df = pd.pivot_table(
@@ -240,11 +238,9 @@ class ProteomicsBenchmark:
         g.map_dataframe(sns.scatterplot, x="original", y="corr")
         g.map_dataframe(annotate)
 
-        plt.savefig(
-            f"{plot_folder}/proteomics/{self.timestamp}_imputed_facetgrid.pdf",
-            bbox_inches="tight",
+        PhenPred.save_figure(
+            f"{plot_folder}/proteomics/{self.timestamp}_imputed_facetgrid",
         )
-        plt.close()
 
     def proteomics_genomics(self):
         covs = pd.concat(
@@ -388,11 +384,9 @@ class ProteomicsBenchmark:
 
             plt.gcf().set_size_inches(2, 2)
 
-            plt.savefig(
-                f"{plot_folder}/proteomics/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}.pdf",
-                bbox_inches="tight",
+            PhenPred.save_figure(
+                f"{plot_folder}/proteomics/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}",
             )
-            plt.close("all")
 
     def ccle_compare_by_genes(self):
         features = list(set(self.df_vae).intersection(self.df_ccle))
@@ -445,8 +439,6 @@ class ProteomicsBenchmark:
             ylabel=f"",
         )
 
-        plt.savefig(
-            f"{plot_folder}/proteomics/{self.timestamp}_imputed_corr_by_gene_boxplot.pdf",
-            bbox_inches="tight",
+        PhenPred.save_figure(
+            f"{plot_folder}/proteomics/{self.timestamp}_imputed_corr_by_gene_boxplot",
         )
-        plt.close()

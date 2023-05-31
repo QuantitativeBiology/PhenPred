@@ -294,20 +294,6 @@ if __name__ == "__main__":
     train = CLinesTrain(clines_db, _hyperparameters)
     train.run()
 
-    # Plot latent spaces
-    CLinesLosses.plot_latent_spaces(
-        timestamp=train.timestamp,
-        view_names=[],
-        data=clines_db,
-        markers=pd.concat(
-            [
-                clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
-                clines_db.dfs["metabolomics"][["1-methylnicotinamide"]],
-            ],
-            axis=1,
-        ),
-    )
-
     # Run drug benchmark
     dres_benchmark = DrugResponseBenchmark(train.timestamp)
     dres_benchmark.run()
@@ -323,6 +309,16 @@ if __name__ == "__main__":
     # Run Latent Spaces Benchmark
     latent_benchmark = LatentSpaceBenchmark(train.timestamp, clines_db)
     latent_benchmark.run()
+    latent_benchmark.plot_latent_spaces(
+        view_names=[],
+        markers=pd.concat(
+            [
+                clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
+                clines_db.dfs["metabolomics"][["1-methylnicotinamide"]],
+            ],
+            axis=1,
+        ),
+    )
 
     # Write the hyperparameters to json file
     json.dump(

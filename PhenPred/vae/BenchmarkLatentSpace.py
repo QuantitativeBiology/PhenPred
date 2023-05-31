@@ -1,14 +1,16 @@
-from statistics import variance
+import umap
 import PhenPred
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from natsort import natsorted
 import matplotlib.pyplot as plt
+from natsort import natsorted
+from PhenPred import PALETTE_TTYPE
+from PhenPred.vae.PlotUtils import GIPlot
 from sklearn.metrics import mean_squared_error
+from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
-from PhenPred.Utils import two_vars_correlation
 
 
 class LatentSpaceBenchmark:
@@ -213,11 +215,9 @@ class LatentSpaceBenchmark:
         # Remove unused axes
         fig.delaxes(axs[1, 1])
 
-        plt.savefig(
-            f"{plot_folder}/latent/{self.timestamp}_factors_latents_corr_clustermap.pdf",
-            bbox_inches="tight",
+        PhenPred.save_figure(
+            f"{plot_folder}/latent/{self.timestamp}_factors_latents_corr_clustermap",
         )
-        plt.close()
 
         return corr
 
@@ -242,11 +242,9 @@ class LatentSpaceBenchmark:
         g.ax_heatmap.set_xlabel("")
         g.ax_heatmap.set_ylabel("")
 
-        plt.savefig(
-            f"{plot_folder}/latent/{self.timestamp}_latents_corr_clustermap.pdf",
-            bbox_inches="tight",
+        PhenPred.save_figure(
+            f"{plot_folder}/latent/{self.timestamp}_latents_corr_clustermap",
         )
-        plt.close()
 
     def covariates_latents(self, latents_corr):
         g = sns.clustermap(
@@ -268,8 +266,180 @@ class LatentSpaceBenchmark:
         g.ax_heatmap.set_xlabel("")
         g.ax_heatmap.set_ylabel("")
 
-        plt.savefig(
-            f"{plot_folder}/latent/{self.timestamp}_latents_covariates_clustermap.pdf",
-            bbox_inches="tight",
+        PhenPred.save_figure(
+            f"{plot_folder}/latent/{self.timestamp}_latents_covariates_clustermap",
         )
-        plt.close()
+
+    def latent_per_tissue(
+        self,
+        tissues=["Breast"],
+        umap_neighbors=25,
+        umap_min_dist=0.25,
+        umap_metric="euclidean",
+        umap_n_components=2,
+    ):
+        ss_cmp = pd.read_csv(f"{data_folder}/model_list_20230505.csv", index_col=0)
+
+        t = "Lung"
+
+        samples = ss_cmp.query(f"tissue == '{t}'").index.tolist()
+
+        l_tissue = self.latent_space.reindex(index=samples).dropna()
+
+        #
+        l_tissue_umap = pd.DataFrame(
+            umap.UMAP(
+                n_neighbors=umap_neighbors,
+                min_dist=umap_min_dist,
+                metric=umap_metric,
+                n_components=umap_n_components,
+            ).fit_transform(l_tissue),
+            columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
+            index=l_tissue.index,
+        )
+
+        #
+        plot_df = pd.concat(
+            [
+                l_tissue_umap,
+                ss_cmp.reindex(l_tissue.index),
+                self.data.dfs["transcriptomics"][["VIM"]],
+            ],
+            axis=1,
+        )
+
+        _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
+
+        GIPlot.gi_continuous_plot(
+            x="UMAP_1",
+            y="UMAP_2",
+            z="VIM",
+            plot_df=plot_df,
+            corr_annotation=False,
+            mid_point_norm=False,
+            mid_point=None,
+            cmap="viridis",
+        )
+
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
+
+        PhenPred.save_figure(f"{plot_folder}/latent/{self.timestamp}_umap_joint_{t}")
+
+    def plot_latent_spaces(
+        self,
+        view_names,
+        umap_neighbors=25,
+        umap_min_dist=0.25,
+        umap_metric="euclidean",
+        umap_n_components=2,
+        markers=None,
+    ):
+        # Get Tissue Types
+        samplesheet = self.data.samplesheet.copy()
+        samplesheet = samplesheet["tissue"].fillna("Other tissue")
+
+        # Read latent spaces
+        latent_spaces = {
+            n: pd.read_csv(
+                f"{plot_folder}/files/{self.timestamp}_latent_{n}.csv.gz", index_col=0
+            )
+            for n in view_names + ["joint"]
+        }
+
+        # Get UMAP projections
+        latent_space_umaps = {
+            k: pd.DataFrame(
+                umap.UMAP(
+                    n_neighbors=umap_neighbors,
+                    min_dist=umap_min_dist,
+                    metric=umap_metric,
+                    n_components=umap_n_components,
+                ).fit_transform(v),
+                columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
+                index=v.index,
+            )
+            for k, v in latent_spaces.items()
+        }
+
+        # Plot projections by tissue type
+        for l_name, l_space in latent_space_umaps.items():
+            plot_df = pd.concat([l_space, samplesheet], axis=1)
+
+            _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
+            sns.scatterplot(
+                data=plot_df,
+                x="UMAP_1",
+                y="UMAP_2",
+                hue="tissue",
+                palette=PALETTE_TTYPE,
+                alpha=0.95,
+                ax=ax,
+            )
+            ax.set(
+                xlabel="UMAP_1",
+                ylabel="UMAP_2",
+                xticklabels=[],
+                yticklabels=[],
+            )
+            sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+            ax.get_legend().get_title().set_fontsize("6")
+
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
+            sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
+
+            ax.get_legend().get_title().set_fontsize("6")
+
+            PhenPred.save_figure(f"{plot_folder}/latent/{self.timestamp}_umap_{l_name}")
+
+        # Plot projections by marker
+        if markers is not None:
+            for l_name, l_space in latent_space_umaps.items():
+                for m in markers:
+                    plot_df = pd.concat([l_space, markers[m]], axis=1).dropna()
+
+                    ax = GIPlot.gi_continuous_plot(
+                        x="UMAP_1",
+                        y="UMAP_2",
+                        z=m,
+                        plot_df=plot_df,
+                        corr_annotation=False,
+                        mid_point_norm=False,
+                        mid_point=None,
+                        cmap="viridis",
+                    )
+
+                    ax.get_xaxis().set_visible(False)
+                    ax.get_yaxis().set_visible(False)
+                    sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
+
+                    PhenPred.save_figure(
+                        f"{plot_folder}/latent/{self.timestamp}_umap_by_marker_{m}_{l_name}"
+                    )
+
+        # Plot projections by marker
+        if markers is not None:
+            for l_name, l_space in latent_space_umaps.items():
+                for m in markers:
+                    plot_df = pd.concat([l_space, markers[m]], axis=1).dropna()
+
+                    ax = GIPlot.gi_continuous_plot(
+                        x="UMAP_1",
+                        y="UMAP_2",
+                        z=m,
+                        plot_df=plot_df,
+                        corr_annotation=False,
+                        mid_point_norm=False,
+                        mid_point=None,
+                        cmap="viridis",
+                    )
+
+                    ax.get_xaxis().set_visible(False)
+                    ax.get_yaxis().set_visible(False)
+                    sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
+
+                    PhenPred.save_figure(
+                        f"{plot_folder}/latent/{self.timestamp}_umap_by_marker_{m}_{l_name}"
+                    )

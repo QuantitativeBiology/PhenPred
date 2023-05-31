@@ -121,7 +121,7 @@ class DrugResponseBenchmark:
                 ylabel=f"Predicted ({y_var})",
             )
 
-            rmse = sqrt(mean_squared_error(plot_df["original"], plot_df[y_var]))
+            mse = mean_squared_error(plot_df["original"], plot_df[y_var])
             s, _ = stats.spearmanr(
                 plot_df["original"],
                 plot_df[y_var],
@@ -132,33 +132,33 @@ class DrugResponseBenchmark:
             )
             corr_dict.append(
                 {
-                    "RMSE": rmse,
+                    "MSE": mse,
                     "Spearman's rho": s,
                     "Pearson's r": r,
                     "method": y_var,
                 }
             )
-            annot_text = f"R={r:.2g}; Rho={s:.2g}; RMSE={rmse:.2f}"
+            annot_text = f"R={r:.2g}; Rho={s:.2g}; MSE={mse:.2f}"
             ax.text(
                 0.95, 0.05, annot_text, fontsize=6, transform=ax.transAxes, ha="right"
             )
 
-            plt.savefig(
-                f"{plot_folder}/drugresponse/{self.timestamp}_imputed_scatter_{y_var}.png",
-                bbox_inches="tight",
+            PhenPred.save_figure(
+                f"{plot_folder}/drugresponse/{self.timestamp}_imputed_scatter_{y_var}"
             )
-            plt.close()
 
         # Bar plot
         plot_df = pd.DataFrame(corr_dict)
 
-        for y_var in ["RMSE", "Spearman's rho", "Pearson's r"]:
+        for y_var in ["MSE", "Spearman's rho", "Pearson's r"]:
             _, ax = plt.subplots(1, 1, figsize=(3, 1.5), dpi=600)
 
             sns.barplot(
                 data=plot_df,
                 x=y_var,
                 y="method",
+                order=["VAE", "MOFA", "mean"],
+                orient="h",
                 color="#656565",
                 ax=ax,
             )
@@ -169,8 +169,6 @@ class DrugResponseBenchmark:
                 ylabel="Imputation method",
             )
 
-            plt.savefig(
-                f"{plot_folder}/drugresponse/{self.timestamp}_imputed_{y_var}_barplot.pdf",
-                bbox_inches="tight",
+            PhenPred.save_figure(
+                f"{plot_folder}/drugresponse/{self.timestamp}_imputed_{y_var}_barplot"
             )
-            plt.close()
