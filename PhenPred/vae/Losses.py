@@ -3,10 +3,10 @@ import PhenPred
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
 import torch.nn as nn
 import scipy.stats as stats
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
 from sklearn import metrics
 from datetime import datetime
 from sklearn.model_selection import KFold
