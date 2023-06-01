@@ -24,9 +24,6 @@ class CLinesCVAE(nn.Module):
         self._build_encoders()
         self._build_mean_vars()
 
-        if self.conditional is not None:
-            self._build_contextualized_attention()
-
         self._build_decoders()
 
     def _build_groupbottleneck(self):
@@ -157,7 +154,7 @@ class CLinesCVAE(nn.Module):
 
         z = self.reparameterize(mu, logvar)
         decoders = self.decode(z)
-        return decoders, mu, logvar
+        return decoders, mu, logvar, means, log_variances
 
     def mean_variance(self, hs):
         means, logs = [], []
@@ -183,50 +180,6 @@ class CLinesCVAE(nn.Module):
         mu_joint *= torch.exp(logvar_joint)
 
         return mu_joint, logvar_joint
-
-
-class ContextualizedAttention(nn.Module):
-    def __init__(self, context_dim, latent_dim):
-        super(ContextualizedAttention, self).__init__()
-        self.context_dim = context_dim
-        self.latent_dim = latent_dim
-
-        self.fc_mean = nn.Linear(latent_dim, latent_dim)
-        self.fc_log_var = nn.Linear(latent_dim, latent_dim)
-
-    def forward(self, views, labels):
-        # Stack latents
-        latents = torch.stack(views, dim=1)
-
-        # # Tile the context vector to match the batch size and number of views
-        # context = labels.unsqueeze(1).repeat(1, len(views), 1)
-
-        # # Concatenate the latents and context along the last dimension
-        # combined_input = torch.cat((latents, context), dim=-1)
-
-        # # Compute attention weights
-        # attention_weights = F.softmax(combined_input, dim=1)
-
-        # # Extract attention weights for latents
-        # attention_latents = attention_weights[:, :, : self.latent_dim]
-
-        # # Element-wise multiplication with broadcasting
-        # weighted_latents = attention_latents * latents
-
-        # weighted_latents = attention_weights * combined_input
-
-        attention_weights = F.softmax(latents, dim=1)
-
-        weighted_latents = attention_weights * latents
-
-        # Weighted sum of the latents using attention weights
-        combined_latent = torch.sum(weighted_latents, dim=1)
-
-        # Calculate means and log variances from the combined latent representation
-        combined_mean = self.fc_mean(combined_latent)
-        combined_log_var = self.fc_log_var(combined_latent)
-
-        return combined_mean, combined_log_var
 
 
 class BottleNeck(nn.Module):

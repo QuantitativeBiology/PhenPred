@@ -161,7 +161,9 @@ class CLinesTrain:
                 labels = labels.to(self.device)
 
                 # Forward pass to get the predictions
-                views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
+                views_hat, mu_joint, logvar_joint, _, _ = self.model.forward(
+                    views, labels
+                )
 
                 # Sample from joint latent space
                 z_joint = self.model.module.reparameterize(mu_joint, logvar_joint)
@@ -204,7 +206,7 @@ class CLinesTrain:
                     labels = labels.to(self.device)
 
                     # Forward pass to get the predictions
-                    views_hat, mu_joint, logvar_joint = self.model.forward(views)
+                    views_hat, mu_joint, logvar_joint, _, _ = self.model.forward(views)
 
                     # Sample from joint latent space
                     z_joint = self.model.module.reparameterize(mu_joint, logvar_joint)
@@ -249,7 +251,13 @@ class CLinesTrain:
             views_nans = [~view.to(self.device) for view in views_nans]
 
             # Forward pass to get the predictions
-            views_hat, mu_joint, logvar_joint = self.model.forward(views, labels)
+            (
+                views_hat,
+                mu_joint,
+                logvar_joint,
+                mu_views,
+                logvar_views,
+            ) = self.model.forward(views)
 
             for name, df in zip(self.data.view_names, views_hat):
                 imputed_datasets[name] = pd.DataFrame(
@@ -264,6 +272,13 @@ class CLinesTrain:
                 index=self.data.samples,
                 columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
             )
+
+            for name, mus, logvars in zip(self.data.view_names, mu_views, logvar_views):
+                latent_spaces[name] = pd.DataFrame(
+                    self.model.module.reparameterize(mus, logvars).tolist(),
+                    index=self.data.samples,
+                    columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
+                )
 
         # Write to file
         for name, df in imputed_datasets.items():
