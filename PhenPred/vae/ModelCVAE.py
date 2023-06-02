@@ -30,7 +30,7 @@ class CLinesCVAE(nn.Module):
         if self.condi is not None:
             self._build_contextualized_attention()
 
-        if self.hyper["mlp_join"]:
+        if self.hyper["mlp_join"] or self.hyper["common_unique_join"]:
             self._build_mlp()
 
         self._build_decoders()
@@ -57,10 +57,14 @@ class CLinesCVAE(nn.Module):
             ]
 
             layers = nn.ModuleList()
+            if self.hyper['view_dropout'] > 0:
+                layers.append(ViewDropout(p=self.hyper['view_dropout']))
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hyper["probability"]))
                 layers.append(self.hyper["activation_function"])
+                if self.hyper['skip_connections']:
+                    layers.append(BasicBlock(layer_sizes[i]))
 
             self.encoders.append(nn.Sequential(*layers))
 
@@ -69,7 +73,9 @@ class CLinesCVAE(nn.Module):
 
         for n in self.views:
             s_i = int(self.hyper["hidden_dims"][-1] * self.views_sizes[n])
-            s_o = self.hyper["latent_dim"]
+            s_o = self.hyper["latent_dim"] if self.hyper["latent_dim"] > 1 else int(
+                self.hyper["latent_dim"] * self.views_sizes[n]
+            )
 
             self.mus.append(nn.Sequential(nn.Linear(s_i, s_o)))
             self.log_vars.append(nn.Sequential(nn.Linear(s_i, s_o)))
@@ -81,7 +87,8 @@ class CLinesCVAE(nn.Module):
                 nn.Sequential(
                     nn.Linear(
                         int(self.hyper["hidden_dims"][-1] * self.views_sizes[n]),
-                        self.hyper["latent_dim"],
+                        self.hyper["latent_dim"] if self.hyper["latent_dim"] > 1 else int(
+                            self.hyper["latent_dim"] * self.views_sizes[n]),
                     ),
                 )
             )
@@ -93,14 +100,19 @@ class CLinesCVAE(nn.Module):
         )
 
     def _build_mlp(self):
-        self.mlp_mu = MLP(self.hyper["latent_dim"]*len(self.views), self.hyper["latent_dim"])
+        self.mlp_mu = MLP(self.hyper["latent_dim"] * len(self.views), self.hyper["latent_dim"])
         self.mlp_var = MLP(self.hyper["latent_dim"] * len(self.views), self.hyper["latent_dim"])
 
     def _build_decoders(self):
         self.decoders = nn.ModuleList()
         for n in self.views:
             if self.hyper["concat_join"]:
-                layer_sizes = [self.hyper["latent_dim"]*len(self.views)]
+                if self.hyper["latent_dim"] > 1:
+                    layer_sizes = [self.hyper["latent_dim"] * len(self.views)]
+                else:
+                    layer_sizes = [sum([int(self.hyper["latent_dim"] * x) for x in self.views_sizes.values()])]
+            elif self.hyper["common_unique_join"]:
+                layer_sizes = [self.hyper["latent_dim"] * 2]
             else:
                 layer_sizes = [self.hyper["latent_dim"]]
             layer_sizes += [
@@ -152,7 +164,7 @@ class CLinesCVAE(nn.Module):
 
     def forward(self, views, labels=None):
         encoders = self.encode(views)
-        means, log_variances = self.mean_variance(encoders)
+        means, log_variances = self.mean_variance(encoders)  # shape: (n_views, batch_size, latent_dim)
 
         if self.condi is not None:
             zs = [
@@ -165,10 +177,18 @@ class CLinesCVAE(nn.Module):
         elif self.hyper["concat_join"]:
             mu = torch.cat(means, dim=1)
             logvar = torch.cat(log_variances, dim=1)
+        elif self.hyper["common_unique_join"]:
+            mu, logvar = self.product_of_experts_2(means, log_variances)
+            z_common = self.reparameterize_2(mu, logvar)
+            for mu_unique, logvar_unique in zip(means, log_variances):
+                z_unique = self.reparameterize_2(mu_unique, logvar_unique)
+                z = torch.cat([z_unique, z_common], dim=1)
         else:
             mu, logvar = self.product_of_experts_2(means, log_variances)
 
-        z = self.reparameterize_2(mu, logvar)
+        if not self.hyper["common_unique_join"]:
+            z = self.reparameterize_2(mu, logvar)
+
         decoders = self.decode(z)
         return decoders, mu, logvar
 
@@ -217,6 +237,7 @@ class CLinesCVAE(nn.Module):
 
         return combined_mu / combined_precision, combined_logvar
 
+
 class MLP(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=128):
         super(MLP, self).__init__()
@@ -227,6 +248,7 @@ class MLP(nn.Module):
         x = F.relu(self.layer1(x))
         x = self.layer2(x)
         return x
+
 
 class ContextualizedAttention(nn.Module):
     def __init__(self, context_dim, latent_dim):
@@ -308,4 +330,35 @@ class BottleNeck(nn.Module):
             out.append(group_out)
         out = torch.cat(out, dim=1)
         out += torch.narrow(x, 1, 0, self.in_features)
+        return out
+
+
+class ViewDropout(nn.Module):
+    def __init__(self, p=0.5):
+        super().__init__()
+        self.p = p
+
+    def forward(self, x):
+        if self.training:
+            if np.random.binomial(1, self.p):
+                x.zero_()
+        return x
+
+
+class BasicBlock(nn.Module):
+    def __init__(self, hidden_width):
+        super(BasicBlock, self).__init__()
+        self.hidden = nn.ModuleList()
+        self.relu = nn.ReLU(inplace=True)
+        self.hidden1 = nn.Sequential(nn.Linear(hidden_width, hidden_width))
+        self.hidden2 = nn.Sequential(nn.Linear(hidden_width, hidden_width))
+
+    def forward(self, x):
+        identity = x
+        out = self.hidden1(x)
+        out = self.relu(out)
+        out = self.hidden2(out)
+        out += identity
+        out = self.relu(out)
+
         return out
