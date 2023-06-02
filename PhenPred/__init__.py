@@ -17,6 +17,9 @@ plt.rcParams["axes.titlesize"] = 7
 # Matplotlib set legend font size
 plt.rcParams["legend.fontsize"] = 6
 
+# Matplotlib set legend title font size
+plt.rcParams["legend.title_fontsize"] = 6
+
 # Matplotlib set tick label font size
 plt.rcParams["axes.labelsize"] = 6
 
