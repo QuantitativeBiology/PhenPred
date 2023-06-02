@@ -2,16 +2,8 @@ import torch
 import PhenPred
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import torch.nn as nn
-import scipy.stats as stats
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
-from sklearn import metrics
-from datetime import datetime
-from sklearn.model_selection import KFold
-from matplotlib.ticker import MaxNLocator
-from PhenPred.vae import data_folder, plot_folder
 
 
 class CLinesLosses:
@@ -133,85 +125,6 @@ class CLinesLosses:
                 lr=hyper["learning_rate"],
                 weight_decay=hyper["w_decay"],
             )
-
-    @classmethod
-    def plot_losses(cls, losses_dict, kl_beta, timestamp=""):
-        # Plot train and validation losses
-        losses = pd.DataFrame(
-            {k: v for k, v in losses_dict.items() if not k.endswith("_views")}
-        )
-        losses["epoch"] = losses.index
-        _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
-        sns.lineplot(
-            data=pd.melt(
-                losses.loc[:, ["train_total", "val_total", "epoch"]], ["epoch"]
-            ),
-            x="epoch",
-            y="value",
-            hue="variable",
-            ax=ax,
-        )
-        ax.set(
-            title=f"Train and Validation Loss (KL beta = {kl_beta})",
-            xlabel="Epoch",
-            ylabel="Loss",
-        )
-        legend_handles, _ = ax.get_legend_handles_labels()
-        ax.legend(
-            legend_handles,
-            ["Train Loss", "Validation Loss"],
-            title="Losses",
-            loc="upper left",
-            bbox_to_anchor=(1, 1),
-        )
-        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_train_validation_loss")
-
-        # Plot reconstruction and regularization losses
-        plot_df = pd.melt(
-            losses[[c for c in losses if not c.endswith("_total")]], ["epoch"]
-        )
-        plot_df["type"] = plot_df["variable"].apply(lambda v: v.split("_")[0]).values
-        plot_df["loss_type"] = (
-            plot_df["variable"].apply(lambda v: v.split("_")[1]).values
-        )
-        _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
-        sns.lineplot(
-            data=plot_df,
-            x="epoch",
-            y="value",
-            hue="loss_type",
-            style="type",
-            ls="--",
-            ax=ax,
-        )
-        ax.set(
-            title=f"Total loss (KL beta = {kl_beta})",
-            xlabel="Epoch",
-            ylabel="Loss",
-        )
-        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_reconst_reg_loss")
-
-        # Plot losses views
-        plot_df = pd.concat(
-            [
-                pd.DataFrame(losses_dict["train_mse_views"]).assign(type="train"),
-                pd.DataFrame(losses_dict["val_mse_views"]).assign(type="val"),
-            ]
-        )
-        plot_df["epoch"] = plot_df.index
-        plot_df = pd.melt(plot_df, ["epoch", "type"])
-        _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
-        sns.lineplot(
-            data=plot_df,
-            x="epoch",
-            y="value",
-            hue="variable",
-            style="type",
-            ax=ax,
-        )
-        ax.set(xlabel="Epoch", ylabel="Reconstruction Loss")
-        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_reconst_omics_loss")
 
     @classmethod
     def activation_function(cls, name):
