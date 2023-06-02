@@ -37,6 +37,24 @@ class LatentSpaceBenchmark:
             "_gexp"
         )
 
+        self.df_drug_novel = pd.read_csv(
+            f"{data_folder}/GDSC_fitted_dose_response_24Jul22_IC50.csv",
+            index_col=0,
+        )
+
+        self.df_max_conc = pd.read_csv(
+            f"{data_folder}/GDSC_fitted_dose_response_24Jul22_MAX_CONCENTRATION.csv",
+            index_col=0,
+        ).loc[self.df_drug_novel.index, "MAX_CONC"]
+
+        self.df_drug_novel_bin = pd.DataFrame(
+            {
+                d: self.df_drug_novel.loc[d].dropna()
+                < np.log(self.df_max_conc[d] * 0.5)
+                for d in self.df_drug_novel.index
+            }
+        ).astype(float)
+
         self.covariates = pd.concat(
             [
                 self.ss_ccell["CopyNumberAttenuation"],
@@ -54,6 +72,7 @@ class LatentSpaceBenchmark:
                 self.data.dfs["proteomics"].mean(1).rename("MeanProteomics"),
                 self.data.dfs["methylation"].mean(1).rename("MeanMethylation"),
                 self.data.dfs["drugresponse"].mean(1).rename("MeanDrugResponse"),
+                self.df_drug_novel_bin.sum(1).rename("drug_responses").apply(np.log2),
             ],
             axis=1,
         )
@@ -256,6 +275,9 @@ class LatentSpaceBenchmark:
             linewidths=0.0,
             xticklabels=True,
             yticklabels=True,
+            annot=True,
+            annot_kws={"fontsize": 3},
+            fmt=".1f",
             col_cluster=False,
             cbar_kws={"shrink": 0.5},
             figsize=(8, 3.5),
