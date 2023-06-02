@@ -1,16 +1,12 @@
-import json
 import torch
 import PhenPred
 import numpy as np
 import pandas as pd
-import torch.nn as nn
 import seaborn as sns
 import matplotlib as mpl
-import scipy.stats as stats
 import matplotlib.pyplot as plt
 from datetime import datetime
-from sklearn.model_selection import KFold
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
 from PhenPred.vae import data_folder, plot_folder, files_folder
 

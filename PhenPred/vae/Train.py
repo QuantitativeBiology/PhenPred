@@ -1,38 +1,18 @@
-# %load_ext autoreload
-# %autoreload 2
-
-import os
-import sys
-
-proj_dir = "/home/egoncalves/PhenPred"
-if not os.path.exists(proj_dir):
-    proj_dir = "/Users/emanuel/Projects/PhenPred"
-sys.path.extend([proj_dir])
-
-import json
+import re
 import torch
 import PhenPred
 import numpy as np
 import pandas as pd
 import torch.nn as nn
-import torch.nn.functional as F
+import seaborn as sns
+import matplotlib.pyplot as plt
 from datetime import datetime
-from PhenPred.vae.Hypers import Hypers
+from PhenPred.vae import plot_folder
+from torch.utils.data import DataLoader
+from matplotlib.ticker import MaxNLocator
 from sklearn.model_selection import KFold
 from PhenPred.vae.Losses import CLinesLosses
 from PhenPred.vae.ModelCVAE import CLinesCVAE
-from torch.utils.data import DataLoader, Dataset
-from PhenPred.vae import data_folder, plot_folder
-from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
-from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
-from PhenPred.vae.BenchmarkGenomics import GenomicsBenchmark
-from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
-from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
-from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
-
-
-# Class variables - Hyperparameters
-_hyperparameters = Hypers.read_hyperparameters()
 
 
 class CLinesTrain:
@@ -60,11 +40,7 @@ class CLinesTrain:
     @staticmethod
     def extract_value(x):
         if isinstance(x, torch.Tensor):
-            return x.cpu().detach().numpy()
-        elif isinstance(x, np.ndarray):
-            return x
-        elif isinstance(x, list):
-            return np.array(x)
+            return float(x.cpu().detach().numpy())
         else:
             return x
 
@@ -84,24 +60,22 @@ class CLinesTrain:
 
         self.losses.append(r)
 
-    def print_losses(self, cv_idx, epoch_idx, train_loss, val_loss):
+    def print_losses(self, cv_idx, epoch_idx):
+        l = pd.DataFrame(self.losses).query(f"cv == {cv_idx} & epoch == {epoch_idx}")
+        l = l.groupby("type").mean()
+
         print(
-            f"[{datetime.now().strftime('%H:%M:%S')}] {cv_idx + 1}-fold, Epoch {epoch_idx + 1} Loss (train / val)"
-            + f"| Total: {train_loss['total']:.3f} / {val_loss['total']:.3f}"
-            + f"| MSE: {train_loss['mse']:.3f} / {val_loss['mse']:.3f}"
-            + f"| KL: {train_loss['kl']:.3f} / {val_loss['kl']:.3f}"
-            + f"| Cov: {train_loss['covariate']:.3f} / {val_loss['covariate']:.3f}"
+            f"[{datetime.now().strftime('%H:%M:%S')}] {cv_idx}-fold, Epoch {epoch_idx} Loss (train / val)"
+            + f"| Total: {l.loc['train', 'total']:.3f} / {l.loc['val', 'total']:.3f}"
+            + f"| MSE: {l.loc['train', 'mse']:.3f} / {l.loc['val', 'mse']:.3f}"
+            + f"| KL: {l.loc['train', 'kl']:.3f} / {l.loc['val', 'kl']:.3f}"
+            + f"| Cov: {l.loc['train', 'covariate']:.3f} / {l.loc['val', 'covariate']:.3f}"
         )
 
     def save_losses(self):
-        df = pd.DataFrame(self.losses)
-        df.to_csv(
-            os.path.join(
-                plot_folder,
-                f"files/{self.timestamp}_losses.csv",
-            ),
-            index=False,
-        )
+        l = pd.DataFrame(self.losses)
+        l.to_csv(f"{plot_folder}/files/{self.timestamp}_losses.csv", index=False)
+        return l
 
     def run(self):
         self.training()
@@ -149,6 +123,9 @@ class CLinesTrain:
                     # Covariates
                     labels = labels.to(self.device)
 
+                    # Clear gradients
+                    optimizer.zero_grad()
+
                     # Forward pass to get the predictions
                     views_hat, mu_joint, logvar_joint, _, _ = model.forward(views)
 
@@ -169,8 +146,7 @@ class CLinesTrain:
                         else labels,
                     )
 
-                    # Zero gradients + Backpropagation + Optimize
-                    optimizer.zero_grad()
+                    # Backpropagation + Optimize
                     loss_train["total"].backward()
                     optimizer.step()
 
@@ -178,8 +154,8 @@ class CLinesTrain:
                     self.register_loss(
                         loss_train,
                         extra_fields={
-                            "cv": cv_idx,
-                            "epoch": epoch,
+                            "cv": cv_idx + 1,
+                            "epoch": epoch + 1,
                             "type": "train",
                         },
                     )
@@ -220,14 +196,14 @@ class CLinesTrain:
                         self.register_loss(
                             loss_val,
                             extra_fields={
-                                "cv": cv_idx,
-                                "epoch": epoch,
+                                "cv": cv_idx + 1,
+                                "epoch": epoch + 1,
                                 "type": "val",
                             },
                         )
 
                 # --- Print Epoch Losses
-                self.print_losses(cv_idx, epoch, loss_train, loss_val)
+                self.print_losses(cv_idx + 1, epoch + 1)
 
                 # --- Save Best Model
                 if loss_val["total"] < self.best_loss:
@@ -238,13 +214,9 @@ class CLinesTrain:
         if self.save_best_model:
             torch.save(self.best_model, self.best_model_path)
 
-        self.save_losses()
-
-        CLinesLosses.plot_losses(
-            self.losses,
-            self.hypers["beta"],
-            self.timestamp,
-        )
+        # --- Save Losses and Plot
+        losses_df = self.save_losses()
+        self.plot_losses(losses_df, self.timestamp)
 
     def predictions(self):
         if self.best_model is None:
@@ -279,14 +251,13 @@ class CLinesTrain:
             views = [view.to(self.device) for view in views]
             views_nans = [~view.to(self.device) for view in views_nans]
 
-            # Forward pass to get the predictions
             (
                 views_hat,
                 mu_joint,
                 logvar_joint,
                 mu_views,
                 logvar_views,
-            ) = self.model.forward(views)
+            ) = model.forward(views)
 
             for name, df in zip(self.data.view_names, views_hat):
                 imputed_datasets[name] = pd.DataFrame(
@@ -295,16 +266,15 @@ class CLinesTrain:
                     columns=self.data.view_feature_names[name],
                 )
 
-            # Create Latent Spaces
             latent_spaces["joint"] = pd.DataFrame(
-                self.model.module.reparameterize(mu_joint, logvar_joint).tolist(),
+                model.module.reparameterize(mu_joint, logvar_joint).tolist(),
                 index=self.data.samples,
                 columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
             )
 
             for name, mus, logvars in zip(self.data.view_names, mu_views, logvar_views):
                 latent_spaces[name] = pd.DataFrame(
-                    self.model.module.reparameterize(mus, logvars).tolist(),
+                    model.module.reparameterize(mus, logvars).tolist(),
                     index=self.data.samples,
                     columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
                 )
@@ -322,53 +292,72 @@ class CLinesTrain:
                 compression="gzip",
             )
 
+    @staticmethod
+    def plot_losses(losses_df, timestamp=""):
+        # Plot total losses
+        plot_df = pd.melt(losses_df, id_vars=["epoch", "type"], value_vars="total")
 
-if __name__ == "__main__":
-    # Load the first dataset
-    clines_db = CLinesDatasetDepMap23Q2(
-        datasets=_hyperparameters["datasets"],
-        feature_miss_rate_thres=_hyperparameters["feature_miss_rate_thres"],
-        covariates=_hyperparameters["covariates"],
-    )
-    clines_db.plot_samples_overlap()
-    clines_db.plot_datasets_missing_values()
+        _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
+        sns.lineplot(
+            data=plot_df,
+            x="epoch",
+            y="value",
+            hue="type",
+            ax=ax,
+        )
+        ax.set(
+            title=f"Train and Validation Loss",
+            xlabel="Epoch",
+            ylabel="Loss",
+        )
+        legend_handles, _ = ax.get_legend_handles_labels()
+        ax.legend(
+            legend_handles,
+            ["Train Loss", "Validation Loss"],
+            title="Losses",
+            loc="upper left",
+            bbox_to_anchor=(1, 1),
+        )
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_train_validation_loss")
 
-    # Train and predictions
-    # train.timestamp = "2023-05-18_19:49:05"
-    train = CLinesTrain(clines_db, _hyperparameters)
-    train.run()
+        # Plot loss terms
+        plot_df = pd.melt(
+            losses_df, id_vars=["epoch", "type"], value_vars=["mse", "kl", "covariate"]
+        )
 
-    # Run drug benchmark
-    dres_benchmark = DrugResponseBenchmark(train.timestamp)
-    dres_benchmark.run()
+        _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
+        sns.lineplot(
+            data=plot_df,
+            x="epoch",
+            y="value",
+            hue="variable",
+            style="type",
+            ls="--",
+            ax=ax,
+        )
+        ax.set(
+            title=f"Total loss",
+            xlabel="Epoch",
+            ylabel="Loss",
+        )
+        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_reconst_reg_loss")
 
-    # Run proteomics benchmark
-    proteomics_benchmark = ProteomicsBenchmark(train.timestamp)
-    proteomics_benchmark.run()
+        # Plot losses views
+        plot_df = pd.melt(
+            losses_df,
+            id_vars=["epoch", "type"],
+            value_vars=[c for c in losses_df if c.startswith("mse_")],
+        )
 
-    # Run CRISPR benchmark
-    crispr_benchmark = CRISPRBenchmark(train.timestamp, clines_db)
-    crispr_benchmark.run()
-
-    # Run Latent Spaces Benchmark
-    latent_benchmark = LatentSpaceBenchmark(train.timestamp, clines_db)
-    latent_benchmark.run()
-    latent_benchmark.plot_latent_spaces(
-        view_names=[],
-        markers=pd.concat(
-            [
-                clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
-                clines_db.dfs["metabolomics"][["1-methylnicotinamide"]],
-                latent_benchmark.covariates["drug_responses"],
-            ],
-            axis=1,
-        ),
-    )
-
-    # Write the hyperparameters to json file
-    json.dump(
-        _hyperparameters,
-        open(f"{plot_folder}/files/{train.timestamp}_hyperparameters.json", "w"),
-        indent=4,
-        default=lambda o: "<not serializable>",
-    )
+        _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
+        sns.lineplot(
+            data=plot_df,
+            x="epoch",
+            y="value",
+            hue="variable",
+            style="type",
+            ax=ax,
+        )
+        ax.set(xlabel="Epoch", ylabel="Reconstruction Loss")
+        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_reconst_omics_loss")
