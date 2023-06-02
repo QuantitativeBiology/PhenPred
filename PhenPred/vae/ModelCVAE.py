@@ -9,13 +9,13 @@ import torch.nn.functional as F
 class CLinesCVAE(nn.Module):
     def __init__(self, views, hyper, conditional=None):
         super(CLinesCVAE, self).__init__()
+        print("# ---- CLinesCVAE ---- #")
 
         self.views = views
         self.hyper = hyper
         self.conditional = conditional
         self.conditional_size = 0 if conditional is None else conditional.shape[1]
 
-        print("# ---- CLinesCVAE ---- #")
         self.views_sizes = {n: v.shape[1] for n, v in self.views.items()}
 
         if self.hyper["n_groups"] is not None:
