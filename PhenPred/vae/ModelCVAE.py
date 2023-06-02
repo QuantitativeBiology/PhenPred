@@ -78,12 +78,6 @@ class CLinesCVAE(nn.Module):
                 )
             )
 
-    def _build_contextualized_attention(self):
-        self.context_att = ContextualizedAttention(
-            context_dim=self.conditional_size,
-            latent_dim=self.hyper["latent_dim"],
-        )
-
     def _build_decoders(self):
         self.decoders = nn.ModuleList()
         for n in self.views:
@@ -106,10 +100,13 @@ class CLinesCVAE(nn.Module):
             self.decoders.append(nn.Sequential(*layers))
 
     def reparameterize(self, mu, logvar):
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        z = mu + eps * std
-        return z
+        if self.training:
+            std = torch.exp(0.5 * logvar)
+            eps = torch.randn_like(std)
+            return mu + std * eps
+        else:
+            # Reconstruction mode
+            return mu
 
     def encode(self, views, labels=None):
         encoders = []
@@ -165,21 +162,23 @@ class CLinesCVAE(nn.Module):
 
         return means, logs
 
-    def product_of_experts(self, means, logs):
-        logvar_joint = torch.sum(
-            torch.stack([1.0 / torch.exp(log_var) for log_var in logs]),
+    def product_of_experts(self, means, logvars):
+        # Convert logvar to precision (inverse variance)
+        precision_list = [torch.exp(-logvar) for logvar in logvars]
+
+        # Compute the combined precision and mu
+        combined_precision = torch.sum(torch.stack(precision_list), dim=0)
+        combined_mu = torch.sum(
+            torch.stack(
+                [precision * mu for precision, mu in zip(precision_list, means)]
+            ),
             dim=0,
         )
-        logvar_joint = torch.log(1.0 / logvar_joint)
 
-        mu_joint = torch.sum(
-            torch.stack([mu / torch.exp(log_var) for mu, log_var in zip(means, logs)]),
-            dim=0,
-        )
+        # Convert back to logvar
+        combined_logvar = -torch.log(combined_precision)
 
-        mu_joint *= torch.exp(logvar_joint)
-
-        return mu_joint, logvar_joint
+        return combined_mu / combined_precision, combined_logvar
 
 
 class BottleNeck(nn.Module):

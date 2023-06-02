@@ -10,8 +10,10 @@ import scipy.stats as stats
 import matplotlib.pyplot as plt
 from math import sqrt
 from datetime import datetime
+from scipy.special import stdtr
 from sklearn.metrics import mean_squared_error
 from PhenPred.vae import data_folder, plot_folder
+from statsmodels.stats.multitest import multipletests
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 
 _timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
@@ -34,7 +36,14 @@ class DrugResponseBenchmark:
 
         # Fully imputed autoencoder dataset
         self.df_vae = pd.read_csv(
-            f"{plot_folder}/files/{timestamp}_imputed_drugresponse.csv.gz", index_col=0
+            f"{plot_folder}/files/{self.timestamp}_imputed_drugresponse.csv.gz",
+            index_col=0,
+        )
+
+        # Fully imputed CRISPR dataset
+        self.df_crispr_vae = pd.read_csv(
+            f"{plot_folder}/files/{self.timestamp}_imputed_crisprcas9.csv.gz",
+            index_col=0,
         )
 
         # MOFA imputed dataset

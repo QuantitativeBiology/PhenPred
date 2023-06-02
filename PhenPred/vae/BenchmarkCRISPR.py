@@ -342,11 +342,9 @@ class CRISPRBenchmark:
 
             plt.gcf().set_size_inches(2, 2)
 
-            plt.savefig(
-                f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}.pdf",
-                bbox_inches="tight",
+            PhenPred.save_figure(
+                f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}",
             )
-            plt.close("all")
 
             # Original
             df = plot_df[plot_df["predicted"].apply(lambda x: x.startswith("Observed"))]

@@ -98,6 +98,7 @@ class ProteomicsBenchmark:
         self.compare_imputed_ccle()
         self.ccle_compare_by_genes()
         self.associations()
+        self.ccle_compare_with_vae()
 
     def place_imputed_values_in_nans(self):
         df_original = self.df_original.copy().reindex(
@@ -226,7 +227,7 @@ class ProteomicsBenchmark:
             ax.text(
                 0.95,
                 0.05,
-                f"R={r:.2g}; Rho={s:.2g}; RMSE={rmse:.2f}",
+                f"R={r:.2g}; Rho={s:.2g}; RMSE={rmse:.2f}, N={len(data):,}",
                 fontsize=6,
                 transform=ax.transAxes,
                 ha="right",
@@ -441,4 +442,63 @@ class ProteomicsBenchmark:
 
         PhenPred.save_figure(
             f"{plot_folder}/proteomics/{self.timestamp}_imputed_corr_by_gene_boxplot",
+        )
+
+    def ccle_compare_with_vae(self):
+        features = list(set(self.df_vae).intersection(self.df_ccle))
+        samples = list(set(self.df_vae.index).intersection(self.df_ccle.index))
+
+        # scale
+        df_vae_zscore = stats.zscore(self.df_vae, nan_policy="omit")
+        df_ccle_zscore = stats.zscore(self.df_ccle, nan_policy="omit")
+
+        # Correlation dataframe
+        df_corrs = pd.DataFrame(
+            [
+                two_vars_correlation(
+                    df_vae_zscore.loc[s, features],
+                    df_ccle_zscore.loc[s, features],
+                    method="pearson",
+                    extra_fields=dict(
+                        sample=s,
+                        outofsample="Out-of-sample"
+                        if s not in self.df_original.index
+                        else "In-sample",
+                    ),
+                )
+                for s in samples
+            ]
+        )
+
+        # histogram coloured by out-of-sample
+        _, ax = plt.subplots(1, 1, figsize=(2, 1.5), dpi=600)
+
+        g = sns.histplot(
+            data=df_corrs,
+            x="corr",
+            hue="outofsample",
+            hue_order=["Out-of-sample", "In-sample"],
+            palette=["#80b1d3", "#fc8d62"],
+            alpha=0.8,
+            ax=ax,
+        )
+
+        g.set(
+            title=f"Sample VAE prediction correlation with CCLE",
+            xlabel="Pearson's r",
+            ylabel=f"Number of cell lines",
+        )
+
+        PhenPred.save_figure(
+            f"{plot_folder}/proteomics/{self.timestamp}_imputed_corr_with_vae_hist",
+        )
+
+        # t-test
+        print(
+            "T-test for correlation between in-sample and out-of-sample correlations:",
+            stats.ttest_ind(
+                df_corrs.query("outofsample == 'In-sample'")["corr"],
+                df_corrs.query("outofsample == 'Out-of-sample'")["corr"],
+                equal_var=False,
+            ),
         )

@@ -54,14 +54,16 @@ def scale(df, essential=None, non_essential=None, metric=np.median):
     return df
 
 
-def two_vars_correlation(var1, var2, method="pearson", min_n=15, verbose=0, extra_fields=None):
+def two_vars_correlation(
+    var1, var2, method="pearson", min_n=15, verbose=0, extra_fields=None
+):
     if verbose > 0:
         print(f"Var1={var1.name}; Var2={var2.name}")
 
     nans_mask = np.logical_or(np.isnan(var1), np.isnan(var2))
     n = (~nans_mask).sum()
 
-    if n <= min_n:
+    if n <= min_n or np.std(var1[~nans_mask]) == 0 or np.std(var2[~nans_mask]) == 0:
         return dict(corr=np.nan, pval=np.nan, len=n)
 
     if method == "spearman":
