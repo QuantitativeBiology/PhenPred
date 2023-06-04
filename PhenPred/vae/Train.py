@@ -1,11 +1,12 @@
-import re
 import torch
 import PhenPred
+import contextlib
 import numpy as np
 import pandas as pd
 import torch.nn as nn
 import seaborn as sns
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from datetime import datetime
 from PhenPred.vae import plot_folder
 from torch.utils.data import DataLoader
@@ -37,6 +38,10 @@ class CLinesTrain:
         self.save_best_model = save_best_model
         self.best_model_path = f"{plot_folder}/files/{self.timestamp}_model.model"
 
+    def run(self):
+        self.training()
+        self.predictions()
+
     @staticmethod
     def extract_value(x):
         if isinstance(x, torch.Tensor):
@@ -60,11 +65,11 @@ class CLinesTrain:
 
         self.losses.append(r)
 
-    def print_losses(self, cv_idx, epoch_idx):
+    def print_losses(self, cv_idx, epoch_idx, pbar=None):
         l = pd.DataFrame(self.losses).query(f"cv == {cv_idx} & epoch == {epoch_idx}")
         l = l.groupby("type").mean()
 
-        print(
+        ptxt = (
             f"[{datetime.now().strftime('%H:%M:%S')}] {cv_idx}-fold, Epoch {epoch_idx} Loss (train / val)"
             + f"| Total: {l.loc['train', 'total']:.3f} / {l.loc['val', 'total']:.3f}"
             + f"| MSE: {l.loc['train', 'mse']:.3f} / {l.loc['val', 'mse']:.3f}"
@@ -72,14 +77,76 @@ class CLinesTrain:
             + f"| Cov: {l.loc['train', 'covariate']:.3f} / {l.loc['val', 'covariate']:.3f}"
         )
 
+        if pbar is not None:
+            pbar.set_description(ptxt)
+        else:
+            print(ptxt)
+
     def save_losses(self):
         l = pd.DataFrame(self.losses)
         l.to_csv(f"{plot_folder}/files/{self.timestamp}_losses.csv", index=False)
         return l
 
-    def run(self):
-        self.training()
-        self.predictions()
+    @contextlib.contextmanager
+    def dummy_context_mgr(self):
+        yield None
+
+    def train_epoch(
+        self,
+        optimizer,
+        model,
+        datatloader,
+        register_losses=True,
+        register_losses_fields=dict(),
+    ):
+        # When evaluating, disable gradient computation to reduce memory usage
+        with torch.no_grad() if not model.training else self.dummy_context_mgr():
+            # Dataloader train is divided into batches
+            for views, labels, views_nans in datatloader:
+                views = [view.to(self.device) for view in views]
+                views_nans = [~view.to(self.device) for view in views_nans]
+
+                # Covariates
+                labels = labels.to(self.device)
+
+                # Clear gradients
+                if model.training:
+                    optimizer.zero_grad()
+
+                # Forward pass to get the predictions
+                views_hat, mu_joint, logvar_joint, _, _ = model.forward(views)
+
+                # Sample from joint latent space
+                z_joint = model.module.reparameterize(mu_joint, logvar_joint)
+
+                # Calculate Losses
+                loss = CLinesLosses.loss_function(
+                    hypers=self.hypers,
+                    views=views,
+                    views_hat=views_hat,
+                    means=mu_joint,
+                    log_variances=logvar_joint,
+                    z_joint=z_joint,
+                    views_nans=views_nans,
+                    covariates=None if self.hypers["covariates"] is None else labels,
+                )
+
+                # Backward pass and optimization
+                if model.training:
+                    loss["total"].backward()
+                    optimizer.step()
+
+                # Save best model
+                if not model.training and loss["total"] < self.best_loss:
+                    self.best_vloss = loss["total"]
+                    self.best_model = model.state_dict()
+
+                # Register losses
+                if register_losses:
+                    self.register_loss(
+                        loss,
+                        register_losses_fields,
+                    )
 
     def training(self):
         # Cross Validation
@@ -93,9 +160,9 @@ class CLinesTrain:
             )
 
             # Validation Data
-            data_test = torch.utils.data.Subset(self.data, val_idx)
-            dataloader_test = DataLoader(
-                data_test, batch_size=self.hypers["batch_size"], shuffle=False
+            data_val = torch.utils.data.Subset(self.data, val_idx)
+            dataloader_val = DataLoader(
+                data_val, batch_size=self.hypers["batch_size"], shuffle=False
             )
 
             # Initialize Model
@@ -111,110 +178,44 @@ class CLinesTrain:
             optimizer = CLinesLosses.get_optimizer(self.hypers, model)
 
             # Train and Validate Model
-            for epoch in range(self.hypers["num_epochs"]):
-                # --- TRAINING
+            pbar = tqdm(range(self.hypers["num_epochs"]))
+            for epoch in pbar:
+                # Train
                 model.train()
 
-                # Dataloader train is divided into batches
-                for views, labels, views_nans in dataloader_train:
-                    views = [view.to(self.device) for view in views]
-                    views_nans = [~view.to(self.device) for view in views_nans]
+                self.train_epoch(
+                    optimizer,
+                    model,
+                    dataloader_train,
+                    True,
+                    dict(
+                        cv=cv_idx + 1,
+                        epoch=epoch + 1,
+                        type="train",
+                    ),
+                )
 
-                    # Covariates
-                    labels = labels.to(self.device)
-
-                    # Clear gradients
-                    optimizer.zero_grad()
-
-                    # Forward pass to get the predictions
-                    views_hat, mu_joint, logvar_joint, _, _ = model.forward(views)
-
-                    # Sample from joint latent space
-                    z_joint = model.module.reparameterize(mu_joint, logvar_joint)
-
-                    # Calculate Losses
-                    loss_train = CLinesLosses.loss_function(
-                        hypers=self.hypers,
-                        views=views,
-                        views_hat=views_hat,
-                        means=mu_joint,
-                        log_variances=logvar_joint,
-                        z_joint=z_joint,
-                        views_nans=views_nans,
-                        covariates=None
-                        if self.hypers["covariates"] is None
-                        else labels,
-                    )
-
-                    # Backpropagation + Optimize
-                    loss_train["total"].backward()
-                    optimizer.step()
-
-                    # Store losses values
-                    self.register_loss(
-                        loss_train,
-                        extra_fields={
-                            "cv": cv_idx + 1,
-                            "epoch": epoch + 1,
-                            "type": "train",
-                        },
-                    )
-
-                # --- VALIDATION
+                # Validate
                 model.eval()
 
-                # Disable gradient computation and reduce memory consumption.
-                with torch.no_grad():
-                    for views, labels, views_nans in dataloader_test:
-                        views = [view.to(self.device) for view in views]
-                        views_nans = [~view.to(self.device) for view in views_nans]
+                self.train_epoch(
+                    optimizer,
+                    model,
+                    dataloader_val,
+                    True,
+                    dict(
+                        cv=cv_idx + 1,
+                        epoch=epoch + 1,
+                        type="val",
+                    ),
+                )
 
-                        # covariates
-                        labels = labels.to(self.device)
+                # Print losses
+                self.print_losses(cv_idx + 1, epoch + 1, pbar)
 
-                        # Forward pass to get the predictions
-                        views_hat, mu_joint, logvar_joint, _, _ = model.forward(views)
-
-                        # Sample from joint latent space
-                        z_joint = model.module.reparameterize(mu_joint, logvar_joint)
-
-                        # Calculate Losses
-                        loss_val = CLinesLosses.loss_function(
-                            hypers=self.hypers,
-                            views=views,
-                            views_hat=views_hat,
-                            means=mu_joint,
-                            log_variances=logvar_joint,
-                            z_joint=z_joint,
-                            views_nans=views_nans,
-                            covariates=None
-                            if self.hypers["covariates"] is None
-                            else labels,
-                        )
-
-                        # Store values
-                        self.register_loss(
-                            loss_val,
-                            extra_fields={
-                                "cv": cv_idx + 1,
-                                "epoch": epoch + 1,
-                                "type": "val",
-                            },
-                        )
-
-                # --- Print Epoch Losses
-                self.print_losses(cv_idx + 1, epoch + 1)
-
-                # --- Save Best Model
-                if loss_val["total"] < self.best_loss:
-                    self.best_vloss = loss_val["total"]
-                    self.best_model = model.state_dict()
-
-        # --- Save Best Model
         if self.save_best_model:
             torch.save(self.best_model, self.best_model_path)
 
-        # --- Save Losses and Plot
         losses_df = self.save_losses()
         self.plot_losses(losses_df, self.timestamp)
 
@@ -245,6 +246,9 @@ class CLinesTrain:
         # Dataframes
         latent_spaces = dict()
         imputed_datasets = dict()
+
+        # Evaluation mode
+        model.eval()
 
         # Make predictions and latent spaces
         for views, labels, views_nans in omics_dataloader:
