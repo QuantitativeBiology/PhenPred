@@ -152,7 +152,7 @@ class CLinesTrain:
         # Cross Validation
         cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True)
 
-        for cv_idx, (train_idx, val_idx) in enumerate(cv.split(self.data)):
+        for cv_idx, (train_idx, val_idx) in enumerate(cv.split(self.data), start=1):
             # Train Data
             data_train = torch.utils.data.Subset(self.data, train_idx)
             dataloader_train = DataLoader(
@@ -178,7 +178,7 @@ class CLinesTrain:
             optimizer = CLinesLosses.get_optimizer(self.hypers, model)
 
             # Train and Validate Model
-            pbar = tqdm(range(self.hypers["num_epochs"]))
+            pbar = tqdm(range(1, self.hypers["num_epochs"] + 1))
             for epoch in pbar:
                 # Train
                 model.train()
@@ -189,8 +189,8 @@ class CLinesTrain:
                     dataloader_train,
                     True,
                     dict(
-                        cv=cv_idx + 1,
-                        epoch=epoch + 1,
+                        cv=cv_idx,
+                        epoch=epoch,
                         type="train",
                     ),
                 )
@@ -204,14 +204,14 @@ class CLinesTrain:
                     dataloader_val,
                     True,
                     dict(
-                        cv=cv_idx + 1,
-                        epoch=epoch + 1,
+                        cv=cv_idx,
+                        epoch=epoch,
                         type="val",
                     ),
                 )
 
                 # Print losses
-                self.print_losses(cv_idx + 1, epoch + 1, pbar)
+                self.print_losses(cv_idx, epoch, pbar)
 
         if self.save_best_model:
             torch.save(self.best_model, self.best_model_path)
@@ -251,7 +251,7 @@ class CLinesTrain:
         model.eval()
 
         # Make predictions and latent spaces
-        for views, labels, views_nans in omics_dataloader:
+        for views, _, views_nans in omics_dataloader:
             views = [view.to(self.device) for view in views]
             views_nans = [~view.to(self.device) for view in views_nans]
 
