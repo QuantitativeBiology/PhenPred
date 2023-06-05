@@ -68,7 +68,6 @@ class CLinesLosses:
             idx_y = torch.nonzero(covariates[:, i] == 0).flatten()
 
             if len(idx_x) == 0 or len(idx_y) == 0:
-                covariate_losses.append(torch.tensor(0.0))
                 continue
 
             k_xx = cls.gaussian_kernel(dist[idx_x][:, idx_x]).mean()

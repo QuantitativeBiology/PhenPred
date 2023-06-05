@@ -7,16 +7,14 @@ import torch.nn.functional as F
 
 
 class CLinesCVAE(nn.Module):
-    def __init__(self, views, hyper, conditional=None):
+    def __init__(self, views_sizes, hyper, conditional=None):
         super(CLinesCVAE, self).__init__()
         print("# ---- CLinesCVAE ---- #")
 
-        self.views = views
         self.hyper = hyper
+        self.views_sizes = views_sizes
         self.conditional = conditional
         self.conditional_size = 0 if conditional is None else conditional.shape[1]
-
-        self.views_sizes = {n: v.shape[1] for n, v in self.views.items()}
 
         if self.hyper["n_groups"] is not None:
             self._build_groupbottleneck()
@@ -29,7 +27,7 @@ class CLinesCVAE(nn.Module):
     def _build_groupbottleneck(self):
         self.groups = nn.ModuleList()
 
-        for n in self.views:
+        for n in self.views_sizes:
             self.groups.append(
                 BottleNeck(
                     self.views_sizes[n],
@@ -41,7 +39,7 @@ class CLinesCVAE(nn.Module):
     def _build_encoders(self):
         self.encoders = nn.ModuleList()
 
-        for n in self.views:
+        for n in self.views_sizes:
             layer_sizes = [self.views_sizes[n] + self.conditional_size]
 
             layer_sizes += [
@@ -59,7 +57,7 @@ class CLinesCVAE(nn.Module):
     def _build_mean_vars(self):
         self.mus, self.log_vars = nn.ModuleList(), nn.ModuleList()
 
-        for n in self.views:
+        for n in self.views_sizes:
             s_i = int(self.hyper["hidden_dims"][-1] * self.views_sizes[n])
             s_o = self.hyper["latent_dim"]
 
@@ -68,7 +66,7 @@ class CLinesCVAE(nn.Module):
 
     def _build_latents(self):
         self.latents = nn.ModuleList()
-        for n in self.views:
+        for n in self.views_sizes:
             self.latents.append(
                 nn.Sequential(
                     nn.Linear(
@@ -80,7 +78,7 @@ class CLinesCVAE(nn.Module):
 
     def _build_decoders(self):
         self.decoders = nn.ModuleList()
-        for n in self.views:
+        for n in self.views_sizes:
             layer_sizes = [self.hyper["latent_dim"]]
 
             layer_sizes += [
@@ -110,7 +108,7 @@ class CLinesCVAE(nn.Module):
 
     def encode(self, views, labels=None):
         encoders = []
-        for i, _ in enumerate(self.views):
+        for i, _ in enumerate(self.views_sizes):
             x = views[i]
 
             if self.conditional_size != 0:
@@ -125,7 +123,7 @@ class CLinesCVAE(nn.Module):
 
     def decode(self, z, labels=None):
         decoders = []
-        for i, _ in enumerate(self.views):
+        for i, _ in enumerate(self.views_sizes):
             z_ = z
 
             if self.conditional_size != 0:
@@ -151,6 +149,7 @@ class CLinesCVAE(nn.Module):
 
         z = self.reparameterize(mu, logvar)
         decoders = self.decode(z)
+
         return decoders, mu, logvar, means, log_variances
 
     def mean_variance(self, hs):
