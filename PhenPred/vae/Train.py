@@ -31,12 +31,6 @@ class CLinesTrain:
         # Losses
         self.losses = []
 
-        # Best model
-        self.best_loss = np.inf
-        self.best_model = None
-        self.save_best_model = save_best_model
-        self.best_model_path = f"{plot_folder}/files/{self.timestamp}_model.model"
-
     def run(self):
         self.training()
         self.predictions()
@@ -135,11 +129,6 @@ class CLinesTrain:
                     loss["total"].backward()
                     optimizer.step()
 
-                # Save best model
-                if not model.training and loss["total"] < self.best_loss:
-                    self.best_vloss = loss["total"]
-                    self.best_model = model.state_dict()
-
                 # Register losses
                 if register_losses:
                     self.register_loss(
@@ -208,9 +197,6 @@ class CLinesTrain:
                 # Print losses
                 self.print_losses(cv_idx, epoch, pbar)
 
-        if self.save_best_model:
-            torch.save(self.best_model, self.best_model_path)
-
         losses_df = self.save_losses()
         self.plot_losses(losses_df, self.timestamp)
 
@@ -223,12 +209,6 @@ class CLinesTrain:
 
         # Initialize Best Model
         model = self.initialize_model()
-
-        # Load best model
-        if self.save_best_model:
-            model.load_state_dict(torch.load(self.best_model_path))
-        else:
-            model.load_state_dict(self.best_model)
 
         # Data Loader
         data_all = DataLoader(
