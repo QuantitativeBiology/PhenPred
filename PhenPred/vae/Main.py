@@ -11,7 +11,6 @@ sys.path.extend([proj_dir])
 
 import json
 import PhenPred
-import numpy as np
 import pandas as pd
 from PhenPred.vae import plot_folder
 from PhenPred.vae.Hypers import Hypers
