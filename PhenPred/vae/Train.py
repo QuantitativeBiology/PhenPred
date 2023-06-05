@@ -20,7 +20,6 @@ class CLinesTrain:
     def __init__(self, data, hypers, save_best_model=False):
         # Device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        torch.set_num_threads(28)
 
         # Data & Hyperparameters
         self.data = data
@@ -42,23 +41,16 @@ class CLinesTrain:
         self.training()
         self.predictions()
 
-    @staticmethod
-    def extract_value(x):
-        if isinstance(x, torch.Tensor):
-            return float(x.cpu().detach().numpy())
-        else:
-            return x
-
     def register_loss(self, loss, extra_fields=None):
         r = {
-            "total": self.extract_value(loss["total"]),
-            "mse": self.extract_value(loss["mse"]),
-            "kl": self.extract_value(loss["kl"]),
-            "covariate": self.extract_value(loss["covariate"]),
+            "total": float(loss["total"]),
+            "mse": float(loss["mse"]),
+            "kl": float(loss["kl"]),
+            "covariate": float(loss["covariate"]),
         }
 
         for k, v in loss["mse_views"].items():
-            r[f"mse_{k}"] = self.extract_value(v)
+            r[f"mse_{k}"] = float(v)
 
         if extra_fields is not None:
             r.update(extra_fields)
@@ -70,11 +62,11 @@ class CLinesTrain:
         l = l.groupby("type").mean()
 
         ptxt = (
-            f"[{datetime.now().strftime('%H:%M:%S')}] {cv_idx}-fold, Epoch {epoch_idx} Loss (train / val)"
-            + f"| Total: {l.loc['train', 'total']:.3f} / {l.loc['val', 'total']:.3f}"
-            + f"| MSE: {l.loc['train', 'mse']:.3f} / {l.loc['val', 'mse']:.3f}"
-            + f"| KL: {l.loc['train', 'kl']:.3f} / {l.loc['val', 'kl']:.3f}"
-            + f"| Cov: {l.loc['train', 'covariate']:.3f} / {l.loc['val', 'covariate']:.3f}"
+            f"[{datetime.now().strftime('%H:%M:%S')}] CV={cv_idx}, Epoch={epoch_idx} Loss (train/val)"
+            + f" | Total={l.loc['train', 'total']:.2f}/{l.loc['val', 'total']:.2f}"
+            + f" | MSE={l.loc['train', 'mse']:.2f}/{l.loc['val', 'mse']:.2f}"
+            + f" | KL={l.loc['train', 'kl']:.2f}/{l.loc['val', 'kl']:.2f}"
+            + f" | Cov={l.loc['train', 'covariate']:.2f}/{l.loc['val', 'covariate']:.2f}"
         )
 
         if pbar is not None:
@@ -87,9 +79,19 @@ class CLinesTrain:
         l.to_csv(f"{plot_folder}/files/{self.timestamp}_losses.csv", index=False)
         return l
 
-    @contextlib.contextmanager
-    def dummy_context_mgr(self):
-        yield None
+    def initialize_model(self):
+        model = CLinesCVAE(
+            {n: v.shape[1] for n, v in self.data.views.items()},
+            self.hypers,
+            self.data.conditional if self.hypers["conditional"] else None,
+        )
+
+        if torch.cuda.device_count() > 1:
+            model = nn.DataParallel(model)
+
+        model.to(self.device)
+
+        return model
 
     def train_epoch(
         self,
@@ -100,21 +102,18 @@ class CLinesTrain:
         register_losses_fields=dict(),
     ):
         # When evaluating, disable gradient computation to reduce memory usage
-        with torch.no_grad() if not model.training else self.dummy_context_mgr():
+        with torch.set_grad_enabled(True) if model.training else torch.no_grad():
             # Dataloader train is divided into batches
             for views, labels, views_nans in datatloader:
-                views = [view.to(self.device) for view in views]
-                views_nans = [~view.to(self.device) for view in views_nans]
-
-                # Covariates
-                labels = labels.to(self.device)
+                views_ = [view.to(self.device) for view in views]
+                views_nans = [~view for view in views_nans]
 
                 # Clear gradients
                 if model.training:
                     optimizer.zero_grad()
 
                 # Forward pass to get the predictions
-                views_hat, mu_joint, logvar_joint, _, _ = model.forward(views)
+                views_hat, mu_joint, logvar_joint, _, _ = model.forward(views_)
 
                 # Sample from joint latent space
                 z_joint = model.module.reparameterize(mu_joint, logvar_joint)
@@ -122,7 +121,7 @@ class CLinesTrain:
                 # Calculate Losses
                 loss = CLinesLosses.loss_function(
                     hypers=self.hypers,
-                    views=views,
+                    views=views_,
                     views_hat=views_hat,
                     means=mu_joint,
                     log_variances=logvar_joint,
@@ -148,6 +147,8 @@ class CLinesTrain:
                         register_losses_fields,
                     )
 
+                del views_, views_hat, mu_joint, logvar_joint, z_joint, loss
+
     def training(self):
         # Cross Validation
         cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True)
@@ -166,13 +167,7 @@ class CLinesTrain:
             )
 
             # Initialize Model
-            model = CLinesCVAE(
-                self.data.views,
-                self.hypers,
-                self.data.conditional if self.hypers["conditional"] else None,
-            ).to(self.device)
-            model = nn.DataParallel(model)
-            model.to(self.device)
+            model = self.initialize_model()
 
             # Initialize Optimizer
             optimizer = CLinesLosses.get_optimizer(self.hypers, model)
@@ -223,14 +218,11 @@ class CLinesTrain:
         if self.best_model is None:
             raise Exception("Model not trained. Run training first.")
 
-        # Initialize Model
-        model = CLinesCVAE(
-            self.data.views,
-            self.hypers,
-            self.data.conditional if self.hypers["conditional"] else None,
-        ).to(self.device)
-        model = nn.DataParallel(model)
-        model.to(self.device)
+        latent_spaces = dict()
+        imputed_datasets = dict()
+
+        # Initialize Best Model
+        model = self.initialize_model()
 
         # Load best model
         if self.save_best_model:
@@ -239,21 +231,26 @@ class CLinesTrain:
             model.load_state_dict(self.best_model)
 
         # Data Loader
-        omics_dataloader = DataLoader(
+        data_all = DataLoader(
             self.data, batch_size=len(self.data.samples), shuffle=False
         )
 
-        # Dataframes
-        latent_spaces = dict()
-        imputed_datasets = dict()
-
-        # Evaluation mode
-        model.eval()
+        # fine-tune model
+        if self.hypers["fine_tune"]:
+            model.train()
+            optimizer = CLinesLosses.get_optimizer(self.hypers, model)
+            for _ in range(1, self.hypers["num_epochs"] + 1):
+                self.train_epoch(
+                    optimizer,
+                    model,
+                    data_all,
+                    False,
+                )
 
         # Make predictions and latent spaces
-        for views, _, views_nans in omics_dataloader:
+        model.eval()
+        for views, _, _ in data_all:
             views = [view.to(self.device) for view in views]
-            views_nans = [~view.to(self.device) for view in views_nans]
 
             (
                 views_hat,
