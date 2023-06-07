@@ -22,7 +22,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         feature_miss_rate_thres=0.9,
         covariates=None,
     ):
-        super().__init__(num_workers=0)
+        super().__init__()
 
         self.datasets = datasets
         self.decimals = decimals

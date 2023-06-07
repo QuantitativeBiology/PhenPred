@@ -78,6 +78,7 @@ class CLinesTrain:
             {n: v.shape[1] for n, v in self.data.views.items()},
             self.hypers,
             self.data.conditional if self.hypers["conditional"] else None,
+            device=self.device,
         )
 
         if torch.cuda.device_count() > 1:
@@ -99,7 +100,6 @@ class CLinesTrain:
         with torch.set_grad_enabled(True) if model.training else torch.no_grad():
             # Dataloader train is divided into batches
             for views, labels, views_nans in datatloader:
-                views_ = [view.to(self.device) for view in views]
                 views_nans = [~view for view in views_nans]
 
                 # Clear gradients
@@ -107,7 +107,7 @@ class CLinesTrain:
                     optimizer.zero_grad()
 
                 # Forward pass to get the predictions
-                views_hat, mu_joint, logvar_joint, _, _ = model.forward(views_)
+                views_hat, mu_joint, logvar_joint, _, _ = model.forward(views)
 
                 # Sample from joint latent space
                 z_joint = model.module.reparameterize(mu_joint, logvar_joint)
@@ -115,7 +115,7 @@ class CLinesTrain:
                 # Calculate Losses
                 loss = CLinesLosses.loss_function(
                     hypers=self.hypers,
-                    views=views_,
+                    views=views,
                     views_hat=views_hat,
                     means=mu_joint,
                     log_variances=logvar_joint,
