@@ -46,6 +46,9 @@ class CLinesTrain:
         for k, v in loss["mse_views"].items():
             r[f"mse_{k}"] = float(v)
 
+        for k, v in loss["kl_views"].items():
+            r[f"kl_{k}"] = float(v)
+
         if extra_fields is not None:
             r.update(extra_fields)
 
@@ -136,7 +139,7 @@ class CLinesTrain:
                         register_losses_fields,
                     )
 
-                del views_, views_hat, mu_joint, logvar_joint, z_joint, loss
+                del views_hat, mu_joint, logvar_joint, z_joint, loss
 
     def training(self):
         # Cross Validation
