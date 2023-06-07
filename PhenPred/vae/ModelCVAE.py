@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 
 class CLinesCVAE(nn.Module):
-    def __init__(self, views_sizes, hyper, conditional=None):
+    def __init__(self, views_sizes, hyper, conditional=None, device="cpu"):
         super(CLinesCVAE, self).__init__()
         print("# ---- CLinesCVAE ---- #")
 
@@ -15,6 +15,7 @@ class CLinesCVAE(nn.Module):
         self.views_sizes = views_sizes
         self.conditional = conditional
         self.conditional_size = 0 if conditional is None else conditional.shape[1]
+        self.device = device
 
         if self.hyper["n_groups"] is not None:
             self._build_groupbottleneck()
@@ -135,6 +136,8 @@ class CLinesCVAE(nn.Module):
         return decoders
 
     def forward(self, views, labels=None):
+        views = [v.to(self.device) for v in views]
+
         encoders = self.encode(views, labels)
         means, log_variances = self.mean_variance(encoders)
 
