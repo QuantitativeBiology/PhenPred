@@ -34,11 +34,11 @@ class CLinesLosses:
             view_mse_loss[k] = v_mse_loss
 
         # Compute KL divergence loss
-        kl_loss = 0
-        for mu, log_var in zip(means, log_variances):
-            kl_loss += (
-                -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / len(mu)
-            )
+        kl_loss, kl_losses = 0
+        for mu, log_var, n in zip(means, log_variances, hypers["datasets"]):
+            k = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / len(mu)
+            kl_loss += k
+            kl_losses[n] = k
 
         kl_loss /= hypers["batch_size"]
         kl_loss *= hypers["beta"]
@@ -56,6 +56,7 @@ class CLinesLosses:
             kl=kl_loss,
             covariate=covariate_loss,
             mse_views=view_mse_loss,
+            kl_views=kl_losses,
         )
 
     @classmethod
