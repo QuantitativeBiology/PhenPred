@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import torch.nn as nn
 import torch.nn.functional as F
+from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import GridSearchCV
 
 
 class CLinesLosses:
@@ -58,6 +60,30 @@ class CLinesLosses:
             mse_views=view_mse_loss,
             kl_views=kl_losses,
         )
+
+    @classmethod
+    def class_mlp(
+        cls,
+        x,
+        y,
+        mode="pred",
+        param_grid={
+            "hidden_layer_sizes": [(50,), (50, 40), (50, 40, 31)],
+            "activation": ["sigmoid", "logistic", "tanh", "relu"],
+            "alpha": [1e-5, 1e-4, 1e-3, 1e-2, 0.1],
+            "learning_rate": ["constant", "adaptive"],
+            "solver": ["sgd", "adam"],
+            "max_iter": [500, 1000, 2500, 3000],
+        },
+        params={},
+    ):
+        if mode == "grid":
+            mlp = MLPClassifier()
+            clf = GridSearchCV(mlp, param_grid, cv=5, verbose=10, n_jobs=-1)
+        else:
+            clf = MLPClassifier(**params)
+
+        clf.fit(x, y)
 
     @classmethod
     def mmd_loss(cls, means, covariates):

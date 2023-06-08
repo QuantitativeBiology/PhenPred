@@ -34,7 +34,7 @@ if __name__ == "__main__":
     )
 
     # Train and predictions
-    # train.timestamp = "2023-05-18_19:49:05"
+    # train.timestamp = "2023-06-08_12:56:58"
     train = CLinesTrain(
         clines_db,
         hyperparameters,
@@ -56,6 +56,7 @@ if __name__ == "__main__":
                 clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
                 clines_db.dfs["metabolomics"][["1-methylnicotinamide"]],
                 latent_benchmark.covariates["drug_responses"],
+                clines_db.n_samples_views().sum().rename("N_Views"),
             ],
             axis=1,
         ),
