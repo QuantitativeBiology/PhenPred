@@ -34,7 +34,7 @@ class CLinesLosses:
             view_mse_loss[k] = v_mse_loss
 
         # Compute KL divergence loss
-        kl_loss, kl_losses = 0
+        kl_loss, kl_losses = 0, {}
         for mu, log_var, n in zip(means, log_variances, hypers["datasets"]):
             k = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / len(mu)
             kl_loss += k
