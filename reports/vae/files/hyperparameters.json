@@ -16,7 +16,7 @@
     "latent_dim": 50,
     "hidden_dims": [0.7],
     "probability": 0.4,
-    "n_groups": null,
+    "n_groups": 20,
     "beta": 0.1,
     "optimizer_type": "adam",
     "w_decay": 1e-5,
