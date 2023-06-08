@@ -1,3 +1,4 @@
+from calendar import c
 import torch
 import PhenPred
 import contextlib
@@ -33,52 +34,11 @@ class CLinesTrain:
         self.training()
         self.predictions()
 
-    def register_loss(self, loss, extra_fields=None):
-        r = {
-            "total": float(loss["total"]),
-            "mse": float(loss["mse"]),
-            "kl": float(loss["kl"]),
-            "covariate": float(loss["covariate"]),
-        }
-
-        for k, v in loss["mse_views"].items():
-            r[f"mse_{k}"] = float(v)
-
-        for k, v in loss["kl_views"].items():
-            r[f"kl_{k}"] = float(v)
-
-        if extra_fields is not None:
-            r.update(extra_fields)
-
-        self.losses.append(r)
-
-    def print_losses(self, cv_idx, epoch_idx, pbar=None):
-        l = pd.DataFrame(self.losses).query(f"cv == {cv_idx} & epoch == {epoch_idx}")
-        l = l.groupby("type").mean()
-
-        ptxt = (
-            f"[{datetime.now().strftime('%H:%M:%S')}] CV={cv_idx}, Epoch={epoch_idx} Loss (train/val)"
-            + f" | Total={l.loc['train', 'total']:.2f}/{l.loc['val', 'total']:.2f}"
-            + f" | MSE={l.loc['train', 'mse']:.2f}/{l.loc['val', 'mse']:.2f}"
-            + f" | KL={l.loc['train', 'kl']:.2f}/{l.loc['val', 'kl']:.2f}"
-            + f" | Cov={l.loc['train', 'covariate']:.2f}/{l.loc['val', 'covariate']:.2f}"
-        )
-
-        if pbar is not None:
-            pbar.set_description(ptxt)
-        else:
-            print(ptxt)
-
-    def save_losses(self):
-        l = pd.DataFrame(self.losses)
-        l.to_csv(f"{plot_folder}/files/{self.timestamp}_losses.csv", index=False)
-        return l
-
     def initialize_model(self):
         model = CLinesCVAE(
-            {n: v.shape[1] for n, v in self.data.views.items()},
-            self.hypers,
-            self.data.conditional if self.hypers["conditional"] else None,
+            views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
+            hyper=self.hypers,
+            labels_size=self.data.labels_size,
             device=self.device,
         )
         model = nn.DataParallel(model)
@@ -92,13 +52,17 @@ class CLinesTrain:
         dataloader,
         record_losses=None,
     ):
-        for views, labels, views_nans in dataloader:
+        for views, classes, views_nans in dataloader:
             views_nans = [~view for view in views_nans]
+
+            covariates, labels = classes
+            if self.hypers["covariates"] is None:
+                covariates = None
 
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(model.training):
-                views_hat, mu_joint, logvar_joint, _, _ = model(views)
+                views_hat, mu_joint, logvar_joint, _, _, labels_hat = model(views)
 
                 z_joint = model.module.reparameterize(mu_joint, logvar_joint)
 
@@ -110,17 +74,9 @@ class CLinesTrain:
                     log_variances=logvar_joint,
                     z_joint=z_joint,
                     views_nans=views_nans,
-                    covariates=None if self.hypers["covariates"] is None else labels,
-                )
-
-                del (
-                    views,
-                    labels,
-                    views_nans,
-                    views_hat,
-                    mu_joint,
-                    logvar_joint,
-                    z_joint,
+                    covariates=covariates,
+                    labels=labels,
+                    labels_hat=labels_hat,
                 )
 
                 if model.training:
@@ -132,8 +88,6 @@ class CLinesTrain:
                     loss,
                     record_losses,
                 )
-
-            del loss
 
     def cv_strategy(self):
         if self.stratify_cv_by is not None:
@@ -227,6 +181,7 @@ class CLinesTrain:
                     logvar_joint,
                     mu_views,
                     logvar_views,
+                    _,
                 ) = model(views)
 
                 for name, df in zip(self.data.view_names, views_hat):
@@ -265,6 +220,49 @@ class CLinesTrain:
                     f"{plot_folder}/files/{self.timestamp}_latent_{name}.csv.gz",
                     compression="gzip",
                 )
+
+    def register_loss(self, loss, extra_fields=None):
+        r = {
+            "total": float(loss["total"]),
+            "mse": float(loss["mse"]),
+            "kl": float(loss["kl"]),
+            "covariate": float(loss["covariate"]),
+            "label": float(loss["label"]),
+        }
+
+        for k, v in loss["mse_views"].items():
+            r[f"mse_{k}"] = float(v)
+
+        for k, v in loss["kl_views"].items():
+            r[f"kl_{k}"] = float(v)
+
+        if extra_fields is not None:
+            r.update(extra_fields)
+
+        self.losses.append(r)
+
+    def print_losses(self, cv_idx, epoch_idx, pbar=None):
+        l = pd.DataFrame(self.losses).query(f"cv == {cv_idx} & epoch == {epoch_idx}")
+        l = l.groupby("type").mean()
+
+        ptxt = (
+            f"[{datetime.now().strftime('%H:%M:%S')}] CV={cv_idx}, Epoch={epoch_idx} Loss (train/val)"
+            + f" | Total={l.loc['train', 'total']:.2f}/{l.loc['val', 'total']:.2f}"
+            + f" | MSE={l.loc['train', 'mse']:.2f}/{l.loc['val', 'mse']:.2f}"
+            + f" | KL={l.loc['train', 'kl']:.2f}/{l.loc['val', 'kl']:.2f}"
+            + f" | Cov={l.loc['train', 'covariate']:.2f}/{l.loc['val', 'covariate']:.2f}"
+            + f" | Label={l.loc['train', 'label']:.2f}/{l.loc['val', 'label']:.2f}"
+        )
+
+        if pbar is not None:
+            pbar.set_description(ptxt)
+        else:
+            print(ptxt)
+
+    def save_losses(self):
+        l = pd.DataFrame(self.losses)
+        l.to_csv(f"{plot_folder}/files/{self.timestamp}_losses.csv", index=False)
+        return l
 
     @staticmethod
     def plot_losses(losses_df, timestamp=""):
