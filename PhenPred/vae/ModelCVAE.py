@@ -9,7 +9,6 @@ import torch.nn.functional as F
 class CLinesCVAE(nn.Module):
     def __init__(self, views_sizes, hyper, conditional=None, device="cpu"):
         super(CLinesCVAE, self).__init__()
-        print("# ---- CLinesCVAE ---- #")
 
         self.hyper = hyper
         self.views_sizes = views_sizes
@@ -24,6 +23,10 @@ class CLinesCVAE(nn.Module):
         self._build_mean_vars()
 
         self._build_decoders()
+
+        print("# ---- CLinesCVAE")
+        self.total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        print(f"Total parameters: {self.total_params:,d}")
 
     def _build_groupbottleneck(self):
         self.groups = nn.ModuleList()
