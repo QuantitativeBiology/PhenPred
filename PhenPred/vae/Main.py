@@ -28,9 +28,10 @@ if __name__ == "__main__":
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
+        label="tissue",
         datasets=hyperparameters["datasets"],
-        feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
         covariates=hyperparameters["covariates"],
+        feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
     )
 
     # Train and predictions

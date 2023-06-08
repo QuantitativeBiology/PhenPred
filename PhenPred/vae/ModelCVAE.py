@@ -7,26 +7,33 @@ import torch.nn.functional as F
 
 
 class CLinesCVAE(nn.Module):
-    def __init__(self, views_sizes, hyper, conditional=None, device="cpu"):
+    def __init__(self, views_sizes, hyper, labels_size=None, device="cpu"):
         super(CLinesCVAE, self).__init__()
 
         self.hyper = hyper
-        self.views_sizes = views_sizes
-        self.conditional = conditional
-        self.conditional_size = 0 if conditional is None else conditional.shape[1]
         self.device = device
+        self.views_sizes = views_sizes
+        self.labels_size = labels_size
 
         if self.hyper["n_groups"] is not None:
             self._build_groupbottleneck()
 
         self._build_encoders()
         self._build_mean_vars()
-
         self._build_decoders()
+
+        self._build_classifier()
 
         print("# ---- CLinesCVAE")
         self.total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         print(f"Total parameters: {self.total_params:,d}")
+
+    def _build_classifier(self):
+        self.classifier = nn.Sequential(
+            nn.Linear(self.hyper["latent_dim"], 50),
+            nn.Sigmoid(),
+            nn.Linear(50, self.labels_size),
+        )
 
     def _build_groupbottleneck(self):
         self.groups = nn.ModuleList()
@@ -44,7 +51,7 @@ class CLinesCVAE(nn.Module):
         self.encoders = nn.ModuleList()
 
         for n in self.views_sizes:
-            layer_sizes = [self.views_sizes[n] + self.conditional_size]
+            layer_sizes = [self.views_sizes[n]]
 
             layer_sizes += [
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"]
@@ -95,9 +102,7 @@ class CLinesCVAE(nn.Module):
                 layers.append(nn.Dropout(p=self.hyper["probability"]))
                 layers.append(self.hyper["activation_function"])
 
-            layers.append(
-                nn.Linear(layer_sizes[-1], self.views_sizes[n] + self.conditional_size)
-            )
+            layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
 
             self.decoders.append(nn.Sequential(*layers))
 
@@ -110,13 +115,10 @@ class CLinesCVAE(nn.Module):
             # Reconstruction mode
             return mu
 
-    def encode(self, views, labels=None):
+    def encode(self, views):
         encoders = []
         for i, _ in enumerate(self.views_sizes):
             x = views[i]
-
-            if self.conditional_size != 0:
-                x = torch.cat([x, labels], dim=1)
 
             if self.hyper["n_groups"] is not None:
                 x = self.groups[i](x)
@@ -125,38 +127,28 @@ class CLinesCVAE(nn.Module):
             encoders.append(x)
         return encoders
 
-    def decode(self, z, labels=None):
+    def decode(self, z):
         decoders = []
         for i, _ in enumerate(self.views_sizes):
-            z_ = z
-
-            if self.conditional_size != 0:
-                z_ = torch.cat([z_, labels], dim=1)
-
-            x = self.decoders[i](z_)
-
-            decoders.append(x)
+            decoders.append(self.decoders[i](z))
         return decoders
 
-    def forward(self, views, labels=None):
+    def forward(self, views):
         views_ = [v.to(self.device) for v in views]
 
-        encoders = self.encode(views_, labels)
+        encoders = self.encode(views_)
+
         means, log_variances = self.mean_variance(encoders)
 
-        if self.conditional is not None:
-            zs = [
-                self.reparameterize(mu, logvar)
-                for mu, logvar in zip(means, log_variances)
-            ]
-            mu, logvar = self.context_att(zs, labels)
-        else:
-            mu, logvar = self.product_of_experts(means, log_variances)
+        mu, logvar = self.product_of_experts(means, log_variances)
 
         z = self.reparameterize(mu, logvar)
+
         decoders = self.decode(z)
 
-        return decoders, mu, logvar, means, log_variances
+        classes = self.classifier(z)
+
+        return decoders, mu, logvar, means, log_variances, classes
 
     def mean_variance(self, hs):
         means, logs = [], []
@@ -168,10 +160,8 @@ class CLinesCVAE(nn.Module):
         return means, logs
 
     def product_of_experts(self, means, logvars):
-        # Convert logvar to precision (inverse variance)
         precision_list = [torch.exp(-logvar) for logvar in logvars]
 
-        # Compute the combined precision and mu
         combined_precision = torch.sum(torch.stack(precision_list), dim=0)
         combined_mu = torch.sum(
             torch.stack(
@@ -180,7 +170,6 @@ class CLinesCVAE(nn.Module):
             dim=0,
         )
 
-        # Convert back to logvar
         combined_logvar = -torch.log(combined_precision)
 
         return combined_mu / combined_precision, combined_logvar

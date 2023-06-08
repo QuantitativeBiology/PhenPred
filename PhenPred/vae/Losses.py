@@ -20,6 +20,8 @@ class CLinesLosses:
         z_joint,
         views_nans=None,
         covariates=None,
+        labels=None,
+        labels_hat=None,
     ):
         # Compute reconstruction loss across views
         mse_loss, view_mse_loss = 0, {}
@@ -48,8 +50,11 @@ class CLinesLosses:
         # Compute batch covariate loss
         covariate_loss = 0 if covariates is None else cls.mmd_loss(z_joint, covariates)
 
+        # Compute batch label loss
+        label_loss = 0 if labels is None else F.cross_entropy(labels_hat, labels)
+
         # Compute total loss
-        total_loss = kl_loss + mse_loss + covariate_loss
+        total_loss = kl_loss + mse_loss + covariate_loss + label_loss
 
         # Return total loss, total MSE loss, and view specific MSE loss
         return dict(
@@ -57,6 +62,7 @@ class CLinesLosses:
             mse=mse_loss,
             kl=kl_loss,
             covariate=covariate_loss,
+            label=label_loss,
             mse_views=view_mse_loss,
             kl_views=kl_losses,
         )
@@ -75,7 +81,14 @@ class CLinesLosses:
             "solver": ["sgd", "adam"],
             "max_iter": [500, 1000, 2500, 3000],
         },
-        params={},
+        params={
+            "activation": "logistic",
+            "alpha": 0.0001,
+            "hidden_layer_sizes": (50,),
+            "learning_rate": "adaptive",
+            "max_iter": 500,
+            "solver": "adam",
+        },
     ):
         if mode == "grid":
             mlp = MLPClassifier()

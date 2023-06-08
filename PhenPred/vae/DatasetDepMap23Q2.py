@@ -11,23 +11,21 @@ from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
 from PhenPred.vae import data_folder, plot_folder, files_folder
 
-# TODO: Conditinal e covariates are largely overlapping features. Merge.
-
 
 class CLinesDatasetDepMap23Q2(Dataset):
     def __init__(
         self,
         datasets,
         decimals=4,
-        conditional_field="tissue",
+        label="tissue",
         feature_miss_rate_thres=0.9,
         covariates=None,
     ):
         super().__init__()
 
+        self.label = label
         self.datasets = datasets
         self.decimals = decimals
-        self.conditional_field = conditional_field
         self.feature_miss_rate_thres = feature_miss_rate_thres
 
         # Read csv files
@@ -55,12 +53,10 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 :, self.dfs["transcriptomics"].std() > 0.6
             ]
 
-        # Build samplesheet and parse sample IDs
         self._build_samplesheet()
         self._samples_union()
         self._remove_features_missing_values()
         self._standardize_dfs()
-        self._conditional_df(conditional_field)
 
         self.view_names = list(self.views.keys())
 
@@ -73,9 +69,24 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 axis=1,
             )
 
+        if label is not None:
+            self.labels = self.samplesheet.loc[self.samples, self.label]
+            self.labels_map = {l: i for i, l in enumerate(self.labels.unique())}
+            self.labels = self.labels.map(self.labels_map)
+            self.labels_size = len(self.labels_map)
+
         print(
             f"[{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}] Samples = {len(self.samples)}"
         )
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        x = [df[idx] for df in self.views.values()]
+        x_nans = [df[idx] for df in self.view_nans.values()]
+        y = [self.covariates.iloc[idx].values, self.labels.iloc[idx]]
+        return x, y, x_nans
 
     def _map_genesymbols(self):
         gene_map = (
@@ -147,9 +158,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
             .fillna("Unknown")
             .values
         )
-
-    def _conditional_df(self, field):
-        self.conditional = pd.get_dummies(self.samplesheet[field].loc[self.samples])
 
     def _standardize_dfs(self):
         self.views = dict()
@@ -297,12 +305,3 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 bbox_inches="tight",
             )
             plt.close("all")
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, idx):
-        x = [df[idx] for df in self.views.values()]
-        x_nans = [df[idx] for df in self.view_nans.values()]
-        y = self.covariates.iloc[idx].values
-        return x, y, x_nans
