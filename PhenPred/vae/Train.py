@@ -127,6 +127,8 @@ class CLinesTrain:
                     covariates=None if self.hypers["covariates"] is None else labels,
                 )
 
+                del views_hat, mu_joint, logvar_joint, z_joint
+
                 # Backward pass and optimization
                 if model.training:
                     loss["total"].backward()
@@ -139,7 +141,7 @@ class CLinesTrain:
                         register_losses_fields,
                     )
 
-                del views_hat, mu_joint, logvar_joint, z_joint, loss
+                del loss
 
     def training(self):
         # Cross Validation
