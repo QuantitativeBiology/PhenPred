@@ -63,7 +63,7 @@ class CLinesLosses:
     def mmd_loss(cls, means, covariates):
         dist = torch.cdist(means, means, p=2)
 
-        covariate_losses = []
+        losses = []
         for i in range(covariates.shape[1]):
             idx_x = torch.nonzero(covariates[:, i]).flatten()
             idx_y = torch.nonzero(covariates[:, i] == 0).flatten()
@@ -75,9 +75,9 @@ class CLinesLosses:
             k_yy = cls.gaussian_kernel(dist[idx_y][:, idx_y]).mean()
             k_xy = cls.gaussian_kernel(dist[idx_x][:, idx_y]).mean()
 
-            covariate_losses.append(k_xx + k_yy - 2 * k_xy)
+            losses.append(k_xx + k_yy - 2 * k_xy)
 
-        return torch.stack(covariate_losses).mean()
+        return torch.stack(losses).mean() if len(losses) > 0 else 0
 
     @classmethod
     def gaussian_kernel(cls, D, gamma=None):

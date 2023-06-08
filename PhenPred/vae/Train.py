@@ -83,12 +83,8 @@ class CLinesTrain:
             self.data.conditional if self.hypers["conditional"] else None,
             device=self.device,
         )
-
-        if torch.cuda.device_count() > 1:
-            model = nn.DataParallel(model)
-
+        model = nn.DataParallel(model)
         model.to(self.device)
-
         return model
 
     def train_epoch(
@@ -167,8 +163,7 @@ class CLinesTrain:
             optimizer = CLinesLosses.get_optimizer(self.hypers, model)
 
             # Train and Validate Model
-            pbar = tqdm(range(1, self.hypers["num_epochs"] + 1))
-            for epoch in pbar:
+            for epoch in range(1, self.hypers["num_epochs"] + 1):
                 # Train
                 model.train()
 
@@ -200,7 +195,7 @@ class CLinesTrain:
                 )
 
                 # Print losses
-                self.print_losses(cv_idx, epoch, pbar)
+                self.print_losses(cv_idx, epoch)
 
         losses_df = self.save_losses()
         self.plot_losses(losses_df, self.timestamp)
@@ -330,20 +325,21 @@ class CLinesTrain:
         PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_reconst_reg_loss")
 
         # Plot losses views
-        plot_df = pd.melt(
-            losses_df,
-            id_vars=["epoch", "type"],
-            value_vars=[c for c in losses_df if c.startswith("mse_")],
-        )
+        for ltype in ["mse", "kl"]:
+            plot_df = pd.melt(
+                losses_df,
+                id_vars=["epoch", "type"],
+                value_vars=[c for c in losses_df if c.startswith(f"{ltype}_")],
+            )
 
-        _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
-        sns.lineplot(
-            data=plot_df,
-            x="epoch",
-            y="value",
-            hue="variable",
-            style="type",
-            ax=ax,
-        )
-        ax.set(xlabel="Epoch", ylabel="Reconstruction Loss")
-        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_reconst_omics_loss")
+            _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
+            sns.lineplot(
+                data=plot_df,
+                x="epoch",
+                y="value",
+                hue="variable",
+                style="type",
+                ax=ax,
+            )
+            ax.set(xlabel="Epoch", ylabel="Reconstruction Loss")
+            PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_{ltype}_omics_loss")
