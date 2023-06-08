@@ -35,8 +35,31 @@ if __name__ == "__main__":
 
     # Train and predictions
     # train.timestamp = "2023-05-18_19:49:05"
-    train = CLinesTrain(clines_db, hyperparameters)
+    train = CLinesTrain(
+        clines_db,
+        hyperparameters,
+        stratify_cv_by=(
+            clines_db.samplesheet["tissue"] == "Haematopoietic and Lymphoid"
+        )
+        .loc[clines_db.samples]
+        .astype(int),
+    )
     train.run()
+
+    # Run Latent Spaces Benchmark
+    latent_benchmark = LatentSpaceBenchmark(train.timestamp, clines_db)
+    latent_benchmark.run()
+    latent_benchmark.plot_latent_spaces(
+        view_names=list(hyperparameters["datasets"]),
+        markers=pd.concat(
+            [
+                clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
+                clines_db.dfs["metabolomics"][["1-methylnicotinamide"]],
+                latent_benchmark.covariates["drug_responses"],
+            ],
+            axis=1,
+        ),
+    )
 
     # Run drug benchmark
     dres_benchmark = DrugResponseBenchmark(train.timestamp)
@@ -49,21 +72,6 @@ if __name__ == "__main__":
     # Run CRISPR benchmark
     crispr_benchmark = CRISPRBenchmark(train.timestamp, clines_db)
     crispr_benchmark.run()
-
-    # Run Latent Spaces Benchmark
-    latent_benchmark = LatentSpaceBenchmark(train.timestamp, clines_db)
-    latent_benchmark.run()
-    latent_benchmark.plot_latent_spaces(
-        view_names=[],
-        markers=pd.concat(
-            [
-                clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
-                clines_db.dfs["metabolomics"][["1-methylnicotinamide"]],
-                latent_benchmark.covariates["drug_responses"],
-            ],
-            axis=1,
-        ),
-    )
 
     # Write the hyperparameters to json file
     json.dump(
