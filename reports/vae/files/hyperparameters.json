@@ -9,10 +9,10 @@
         "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv"
     },
     "conditional": false,
-    "num_epochs": 25,
+    "num_epochs": 15,
     "learning_rate": 1e-4,
     "batch_size": 50,
-    "n_folds": 3,
+    "n_folds": 5,
     "latent_dim": 50,
     "hidden_dims": [0.7],
     "probability": 0.4,
@@ -23,6 +23,5 @@
     "reconstruction_loss": "mse",
     "activation_function_name": "relu",
     "feature_miss_rate_thres": 0.85,
-    "covariates": ["growth_properties_sanger", "growth_properties_broad"],
-    "fine_tune": true
+    "covariates": ["growth_properties_sanger", "growth_properties_broad"]
 }

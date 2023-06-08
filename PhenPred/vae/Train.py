@@ -11,25 +11,23 @@ from datetime import datetime
 from PhenPred.vae import plot_folder
 from torch.utils.data import DataLoader
 from matplotlib.ticker import MaxNLocator
-from sklearn.model_selection import KFold
 from PhenPred.vae.Losses import CLinesLosses
 from PhenPred.vae.ModelCVAE import CLinesCVAE
+from sklearn.model_selection import KFold, StratifiedKFold
 
 
 class CLinesTrain:
-    def __init__(self, data, hypers, save_best_model=False):
-        # Device
+    def __init__(self, data, hypers, stratify_cv_by=None):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # Data & Hyperparameters
         self.data = data
         self.hypers = hypers
 
-        # Timestamp
         self.timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
-        # Losses
         self.losses = []
+
+        self.stratify_cv_by = stratify_cv_by
 
     def run(self):
         self.training()
@@ -87,31 +85,23 @@ class CLinesTrain:
         model.to(self.device)
         return model
 
-    def train_epoch(
+    def epoch(
         self,
-        optimizer,
         model,
-        datatloader,
-        register_losses=True,
-        register_losses_fields=dict(),
+        optimizer,
+        dataloader,
+        record_losses=None,
     ):
-        # When evaluating, disable gradient computation to reduce memory usage
-        with torch.set_grad_enabled(True) if model.training else torch.no_grad():
-            # Dataloader train is divided into batches
-            for views, labels, views_nans in datatloader:
-                views_nans = [~view for view in views_nans]
+        for views, labels, views_nans in dataloader:
+            views_nans = [~view for view in views_nans]
 
-                # Clear gradients
-                if model.training:
-                    optimizer.zero_grad()
+            optimizer.zero_grad()
 
-                # Forward pass to get the predictions
-                views_hat, mu_joint, logvar_joint, _, _ = model.forward(views)
+            with torch.set_grad_enabled(model.training):
+                views_hat, mu_joint, logvar_joint, _, _ = model(views)
 
-                # Sample from joint latent space
                 z_joint = model.module.reparameterize(mu_joint, logvar_joint)
 
-                # Calculate Losses
                 loss = CLinesLosses.loss_function(
                     hypers=self.hypers,
                     views=views,
@@ -123,55 +113,52 @@ class CLinesTrain:
                     covariates=None if self.hypers["covariates"] is None else labels,
                 )
 
-                del views_hat, mu_joint, logvar_joint, z_joint
+                del views, views_hat, mu_joint, logvar_joint, z_joint
 
-                # Backward pass and optimization
                 if model.training:
                     loss["total"].backward()
                     optimizer.step()
 
-                # Register losses
-                if register_losses:
-                    self.register_loss(
-                        loss,
-                        register_losses_fields,
-                    )
+            if record_losses is not None:
+                self.register_loss(
+                    loss,
+                    record_losses,
+                )
 
-                del loss
+            del loss
 
     def training(self):
         # Cross Validation
-        cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True)
+        if self.stratify_cv_by is not None:
+            cv = StratifiedKFold(n_splits=self.hypers["n_folds"], shuffle=True).split(
+                self.data, self.stratify_cv_by.reindex(self.data.samples)
+            )
+        else:
+            cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True).split(self.data)
 
-        for cv_idx, (train_idx, val_idx) in enumerate(cv.split(self.data), start=1):
-            # Train Data
+        for cv_idx, (train_idx, val_idx) in enumerate(cv, start=1):
+            # Train and Test Data
             data_train = torch.utils.data.Subset(self.data, train_idx)
             dataloader_train = DataLoader(
                 data_train, batch_size=self.hypers["batch_size"], shuffle=True
             )
 
-            # Validation Data
             data_val = torch.utils.data.Subset(self.data, val_idx)
             dataloader_val = DataLoader(
-                data_val, batch_size=self.hypers["batch_size"], shuffle=False
+                data_val, batch_size=len(data_val), shuffle=False
             )
 
-            # Initialize Model
+            # Initialize Model and Optimizer
             model = self.initialize_model()
-
-            # Initialize Optimizer
             optimizer = CLinesLosses.get_optimizer(self.hypers, model)
 
             # Train and Validate Model
             for epoch in range(1, self.hypers["num_epochs"] + 1):
-                # Train
                 model.train()
-
-                self.train_epoch(
-                    optimizer,
+                self.epoch(
                     model,
+                    optimizer,
                     dataloader_train,
-                    True,
                     dict(
                         cv=cv_idx,
                         epoch=epoch,
@@ -179,14 +166,11 @@ class CLinesTrain:
                     ),
                 )
 
-                # Validate
                 model.eval()
-
-                self.train_epoch(
-                    optimizer,
+                self.epoch(
                     model,
+                    optimizer,
                     dataloader_val,
-                    True,
                     dict(
                         cv=cv_idx,
                         epoch=epoch,
@@ -194,84 +178,82 @@ class CLinesTrain:
                     ),
                 )
 
-                # Print losses
                 self.print_losses(cv_idx, epoch)
 
         losses_df = self.save_losses()
         self.plot_losses(losses_df, self.timestamp)
 
     def predictions(self):
-        if self.best_model is None:
-            raise Exception("Model not trained. Run training first.")
-
         latent_spaces = dict()
         imputed_datasets = dict()
-
-        # Initialize Best Model
-        model = self.initialize_model()
 
         # Data Loader
         data_all = DataLoader(
             self.data, batch_size=len(self.data.samples), shuffle=False
         )
 
-        # fine-tune model
-        if self.hypers["fine_tune"]:
+        # Fine-tune model
+        model = self.initialize_model()
+        optimizer = CLinesLosses.get_optimizer(self.hypers, model)
+        for _ in range(1, self.hypers["num_epochs"] + 1):
             model.train()
-            optimizer = CLinesLosses.get_optimizer(self.hypers, model)
-            for _ in range(1, self.hypers["num_epochs"] + 1):
-                self.train_epoch(
-                    optimizer,
-                    model,
-                    data_all,
-                    False,
-                )
+            self.epoch(
+                model,
+                optimizer,
+                data_all,
+                False,
+            )
 
         # Make predictions and latent spaces
         model.eval()
-        for views, _, _ in data_all:
-            views = [view.to(self.device) for view in views]
+        with torch.no_grad():
+            for views, _, _ in data_all:
+                views = [view.to(self.device) for view in views]
 
-            (
-                views_hat,
-                mu_joint,
-                logvar_joint,
-                mu_views,
-                logvar_views,
-            ) = model.forward(views)
+                (
+                    views_hat,
+                    mu_joint,
+                    logvar_joint,
+                    mu_views,
+                    logvar_views,
+                ) = model(views)
 
-            for name, df in zip(self.data.view_names, views_hat):
-                imputed_datasets[name] = pd.DataFrame(
-                    self.data.view_scalers[name].inverse_transform(df.tolist()),
-                    index=self.data.samples,
-                    columns=self.data.view_feature_names[name],
-                )
+                for name, df in zip(self.data.view_names, views_hat):
+                    imputed_datasets[name] = pd.DataFrame(
+                        self.data.view_scalers[name].inverse_transform(df.tolist()),
+                        index=self.data.samples,
+                        columns=self.data.view_feature_names[name],
+                    )
 
-            latent_spaces["joint"] = pd.DataFrame(
-                model.module.reparameterize(mu_joint, logvar_joint).tolist(),
-                index=self.data.samples,
-                columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
-            )
-
-            for name, mus, logvars in zip(self.data.view_names, mu_views, logvar_views):
-                latent_spaces[name] = pd.DataFrame(
-                    model.module.reparameterize(mus, logvars).tolist(),
+                latent_spaces["joint"] = pd.DataFrame(
+                    model.module.reparameterize(mu_joint, logvar_joint).tolist(),
                     index=self.data.samples,
                     columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
                 )
 
-        # Write to file
-        for name, df in imputed_datasets.items():
-            df.round(5).to_csv(
-                f"{plot_folder}/files/{self.timestamp}_imputed_{name}.csv.gz",
-                compression="gzip",
-            )
+                for name, mus, logvars in zip(
+                    self.data.view_names, mu_views, logvar_views
+                ):
+                    latent_spaces[name] = pd.DataFrame(
+                        model.module.reparameterize(mus, logvars).tolist(),
+                        index=self.data.samples,
+                        columns=[
+                            f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])
+                        ],
+                    )
 
-        for name, df in latent_spaces.items():
-            df.round(5).to_csv(
-                f"{plot_folder}/files/{self.timestamp}_latent_{name}.csv.gz",
-                compression="gzip",
-            )
+            # Write to file
+            for name, df in imputed_datasets.items():
+                df.round(5).to_csv(
+                    f"{plot_folder}/files/{self.timestamp}_imputed_{name}.csv.gz",
+                    compression="gzip",
+                )
+
+            for name, df in latent_spaces.items():
+                df.round(5).to_csv(
+                    f"{plot_folder}/files/{self.timestamp}_latent_{name}.csv.gz",
+                    compression="gzip",
+                )
 
     @staticmethod
     def plot_losses(losses_df, timestamp=""):
