@@ -201,7 +201,6 @@ class CLinesTrain:
                 model,
                 optimizer,
                 data_all,
-                False,
             )
 
         # Make predictions and latent spaces
