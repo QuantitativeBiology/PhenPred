@@ -28,7 +28,7 @@ class CLinesLosses:
                 X, X_ = X[views_nans[i]], X_[views_nans[i]]
 
             loss_func = cls.reconstruction_loss(hypers["reconstruction_loss"])
-            v_mse_loss = loss_func(X_, X)
+            v_mse_loss = loss_func(X_.cpu(), X)
 
             mse_loss += v_mse_loss
             view_mse_loss[k] = v_mse_loss
