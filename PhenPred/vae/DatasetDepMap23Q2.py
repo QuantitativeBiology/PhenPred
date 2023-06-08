@@ -62,12 +62,16 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._standardize_dfs()
         self._conditional_df(conditional_field)
 
-        if covariates is not None:
-            self.covariates = pd.get_dummies(
-                self.samplesheet.loc[self.samples, covariates]
-            )
-
         self.view_names = list(self.views.keys())
+
+        if covariates is not None:
+            self.covariates = pd.concat(
+                [
+                    pd.get_dummies(self.samplesheet.loc[self.samples, covariates]),
+                    pd.get_dummies(self.n_samples_views().sum()).add_prefix("nviews_"),
+                ],
+                axis=1,
+            )
 
         print(
             f"[{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}] Samples = {len(self.samples)}"
@@ -193,16 +197,19 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         return x, scaler, x_nan
 
-    def plot_samples_overlap(self):
-        plot_df = (
+    def n_samples_views(self):
+        counts = (
             pd.DataFrame({n: (~df.isnull()).sum(1) != 0 for n, df in self.dfs.items()})
             .astype(int)
             .T
         )
-        plot_df = plot_df[plot_df.sum().sort_values(ascending=False).index]
-        plot_df = plot_df.loc[:, plot_df.sum() > 0]
-        plot_df = plot_df.loc[plot_df.sum(1).sort_values(ascending=False).index]
+        counts = counts[counts.sum().sort_values(ascending=False).index]
+        counts = counts.loc[:, counts.sum() > 0]
+        counts = counts.loc[counts.sum(1).sort_values(ascending=False).index]
+        return counts
 
+    def plot_samples_overlap(self):
+        plot_df = self.n_samples_views()
         plot_df.T.to_csv(f"{plot_folder}/datasets_overlap.csv")
 
         nsamples = plot_df.sum(1)

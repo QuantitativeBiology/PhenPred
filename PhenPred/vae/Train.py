@@ -23,7 +23,7 @@ class CLinesTrain:
         self.data = data
         self.hypers = hypers
 
-        self.timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         self.losses = []
 
@@ -135,14 +135,18 @@ class CLinesTrain:
 
             del loss
 
-    def training(self):
-        # Cross Validation
+    def cv_strategy(self):
         if self.stratify_cv_by is not None:
             cv = StratifiedKFold(n_splits=self.hypers["n_folds"], shuffle=True).split(
                 self.data, self.stratify_cv_by.reindex(self.data.samples)
             )
         else:
             cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True).split(self.data)
+
+        return cv
+
+    def training(self):
+        cv = self.cv_strategy()
 
         for cv_idx, (train_idx, val_idx) in enumerate(cv, start=1):
             # Train and Test Data
