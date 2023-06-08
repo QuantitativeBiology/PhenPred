@@ -32,8 +32,6 @@ if __name__ == "__main__":
         feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
         covariates=hyperparameters["covariates"],
     )
-    clines_db.plot_samples_overlap()
-    clines_db.plot_datasets_missing_values()
 
     # Train and predictions
     # train.timestamp = "2023-05-18_19:49:05"
