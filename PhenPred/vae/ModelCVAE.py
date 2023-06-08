@@ -136,9 +136,7 @@ class CLinesCVAE(nn.Module):
         return decoders
 
     def forward(self, views, labels=None):
-        views = [v.to(self.device) for v in views]
-
-        encoders = self.encode(views, labels)
+        encoders = self.encode(views, labels).to(self.device)
         means, log_variances = self.mean_variance(encoders)
 
         if self.conditional is not None:
