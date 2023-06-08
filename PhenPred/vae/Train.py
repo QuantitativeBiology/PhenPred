@@ -113,7 +113,15 @@ class CLinesTrain:
                     covariates=None if self.hypers["covariates"] is None else labels,
                 )
 
-                del views, views_hat, mu_joint, logvar_joint, z_joint
+                del (
+                    views,
+                    labels,
+                    views_nans,
+                    views_hat,
+                    mu_joint,
+                    logvar_joint,
+                    z_joint,
+                )
 
                 if model.training:
                     loss["total"].backward()
