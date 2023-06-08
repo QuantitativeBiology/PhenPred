@@ -6,6 +6,7 @@ import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from datetime import datetime
+from PhenPred.Utils import scale
 from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
 from PhenPred.vae import data_folder, plot_folder, files_folder
@@ -42,6 +43,17 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         if "copynumber" in self.dfs:
             self.dfs["copynumber"] = self.dfs["copynumber"].dropna(how="all", axis=1)
+
+        if "crisprcas9" in self.dfs:
+            self.dfs["crisprcas9"] = scale(self.dfs["crisprcas9"].T).T
+            self.dfs["crisprcas9"] = self.dfs["crisprcas9"].loc[
+                :, (self.dfs["crisprcas9"] < -0.5).sum() > 0
+            ]
+
+        if "transcriptomics" in self.dfs:
+            self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
+                :, self.dfs["transcriptomics"].std() > 0.6
+            ]
 
         # Build samplesheet and parse sample IDs
         self._build_samplesheet()
@@ -132,39 +144,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
             .values
         )
 
-    @classmethod
-    def transform_crispr(cls, df, essential=None, non_essential=None, metric=np.median):
-        if essential is None:
-            essential = cls.get_essential_genes(return_series=False)
-
-        if non_essential is None:
-            non_essential = cls.get_non_essential_genes(return_series=False)
-
-        ess_metric = metric(df.reindex(essential).dropna(), axis=0)
-        ness_metric = metric(df.reindex(non_essential).dropna(), axis=0)
-
-        df = df.subtract(ness_metric).divide(ness_metric - ess_metric)
-
-        return df
-
-    @classmethod
-    def get_essential_genes(cls, dfile="EssentialGenes.csv", return_series=True):
-        geneset = set(pd.read_csv(f"{files_folder}/{dfile}", sep="\t")["gene"])
-
-        if return_series:
-            geneset = pd.Series(list(geneset)).rename("essential")
-
-        return geneset
-
-    @classmethod
-    def get_non_essential_genes(cls, dfile="NonessentialGenes.csv", return_series=True):
-        geneset = set(pd.read_csv(f"{files_folder}/{dfile}", sep="\t")["gene"])
-
-        if return_series:
-            geneset = pd.Series(list(geneset)).rename("non-essential")
-
-        return geneset
-
     def _conditional_df(self, field):
         self.conditional = pd.get_dummies(self.samplesheet[field].loc[self.samples])
 
@@ -197,12 +176,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
         # Remove features with more than 50% of missing values
         for n in ["proteomics", "metabolomics", "drugresponse", "crisprcas9"]:
             if n in self.dfs:
-                print(f"Remove miss features: {self.feature_miss_rate_thres}")
-                print(f"\tBefore: {self.dfs[n].shape}")
                 self.dfs[n] = self.dfs[n].loc[
                     :, self.dfs[n].isnull().mean() < self.feature_miss_rate_thres
                 ]
-                print(f"\tAfter: {self.dfs[n].shape}")
 
     def process_df(self, df):
         # Normalize the data using StandardScaler
