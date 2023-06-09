@@ -356,7 +356,8 @@ class LatentSpaceBenchmark:
         umap_min_dist=0.25,
         umap_metric="euclidean",
         umap_n_components=2,
-        markers=None,
+        markers_joint=None,
+        markers_views=None,
     ):
         # Get Tissue Types
         samplesheet = self.data.samplesheet.copy()
@@ -417,51 +418,45 @@ class LatentSpaceBenchmark:
             PhenPred.save_figure(f"{plot_folder}/latent/{self.timestamp}_umap_{l_name}")
 
         # Plot projections by marker
-        if markers is not None:
-            for l_name, l_space in latent_space_umaps.items():
-                for m in markers:
-                    plot_df = pd.concat([l_space, markers[m]], axis=1).dropna()
-
-                    ax = GIPlot.gi_continuous_plot(
-                        x="UMAP_1",
-                        y="UMAP_2",
-                        z=m,
-                        plot_df=plot_df,
-                        corr_annotation=False,
-                        mid_point_norm=False,
-                        mid_point=None,
-                        cmap="viridis",
-                    )
-
-                    ax.get_xaxis().set_visible(False)
-                    ax.get_yaxis().set_visible(False)
-                    sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
-
-                    PhenPred.save_figure(
-                        f"{plot_folder}/latent/{self.timestamp}_umap_by_marker_{m}_{l_name}"
-                    )
+        if markers_joint is not None:
+            for m in markers_joint:
+                self.plot_latent_continuous(
+                    pd.concat(
+                        [latent_space_umaps["joint"], markers_joint[m]], axis=1
+                    ).dropna(),
+                    "joint",
+                    m,
+                )
 
         # Plot projections by marker
-        if markers is not None:
+        if markers_views is not None:
             for l_name, l_space in latent_space_umaps.items():
-                for m in markers:
-                    plot_df = pd.concat([l_space, markers[m]], axis=1).dropna()
+                if l_name == "joint":
+                    continue
 
-                    ax = GIPlot.gi_continuous_plot(
-                        x="UMAP_1",
-                        y="UMAP_2",
-                        z=m,
-                        plot_df=plot_df,
-                        corr_annotation=False,
-                        mid_point_norm=False,
-                        mid_point=None,
-                        cmap="viridis",
+                for m in markers_views:
+                    self.plot_latent_continuous(
+                        pd.concat([l_space, markers_views[m]], axis=1).dropna(),
+                        l_name,
+                        m,
                     )
 
-                    ax.get_xaxis().set_visible(False)
-                    ax.get_yaxis().set_visible(False)
-                    sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
+    def plot_latent_continuous(self, plot_df, name, m):
+        ax = GIPlot.gi_continuous_plot(
+            x="UMAP_1",
+            y="UMAP_2",
+            z=m,
+            plot_df=plot_df,
+            corr_annotation=False,
+            mid_point_norm=False,
+            mid_point=None,
+            cmap="viridis",
+        )
 
-                    PhenPred.save_figure(
-                        f"{plot_folder}/latent/{self.timestamp}_umap_by_marker_{m}_{l_name}"
-                    )
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
+
+        PhenPred.save_figure(
+            f"{plot_folder}/latent/{self.timestamp}_umap_by_marker_{name}_{m}"
+        )
