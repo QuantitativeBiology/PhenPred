@@ -86,13 +86,13 @@ class CLinesDatasetDepMap23Q2(Dataset):
         x = [df[idx] for df in self.views.values()]
         x_nans = [df[idx] for df in self.view_nans.values()]
 
-        y = []
+        y = [None, None]
 
         if self.covariates is not None:
-            y += [self.covariates.iloc[idx].values]
+            y[0] = [self.covariates.iloc[idx].values]
 
         if self.label is not None:
-            y += [self.labels.iloc[idx]]
+            y[1] = [self.labels.iloc[idx]]
 
         return x, y, x_nans
 

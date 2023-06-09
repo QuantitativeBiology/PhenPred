@@ -7,13 +7,16 @@ import torch.nn.functional as F
 
 
 class CLinesCVAE(nn.Module):
-    def __init__(self, views_sizes, hyper, labels_size=None, device="cpu"):
+    def __init__(
+        self, views_sizes, hyper, labels_size=None, conditional_size=None, device="cpu"
+    ):
         super(CLinesCVAE, self).__init__()
 
         self.hyper = hyper
         self.device = device
         self.views_sizes = views_sizes
         self.labels_size = labels_size
+        self.conditional_size = 0 if conditional_size is None else conditional_size
 
         if self.hyper["n_groups"] is not None:
             self._build_groupbottleneck()
@@ -41,7 +44,7 @@ class CLinesCVAE(nn.Module):
         for n in self.views_sizes:
             self.groups.append(
                 BottleNeck(
-                    self.views_sizes[n],
+                    self.views_sizes[n] + self.conditional_size,
                     self.hyper["n_groups"],
                     self.hyper["activation_function"],
                 )
@@ -51,7 +54,7 @@ class CLinesCVAE(nn.Module):
         self.encoders = nn.ModuleList()
 
         for n in self.views_sizes:
-            layer_sizes = [self.views_sizes[n]]
+            layer_sizes = [self.views_sizes[n] + self.conditional_size]
 
             layer_sizes += [
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"]
@@ -69,7 +72,7 @@ class CLinesCVAE(nn.Module):
     def _build_decoders(self):
         self.decoders = nn.ModuleList()
         for n in self.views_sizes:
-            layer_sizes = [self.hyper["latent_dim"]]
+            layer_sizes = [self.hyper["latent_dim"] + self.conditional_size]
 
             layer_sizes += [
                 int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"][::-1]
@@ -117,10 +120,13 @@ class CLinesCVAE(nn.Module):
             # Reconstruction mode
             return mu
 
-    def encode(self, views):
+    def encode(self, views, conditional=None):
         encoders = []
         for i, _ in enumerate(self.views_sizes):
             x = views[i]
+
+            if self.conditional_size > 0:
+                x = torch.cat((x, conditional), dim=1)
 
             if self.hyper["n_groups"] is not None:
                 x = self.groups[i](x)
@@ -129,16 +135,18 @@ class CLinesCVAE(nn.Module):
             encoders.append(x)
         return encoders
 
-    def decode(self, z):
+    def decode(self, z, conditional=None):
         decoders = []
         for i, _ in enumerate(self.views_sizes):
+            if self.conditional_size > 0:
+                z = torch.cat((z, conditional), dim=1)
             decoders.append(self.decoders[i](z))
         return decoders
 
-    def forward(self, views):
+    def forward(self, views, conditional=None):
         views_ = [v.to(self.device) for v in views]
 
-        encoders = self.encode(views_)
+        encoders = self.encode(views_, conditional)
 
         means, log_variances = self.mean_variance(encoders)
 
@@ -146,7 +154,7 @@ class CLinesCVAE(nn.Module):
 
         z = self.reparameterize(mu, logvar)
 
-        decoders = self.decode(z)
+        decoders = self.decode(z, conditional)
 
         classes = self.classifier(z)
 
