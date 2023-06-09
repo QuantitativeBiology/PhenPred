@@ -65,6 +65,7 @@ if __name__ == "__main__":
     # train.run(run_timestamp=hyperparameters["load_run"])
     # train.run(run_timestamp=timestamp)
     train.run()
+    train.plot_losses(pd.DataFrame(train.losses), train.timestamp)
 
     if "skip_benchmarks" in hyperparameters and hyperparameters["skip_benchmarks"]:
         sys.exit(0)
