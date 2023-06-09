@@ -1,7 +1,5 @@
-from calendar import c
 import torch
 import PhenPred
-import contextlib
 import numpy as np
 import pandas as pd
 import torch.nn as nn
@@ -19,16 +17,12 @@ from sklearn.model_selection import KFold, StratifiedKFold
 
 class CLinesTrain:
     def __init__(self, data, hypers, stratify_cv_by=None):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
         self.data = data
-        self.hypers = hypers
-
-        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
         self.losses = []
-
+        self.hypers = hypers
         self.stratify_cv_by = stratify_cv_by
+        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def run(self):
         self.training()
@@ -56,7 +50,7 @@ class CLinesTrain:
             views_nans = [~view for view in views_nans]
 
             covariates = None if self.hypers["covariates"] is None else classes[0]
-            labels = None if self.hypers["labels"] is None else classes[1]
+            labels = None if self.hypers["label"] is None else classes[1]
 
             optimizer.zero_grad()
 
