@@ -10,7 +10,7 @@
     },
     "conditional": false,
     "num_epochs": 15,
-    "learning_rate": 1e-3,
+    "learning_rate": 1e-4,
     "batch_size": 50,
     "n_folds": 5,
     "latent_dim": 50,
