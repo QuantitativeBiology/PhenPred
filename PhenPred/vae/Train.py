@@ -48,7 +48,7 @@ class CLinesTrain:
         record_losses=None,
     ):
         for views, classes, views_nans in dataloader:
-            views_nans = [~view for view in views_nans]
+            views_nans = [~v for v in views_nans]
 
             covariates = None if self.hypers["covariates"] is None else classes[0]
             labels = None if self.hypers["label"] is None else classes[1]
@@ -57,7 +57,7 @@ class CLinesTrain:
 
             with torch.set_grad_enabled(model.training):
                 views_hat, mu_joint, logvar_joint, _, _, labels_hat = model(
-                    views, pd.get_dummies(labels)
+                    views, labels
                 )
 
                 z_joint = model.module.reparameterize(mu_joint, logvar_joint)
@@ -180,7 +180,7 @@ class CLinesTrain:
                     mu_views,
                     logvar_views,
                     _,
-                ) = model(views, pd.get_dummies(labels))
+                ) = model(views, labels)
 
                 for name, df in zip(self.data.view_names, views_hat):
                     imputed_datasets[name] = pd.DataFrame(
