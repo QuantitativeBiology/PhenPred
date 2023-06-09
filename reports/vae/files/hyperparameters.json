@@ -14,7 +14,7 @@
     "batch_size": 50,
     "n_folds": 5,
     "latent_dim": 50,
-    "hidden_dims": [0.5, 0.3],
+    "hidden_dims": [0.7, 0.4],
     "probability": 0.4,
     "n_groups": null,
     "beta": 0.1,
@@ -23,5 +23,6 @@
     "reconstruction_loss": "mse",
     "activation_function_name": "relu",
     "feature_miss_rate_thres": 0.85,
-    "covariates": ["growth_properties_sanger", "growth_properties_broad"]
+    "covariates": ["growth_properties_sanger", "growth_properties_broad"],
+    "label": "tissue"
 }

@@ -167,6 +167,8 @@ class CLinesLosses:
 
     @classmethod
     def activation_function(cls, name):
+        name = name.lower()
+
         if name == "relu":
             return nn.ReLU()
         elif name == "leaky_relu":

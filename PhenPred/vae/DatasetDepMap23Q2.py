@@ -17,9 +17,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self,
         datasets,
         decimals=4,
-        label="tissue",
-        feature_miss_rate_thres=0.9,
+        label=None,
         covariates=None,
+        feature_miss_rate_thres=0.9,
     ):
         super().__init__()
 
@@ -85,7 +85,15 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def __getitem__(self, idx):
         x = [df[idx] for df in self.views.values()]
         x_nans = [df[idx] for df in self.view_nans.values()]
-        y = [self.covariates.iloc[idx].values, self.labels.iloc[idx]]
+
+        y = []
+
+        if self.covariates is not None:
+            y += [self.covariates.iloc[idx].values]
+
+        if self.label is not None:
+            y += [self.labels.iloc[idx]]
+
         return x, y, x_nans
 
     def _map_genesymbols(self):

@@ -55,9 +55,8 @@ class CLinesTrain:
         for views, classes, views_nans in dataloader:
             views_nans = [~view for view in views_nans]
 
-            covariates, labels = classes
-            if self.hypers["covariates"] is None:
-                covariates = None
+            covariates = None if self.hypers["covariates"] is None else classes[0]
+            labels = None if self.hypers["labels"] is None else classes[1]
 
             optimizer.zero_grad()
 
@@ -269,7 +268,7 @@ class CLinesTrain:
         # Plot total losses
         plot_df = pd.melt(losses_df, id_vars=["epoch", "type"], value_vars="total")
 
-        _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
+        _, ax = plt.subplots(1, 1, figsize=(3, 1.5), dpi=600)
         sns.lineplot(
             data=plot_df,
             x="epoch",
@@ -295,10 +294,12 @@ class CLinesTrain:
 
         # Plot loss terms
         plot_df = pd.melt(
-            losses_df, id_vars=["epoch", "type"], value_vars=["mse", "kl", "covariate"]
+            losses_df,
+            id_vars=["epoch", "type"],
+            value_vars=["mse", "kl", "covariate", "label"],
         )
 
-        _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
+        _, ax = plt.subplots(1, 1, figsize=(3, 1.5), dpi=600)
         sns.lineplot(
             data=plot_df,
             x="epoch",
@@ -323,7 +324,7 @@ class CLinesTrain:
                 value_vars=[c for c in losses_df if c.startswith(f"{ltype}_")],
             )
 
-            _, ax = plt.subplots(1, 1, figsize=(5, 3), dpi=600)
+            _, ax = plt.subplots(1, 1, figsize=(3, 1.5), dpi=600)
             sns.lineplot(
                 data=plot_df,
                 x="epoch",
@@ -332,5 +333,5 @@ class CLinesTrain:
                 style="type",
                 ax=ax,
             )
-            ax.set(xlabel="Epoch", ylabel="Reconstruction Loss")
+            ax.set(xlabel="Epoch", ylabel=f"{ltype} Loss")
             PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_{ltype}_omics_loss")
