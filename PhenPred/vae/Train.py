@@ -32,8 +32,9 @@ class CLinesTrain:
         model = CLinesCVAE(
             views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
             hyper=self.hypers,
-            labels_size=self.data.labels_size,
             device=self.device,
+            labels_size=self.data.labels_size,
+            conditional_size=self.data.labels_size,
         )
         model = nn.DataParallel(model)
         model.to(self.device)
@@ -55,7 +56,9 @@ class CLinesTrain:
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(model.training):
-                views_hat, mu_joint, logvar_joint, _, _, labels_hat = model(views)
+                views_hat, mu_joint, logvar_joint, _, _, labels_hat = model(
+                    views, pd.get_dummies(labels)
+                )
 
                 z_joint = model.module.reparameterize(mu_joint, logvar_joint)
 
@@ -165,8 +168,10 @@ class CLinesTrain:
         # Make predictions and latent spaces
         model.eval()
         with torch.no_grad():
-            for views, _, _ in data_all:
+            for views, classes, _ in data_all:
                 views = [view.to(self.device) for view in views]
+
+                labels = None if self.hypers["label"] is None else classes[1]
 
                 (
                     views_hat,
@@ -175,7 +180,7 @@ class CLinesTrain:
                     mu_views,
                     logvar_views,
                     _,
-                ) = model(views)
+                ) = model(views, pd.get_dummies(labels))
 
                 for name, df in zip(self.data.view_names, views_hat):
                     imputed_datasets[name] = pd.DataFrame(
