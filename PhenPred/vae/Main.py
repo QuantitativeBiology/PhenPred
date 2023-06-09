@@ -46,6 +46,7 @@ if __name__ == "__main__":
         .astype(int),
     )
     train.run()
+    train.plot_losses(pd.DataFrame(train.losses), train.timestamp)
 
     # Run Latent Spaces Benchmark
     latent_benchmark = LatentSpaceBenchmark(train.timestamp, clines_db)

@@ -258,11 +258,11 @@ class CLinesTrain:
         return l
 
     @staticmethod
-    def plot_losses(losses_df, timestamp=""):
+    def plot_losses(losses_df, timestamp="", figsize=(3, 2)):
         # Plot total losses
         plot_df = pd.melt(losses_df, id_vars=["epoch", "type"], value_vars="total")
 
-        _, ax = plt.subplots(1, 1, figsize=(3, 1.5), dpi=600)
+        _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)
         sns.lineplot(
             data=plot_df,
             x="epoch",
@@ -275,15 +275,11 @@ class CLinesTrain:
             xlabel="Epoch",
             ylabel="Loss",
         )
-        legend_handles, _ = ax.get_legend_handles_labels()
         ax.legend(
-            legend_handles,
-            ["Train Loss", "Validation Loss"],
             title="Losses",
             loc="upper left",
             bbox_to_anchor=(1, 1),
         )
-        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_train_validation_loss")
 
         # Plot loss terms
@@ -293,15 +289,19 @@ class CLinesTrain:
             value_vars=["mse", "kl", "covariate", "label"],
         )
 
-        _, ax = plt.subplots(1, 1, figsize=(3, 1.5), dpi=600)
+        _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)
         sns.lineplot(
             data=plot_df,
             x="epoch",
             y="value",
             hue="variable",
             style="type",
-            ls="--",
             ax=ax,
+        )
+        ax.legend(
+            title="Losses",
+            loc="upper left",
+            bbox_to_anchor=(1, 1),
         )
         ax.set(
             title=f"Total loss",
@@ -318,7 +318,7 @@ class CLinesTrain:
                 value_vars=[c for c in losses_df if c.startswith(f"{ltype}_")],
             )
 
-            _, ax = plt.subplots(1, 1, figsize=(3, 1.5), dpi=600)
+            _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)
             sns.lineplot(
                 data=plot_df,
                 x="epoch",
@@ -326,6 +326,11 @@ class CLinesTrain:
                 hue="variable",
                 style="type",
                 ax=ax,
+            )
+            ax.legend(
+                title="Losses",
+                loc="upper left",
+                bbox_to_anchor=(1, 1),
             )
             ax.set(xlabel="Epoch", ylabel=f"{ltype} Loss")
             PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_{ltype}_omics_loss")
