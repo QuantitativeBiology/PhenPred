@@ -60,10 +60,31 @@ class CLinesCVAE(nn.Module):
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
+                layers.append(nn.BatchNorm1d(layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hyper["probability"]))
                 layers.append(self.hyper["activation_function"])
 
             self.encoders.append(nn.Sequential(*layers))
+
+    def _build_decoders(self):
+        self.decoders = nn.ModuleList()
+        for n in self.views_sizes:
+            layer_sizes = [self.hyper["latent_dim"]]
+
+            layer_sizes += [
+                int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"][::-1]
+            ]
+
+            layers = nn.ModuleList()
+            for i in range(1, len(layer_sizes)):
+                layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
+                layers.append(nn.BatchNorm1d(layer_sizes[i]))
+                layers.append(nn.Dropout(p=self.hyper["probability"]))
+                layers.append(self.hyper["activation_function"])
+
+            layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
+
+            self.decoders.append(nn.Sequential(*layers))
 
     def _build_mean_vars(self):
         self.mus, self.log_vars = nn.ModuleList(), nn.ModuleList()
@@ -86,25 +107,6 @@ class CLinesCVAE(nn.Module):
                     ),
                 )
             )
-
-    def _build_decoders(self):
-        self.decoders = nn.ModuleList()
-        for n in self.views_sizes:
-            layer_sizes = [self.hyper["latent_dim"]]
-
-            layer_sizes += [
-                int(v * self.views_sizes[n]) for v in self.hyper["hidden_dims"][::-1]
-            ]
-
-            layers = nn.ModuleList()
-            for i in range(1, len(layer_sizes)):
-                layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-                layers.append(nn.Dropout(p=self.hyper["probability"]))
-                layers.append(self.hyper["activation_function"])
-
-            layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
-
-            self.decoders.append(nn.Sequential(*layers))
 
     def reparameterize(self, mu, logvar):
         if self.training:
