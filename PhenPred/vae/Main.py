@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
-        label="tissue",
+        label=hyperparameters["label"],
         datasets=hyperparameters["datasets"],
         covariates=hyperparameters["covariates"],
         feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
@@ -52,15 +52,14 @@ if __name__ == "__main__":
     latent_benchmark.run()
     latent_benchmark.plot_latent_spaces(
         view_names=list(hyperparameters["datasets"]),
-        markers=pd.concat(
+        markers_joint=pd.concat(
             [
                 clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
                 clines_db.dfs["metabolomics"][["1-methylnicotinamide"]],
-                latent_benchmark.covariates["drug_responses"],
-                clines_db.n_samples_views().sum().rename("N_Views"),
             ],
             axis=1,
         ),
+        markers_views=clines_db.n_samples_views().sum().rename("N_Views").to_frame(),
     )
 
     # Run drug benchmark
