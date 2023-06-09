@@ -126,7 +126,7 @@ class CLinesCVAE(nn.Module):
             x = views[i]
 
             if self.conditional_size > 0:
-                x = torch.cat((x, conditional), dim=1)
+                x = torch.cat([x, conditional], dim=1)
 
             if self.hyper["n_groups"] is not None:
                 x = self.groups[i](x)
@@ -136,11 +136,11 @@ class CLinesCVAE(nn.Module):
         return encoders
 
     def decode(self, z, conditional=None):
-        decoders = []
-        for i, _ in enumerate(self.views_sizes):
-            if self.conditional_size > 0:
-                z = torch.cat((z, conditional), dim=1)
-            decoders.append(self.decoders[i](z))
+        if self.conditional_size > 0:
+            z = torch.cat([z, conditional], dim=1)
+
+        decoders = [self.decoders[i](z) for i, _ in enumerate(self.views_sizes)]
+
         return decoders
 
     def forward(self, views, conditional=None):

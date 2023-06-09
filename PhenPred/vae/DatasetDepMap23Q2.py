@@ -9,7 +9,7 @@ from datetime import datetime
 from PhenPred.Utils import scale
 from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
-from PhenPred.vae import data_folder, plot_folder, files_folder
+from PhenPred.vae import data_folder, plot_folder
 
 
 class CLinesDatasetDepMap23Q2(Dataset):
@@ -71,9 +71,12 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         if label is not None:
             self.labels = self.samplesheet.loc[self.samples, self.label]
-            self.labels_map = {l: i for i, l in enumerate(self.labels.unique())}
-            self.labels = self.labels.map(self.labels_map)
-            self.labels_size = len(self.labels_map)
+            self.labels = pd.get_dummies(self.labels)
+
+            self.labels_name = self.labels.columns.tolist()
+            self.labels_size = self.labels.shape[1]
+
+            self.labels = torch.tensor(self.labels.values, dtype=torch.float)
 
         print(
             f"[{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}] Samples = {len(self.samples)}"
@@ -89,10 +92,10 @@ class CLinesDatasetDepMap23Q2(Dataset):
         y = [None, None]
 
         if self.covariates is not None:
-            y[0] = [self.covariates.iloc[idx].values]
+            y[0] = self.covariates.iloc[idx].values
 
         if self.label is not None:
-            y[1] = [self.labels.iloc[idx]]
+            y[1] = self.labels[idx]
 
         return x, y, x_nans
 
