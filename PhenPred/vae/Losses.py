@@ -48,10 +48,12 @@ class CLinesLosses:
         kl_loss *= hypers["beta"]
 
         # Compute batch covariate loss
-        covariate_loss = 0 if covariates is None else cls.mmd_loss(z_joint, covariates)
+        # covariate_loss = 0 if covariates is None else cls.mmd_loss(z_joint, covariates)
+        covariate_loss = 0
 
         # Compute batch label loss
         label_loss = 0 if labels is None else F.cross_entropy(labels_hat, labels)
+        label_loss *= hypers["beta"]
 
         # Compute total loss
         total_loss = kl_loss + mse_loss + covariate_loss + label_loss
