@@ -33,8 +33,9 @@ class CLinesTrain:
             views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
             hyper=self.hypers,
             device=self.device,
-            labels_size=self.data.labels_size,
-            conditional_size=self.data.labels_size,
+            labels_size=self.data.labels_size if self.hypers["label"] else None,
+            conditional_size=self.data.labels_size if self.hypers["label"] else None,
+            n_components=self.hypers["n_components"],
         )
         model = nn.DataParallel(model)
         model.to(self.device)
@@ -56,9 +57,16 @@ class CLinesTrain:
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(model.training):
-                views_hat, mu_joint, logvar_joint, _, _, labels_hat = model(
-                    views, labels
-                )
+                (
+                    views_hat,
+                    mu_joint,
+                    logvar_joint,
+                    _,
+                    _,
+                    labels_hat,
+                    weights,
+                    comp_idx,
+                ) = model(views, labels)
 
                 z_joint = model.module.reparameterize(mu_joint, logvar_joint)
 
@@ -73,6 +81,8 @@ class CLinesTrain:
                     covariates=covariates,
                     labels=labels,
                     labels_hat=labels_hat,
+                    weights=weights,
+                    comp_idx=comp_idx,
                 )
 
                 if model.training:
@@ -180,6 +190,8 @@ class CLinesTrain:
                     mu_views,
                     logvar_views,
                     _,
+                    weights,
+                    comp_idx,
                 ) = model(views, labels)
 
                 for name, df in zip(self.data.view_names, views_hat):

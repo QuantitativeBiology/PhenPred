@@ -1,3 +1,4 @@
+from sklearn.covariance import log_likelihood
 import torch
 import PhenPred
 import numpy as np
@@ -22,6 +23,7 @@ class CLinesLosses:
         covariates=None,
         labels=None,
         labels_hat=None,
+        z_pre=None,
     ):
         # Compute reconstruction loss across views
         mse_loss, view_mse_loss = 0, {}
@@ -48,15 +50,22 @@ class CLinesLosses:
         kl_loss *= hypers["beta"]
 
         # Compute batch covariate loss
-        # covariate_loss = 0 if covariates is None else cls.mmd_loss(z_joint, covariates)
-        covariate_loss = 0
+        covariate_loss = 0 if covariates is None else cls.mmd_loss(z_joint, covariates)
 
         # Compute batch label loss
         label_loss = 0 if labels is None else F.cross_entropy(labels_hat, labels)
         label_loss *= hypers["beta"]
 
+        # Mixture log-likehood loss
+        mix_loss = 0
+        if hypers["n_components"] > 1:
+            prior = cls.gaussian_parameters(z_pre, dim=1)
+            log_q_phi = cls.log_normal(z_joint, means, log_variances)
+            log_p_theta = cls.log_normal_mixture(z_joint, prior[0], prior[1])
+            mix_loss = log_q_phi - log_p_theta
+
         # Compute total loss
-        total_loss = kl_loss + mse_loss + covariate_loss + label_loss
+        total_loss = kl_loss + mse_loss + covariate_loss + label_loss + mix_loss
 
         # Return total loss, total MSE loss, and view specific MSE loss
         return dict(
@@ -65,9 +74,53 @@ class CLinesLosses:
             kl=kl_loss,
             covariate=covariate_loss,
             label=label_loss,
+            mix=mix_loss,
             mse_views=view_mse_loss,
             kl_views=kl_losses,
         )
+
+    @classmethod
+    def gaussian_parameters(cls, h, dim=-1):
+        m, h = torch.split(h, h.size(dim) // 2, dim=dim)
+        v = F.softplus(h) + 1e-8
+        return m, v
+
+    @classmethod
+    def log_normal(cls, x, m, v):
+        const = -0.5 * x.size(-1) * torch.log(2 * torch.tensor(np.pi))
+        log_det = -0.5 * torch.sum(torch.log(v), dim=-1)
+        log_exp = -0.5 * torch.sum((x - m) ** 2 / v, dim=-1)
+        log_prob = const + log_det + log_exp
+        return log_prob
+
+    @classmethod
+    def log_normal_mixture(cls, z, m, v):
+        z = z.unsqueeze(1)
+        log_probs = cls.log_normal(z, m, v)
+        log_prob = cls.log_mean_exp(log_probs, 1)
+        return log_prob
+
+    @classmethod
+    def log_normal(cls, x, m, v):
+        const = -0.5 * x.size(-1) * torch.log(2 * torch.tensor(np.pi))
+        log_det = -0.5 * torch.sum(torch.log(v), dim=-1)
+        log_exp = -0.5 * torch.sum((x - m) ** 2 / v, dim=-1)
+        log_prob = const + log_det + log_exp
+        return log_prob
+
+    @classmethod
+    def log_mean_exp(cls, x, dim):
+        return cls.log_sum_exp(x, dim) - np.log(x.size(dim))
+
+    @classmethod
+    def log_sum_exp(cls, x, dim=0):
+        max_x = torch.max(x, dim)[0]
+        new_x = x - max_x.unsqueeze(dim).expand_as(x)
+        return max_x + (new_x.exp().sum(dim)).log()
+
+    @classmethod
+    def duplicate(x, rep):
+        return x.expand(rep, *x.shape).reshape(-1, *x.shape[1:])
 
     @classmethod
     def class_mlp(
