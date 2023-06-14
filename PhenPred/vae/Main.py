@@ -43,11 +43,7 @@ if __name__ == "__main__":
         .astype(int)
     )
 
-    train = CLinesTrain(
-        clines_db,
-        hyperparameters,
-        stratify_cv_by=heam_lines,
-    )
+    train = CLinesTrain(clines_db, hyperparameters, stratify_cv_by=heam_lines, k=10)
     train.run()
 
     # Run Latent Spaces Benchmark
