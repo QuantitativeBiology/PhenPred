@@ -11,6 +11,148 @@ from sklearn.model_selection import GridSearchCV
 
 class CLinesLosses:
     @classmethod
+    def unlabeled_loss(cls, views, out_net, views_mask=None, rec_type="mse"):
+        """
+        Sourced from: https://github.com/jariasf/GMVAE/tree/master/pytorch
+
+        Method defining the loss functions derived from the variational lower bound
+        Args:
+            data: (array) corresponding array containing the input data
+            out_net: (dict) contains the graph operations or nodes of the network output
+
+        Returns:
+            loss_dic: (dict) contains the values of each loss function and predictions
+        """
+        # obtain network variables
+        z, views_hat = out_net["z"], out_net["views_hat"]
+        logits, prob_cat = out_net["y_logits"], out_net["y_prob"]
+        y_mu, y_var = out_net["y_mu"], out_net["y_var"]
+        mu, var = out_net["z_mu"], out_net["z_var"]
+        means, log_variances = out_net["views_mu"], out_net["views_var"]
+
+        # reconstruction loss
+        loss_rec = 0
+        for i, k in enumerate(views):
+            real, predicted = k, views_hat[i]
+
+            if views_mask is not None:
+                real, predicted = real[views_mask[i]], predicted[views_mask[i]]
+
+            loss_rec += cls.reconstruction_loss(real, predicted, rec_type)
+
+        # KL divergence loss
+        kl_loss = 0
+        for mu, log_var in zip(means, log_variances):
+            kl_loss += cls.kl_divergence(mu, log_var)
+        kl_loss *= 0.1
+
+        # gaussian loss
+        loss_gauss = cls.gaussian_loss(z, mu, var, y_mu, y_var)
+
+        # categorical loss
+        loss_cat = -cls.entropy(logits, prob_cat) - np.log(0.1)
+
+        # total loss
+        loss_total = loss_rec + kl_loss + loss_gauss + loss_cat
+
+        # obtain predictions
+        _, predicted_labels = torch.max(logits, dim=1)
+
+        loss_dic = dict(
+            total=loss_total,
+            reconstruction=loss_rec,
+            gaussian=loss_gauss,
+            categorical=loss_cat,
+            kl_divergence=kl_loss,
+            predicted_labels=predicted_labels,
+        )
+
+        return loss_dic
+
+    @classmethod
+    def reconstruction_loss(cls, real, predicted, rec_type="mse"):
+        """Reconstruction loss between the true and predicted outputs
+           mse = (1/n)*Σ(real - predicted)^2
+           bce = (1/n) * -Σ(real*log(predicted) + (1 - real)*log(1 - predicted))
+
+        Args:
+            real: (array) corresponding array containing the true labels
+            predictions: (array) corresponding array containing the predicted labels
+
+        Returns:
+            output: (array/float) depending on average parameters the result will be the mean
+                                  of all the sample losses or an array with the losses per sample
+        """
+        if rec_type == "mse":
+            loss = F.mse_loss(predicted, real, reduction="mean")
+        elif rec_type == "bce":
+            loss = F.binary_cross_entropy(predicted, real, reduction="mean")
+        else:
+            raise "invalid loss function... try bce or mse..."
+        return loss.sum(-1).mean()
+
+    @classmethod
+    def gaussian_loss(cls, z, z_mu, z_var, z_mu_prior, z_var_prior):
+        """Variational loss when using labeled data without considering reconstruction loss
+           loss = log q(z|x,y) - log p(z) - log p(y)
+
+        Args:
+           z: (array) array containing the gaussian latent variable
+           z_mu: (array) array containing the mean of the inference model
+           z_var: (array) array containing the variance of the inference model
+           z_mu_prior: (array) array containing the prior mean of the generative model
+           z_var_prior: (array) array containing the prior variance of the generative mode
+
+        Returns:
+           output: (array/float) depending on average parameters the result will be the mean
+                                  of all the sample losses or an array with the losses per sample
+        """
+        loss = cls.log_normal(z, z_mu, z_var) - cls.log_normal(
+            z, z_mu_prior, z_var_prior
+        )
+        return loss.mean()
+
+    @classmethod
+    def log_normal(cls, x, mu, var, eps=1e-8):
+        """Logarithm of normal distribution with mean=mu and variance=var
+           log(x|μ, σ^2) = loss = -0.5 * Σ log(2π) + log(σ^2) + ((x - μ)/σ)^2
+
+        Args:
+           x: (array) corresponding array containing the input
+           mu: (array) corresponding array containing the mean
+           var: (array) corresponding array containing the variance
+
+        Returns:
+           output: (array/float) depending on average parameters the result will be the mean
+                                  of all the sample losses or an array with the losses per sample
+        """
+        if eps > 0.0:
+            var = var + eps
+        return -0.5 * torch.sum(
+            np.log(2.0 * np.pi) + torch.log(var) + torch.pow(x - mu, 2) / var, dim=-1
+        )
+
+    @classmethod
+    def entropy(cls, logits, targets):
+        """Entropy loss
+            loss = (1/n) * -Σ targets*log(predicted)
+
+        Args:
+            logits: (array) corresponding array containing the logits of the categorical variable
+            real: (array) corresponding array containing the true labels
+
+        Returns:
+            output: (array/float) depending on average parameters the result will be the mean
+                                  of all the sample losses or an array with the losses per sample
+        """
+        log_q = F.log_softmax(logits, dim=-1)
+        return -torch.mean(torch.sum(targets * log_q, dim=-1))
+
+    @classmethod
+    def kl_divergence(cls, mu, log_var):
+        return -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / len(mu)
+
+    @classmethod
     def loss_function(
         cls,
         hypers,
@@ -33,7 +175,7 @@ class CLinesLosses:
             if views_nans is not None:
                 X, X_ = X[views_nans[i]], X_[views_nans[i]]
 
-            loss_func = cls.reconstruction_loss(hypers["reconstruction_loss"])
+            loss_func = cls.reconstruction_loss_method(hypers["reconstruction_loss"])
             v_mse_loss = loss_func(X_.cpu(), X)
 
             mse_loss += v_mse_loss
@@ -59,10 +201,7 @@ class CLinesLosses:
         # Mixture log-likehood loss
         mix_loss = 0
         if hypers["n_components"] > 1:
-            prior = cls.gaussian_parameters(z_pre, dim=1)
-            log_q_phi = cls.log_normal(z_joint, means, log_variances)
-            log_p_theta = cls.log_normal_mixture(z_joint, prior[0], prior[1])
-            mix_loss = log_q_phi - log_p_theta
+            raise "Use ModelGMVAE.py"
 
         # Compute total loss
         total_loss = kl_loss + mse_loss + covariate_loss + label_loss + mix_loss
@@ -78,49 +217,6 @@ class CLinesLosses:
             mse_views=view_mse_loss,
             kl_views=kl_losses,
         )
-
-    @classmethod
-    def gaussian_parameters(cls, h, dim=-1):
-        m, h = torch.split(h, h.size(dim) // 2, dim=dim)
-        v = F.softplus(h) + 1e-8
-        return m, v
-
-    @classmethod
-    def log_normal(cls, x, m, v):
-        const = -0.5 * x.size(-1) * torch.log(2 * torch.tensor(np.pi))
-        log_det = -0.5 * torch.sum(torch.log(v), dim=-1)
-        log_exp = -0.5 * torch.sum((x - m) ** 2 / v, dim=-1)
-        log_prob = const + log_det + log_exp
-        return log_prob
-
-    @classmethod
-    def log_normal_mixture(cls, z, m, v):
-        z = z.unsqueeze(1)
-        log_probs = cls.log_normal(z, m, v)
-        log_prob = cls.log_mean_exp(log_probs, 1)
-        return log_prob
-
-    @classmethod
-    def log_normal(cls, x, m, v):
-        const = -0.5 * x.size(-1) * torch.log(2 * torch.tensor(np.pi))
-        log_det = -0.5 * torch.sum(torch.log(v), dim=-1)
-        log_exp = -0.5 * torch.sum((x - m) ** 2 / v, dim=-1)
-        log_prob = const + log_det + log_exp
-        return log_prob
-
-    @classmethod
-    def log_mean_exp(cls, x, dim):
-        return cls.log_sum_exp(x, dim) - np.log(x.size(dim))
-
-    @classmethod
-    def log_sum_exp(cls, x, dim=0):
-        max_x = torch.max(x, dim)[0]
-        new_x = x - max_x.unsqueeze(dim).expand_as(x)
-        return max_x + (new_x.exp().sum(dim)).log()
-
-    @classmethod
-    def duplicate(x, rep):
-        return x.expand(rep, *x.shape).reshape(-1, *x.shape[1:])
 
     @classmethod
     def class_mlp(
@@ -242,7 +338,7 @@ class CLinesLosses:
             return nn.Identity()
 
     @classmethod
-    def reconstruction_loss(cls, name):
+    def reconstruction_loss_method(cls, name):
         if name == "mse":
             return F.mse_loss
         elif name == "bce":

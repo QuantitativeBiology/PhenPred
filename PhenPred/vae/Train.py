@@ -12,11 +12,23 @@ from torch.utils.data import DataLoader
 from matplotlib.ticker import MaxNLocator
 from PhenPred.vae.Losses import CLinesLosses
 from PhenPred.vae.ModelCVAE import CLinesCVAE
+from PhenPred.vae.ModelGMVAE import CLinesGMVAE
 from sklearn.model_selection import KFold, StratifiedKFold
 
 
 class CLinesTrain:
-    def __init__(self, data, hypers, stratify_cv_by=None):
+    def __init__(
+        self,
+        data,
+        hypers,
+        stratify_cv_by=None,
+        k=2,
+        init_temp=1.0,
+        decay_temp=1.0,
+        hard_gumbel=0,
+        min_temp=0.5,
+        decay_temp_rate=0.013862944,
+    ):
         self.data = data
         self.losses = []
         self.hypers = hypers
@@ -24,18 +36,25 @@ class CLinesTrain:
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+        self.k = k
+
+        # gumbel
+        self.init_temp = init_temp
+        self.decay_temp = decay_temp
+        self.hard_gumbel = hard_gumbel
+        self.min_temp = min_temp
+        self.decay_temp_rate = decay_temp_rate
+        self.gumbel_temp = self.init_temp
+
     def run(self):
         self.training()
         self.predictions()
 
     def initialize_model(self):
-        model = CLinesCVAE(
+        model = CLinesGMVAE(
             views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
-            hyper=self.hypers,
-            device=self.device,
-            labels_size=self.data.labels_size if self.hypers["label"] else None,
-            conditional_size=self.data.labels_size if self.hypers["label"] else None,
-            n_components=self.hypers["n_components"],
+            hypers=self.hypers,
+            k=self.k,
         )
         model = nn.DataParallel(model)
         model.to(self.device)
@@ -51,38 +70,16 @@ class CLinesTrain:
         for views, classes, views_nans in dataloader:
             views_nans = [~v for v in views_nans]
 
-            covariates = None if self.hypers["covariates"] is None else classes[0]
-            labels = None if self.hypers["label"] is None else classes[1]
-
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(model.training):
-                (
-                    views_hat,
-                    mu_joint,
-                    logvar_joint,
-                    _,
-                    _,
-                    labels_hat,
-                    weights,
-                    comp_idx,
-                ) = model(views, labels)
+                out_net = model(views, self.gumbel_temp, self.hard_gumbel)
 
-                z_joint = model.module.reparameterize(mu_joint, logvar_joint)
-
-                loss = CLinesLosses.loss_function(
-                    hypers=self.hypers,
+                loss = CLinesLosses.unlabeled_loss(
                     views=views,
-                    views_hat=views_hat,
-                    means=mu_joint,
-                    log_variances=logvar_joint,
-                    z_joint=z_joint,
-                    views_nans=views_nans,
-                    covariates=covariates,
-                    labels=labels,
-                    labels_hat=labels_hat,
-                    weights=weights,
-                    comp_idx=comp_idx,
+                    out_net=out_net,
+                    views_mask=views_nans,
+                    rec_type=self.hypers["reconstruction_loss"],
                 )
 
                 if model.training:
@@ -150,7 +147,18 @@ class CLinesTrain:
                     ),
                 )
 
-                self.print_losses(cv_idx, epoch)
+                self.print_losses(
+                    cv_idx,
+                    epoch,
+                    keys=["reconstruction", "gaussian", "categorical", "kl_divergence"],
+                )
+
+                # decay gumbel temperature
+                if self.decay_temp == 1:
+                    self.gumbel_temp = np.maximum(
+                        self.init_temp * np.exp(-self.decay_temp_rate * epoch),
+                        self.min_temp,
+                    )
 
         losses_df = self.save_losses()
         self.plot_losses(losses_df, self.timestamp)
@@ -179,22 +187,11 @@ class CLinesTrain:
         model.eval()
         with torch.no_grad():
             for views, classes, _ in data_all:
-                views = [view.to(self.device) for view in views]
-
                 labels = None if self.hypers["label"] is None else classes[1]
 
-                (
-                    views_hat,
-                    mu_joint,
-                    logvar_joint,
-                    mu_views,
-                    logvar_views,
-                    _,
-                    weights,
-                    comp_idx,
-                ) = model(views, labels)
+                out_net = model(views)
 
-                for name, df in zip(self.data.view_names, views_hat):
+                for name, df in zip(self.data.view_names, out_net["views_hat"]):
                     imputed_datasets[name] = pd.DataFrame(
                         self.data.view_scalers[name].inverse_transform(df.tolist()),
                         index=self.data.samples,
@@ -233,36 +230,33 @@ class CLinesTrain:
 
     def register_loss(self, loss, extra_fields=None):
         r = {
-            "total": float(loss["total"]),
-            "mse": float(loss["mse"]),
-            "kl": float(loss["kl"]),
-            "covariate": float(loss["covariate"]),
-            "label": float(loss["label"]),
+            k: float(v)
+            for k, v in loss.items()
+            if type(v) == torch.Tensor and v.numel() == 1
         }
 
-        for k, v in loss["mse_views"].items():
-            r[f"mse_{k}"] = float(v)
+        if "mse_views" in loss:
+            for k, v in loss["mse_views"].items():
+                r[f"mse_{k}"] = float(v)
 
-        for k, v in loss["kl_views"].items():
-            r[f"kl_{k}"] = float(v)
+        if "kl_views" in loss:
+            for k, v in loss["kl_views"].items():
+                r[f"kl_{k}"] = float(v)
 
         if extra_fields is not None:
             r.update(extra_fields)
 
         self.losses.append(r)
 
-    def print_losses(self, cv_idx, epoch_idx, pbar=None):
+    def print_losses(self, cv_idx, epoch_idx, pbar=None, keys=[]):
         l = pd.DataFrame(self.losses).query(f"cv == {cv_idx} & epoch == {epoch_idx}")
         l = l.groupby("type").mean()
 
-        ptxt = (
-            f"[{datetime.now().strftime('%H:%M:%S')}] CV={cv_idx}, Epoch={epoch_idx} Loss (train/val)"
-            + f" | Total={l.loc['train', 'total']:.2f}/{l.loc['val', 'total']:.2f}"
-            + f" | MSE={l.loc['train', 'mse']:.2f}/{l.loc['val', 'mse']:.2f}"
-            + f" | KL={l.loc['train', 'kl']:.2f}/{l.loc['val', 'kl']:.2f}"
-            + f" | Cov={l.loc['train', 'covariate']:.2f}/{l.loc['val', 'covariate']:.2f}"
-            + f" | Label={l.loc['train', 'label']:.2f}/{l.loc['val', 'label']:.2f}"
-        )
+        ptxt = f"[{datetime.now().strftime('%H:%M:%S')}] CV={cv_idx}, Epoch={epoch_idx} Loss (train/val)"
+        ptxt += f" | Total={l.loc['train', 'total']:.2f}/{l.loc['val', 'total']:.2f}"
+
+        for k in keys:
+            ptxt += f" | {k}={l.loc['train', k]:.2f}/{l.loc['val', k]:.2f}"
 
         if pbar is not None:
             pbar.set_description(ptxt)

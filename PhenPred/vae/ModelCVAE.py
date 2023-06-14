@@ -15,8 +15,8 @@ class CLinesCVAE(nn.Module):
         labels_size=None,
         conditional_size=None,
         device="cpu",
-        k=1,
         repeat_last_hidden=False,
+        n_components=1,
     ):
         super(CLinesCVAE, self).__init__()
 
@@ -26,12 +26,7 @@ class CLinesCVAE(nn.Module):
         self.labels_size = labels_size
         self.conditional_size = 0 if conditional_size is None else conditional_size
         self.repeat_last_hidden = repeat_last_hidden
-
-        self.k = k
-        self.z_pre = torch.nn.Parameter(
-            torch.randn(1, 2 * self.k, self.z_dim) / np.sqrt(self.k * self.z_dim)
-        )
-        self.pi = torch.nn.Parameter(torch.ones(k) / k, requires_grad=False)
+        self.n_components = n_components
 
         if self.hyper["n_groups"] is not None:
             self._build_groupbottleneck()
