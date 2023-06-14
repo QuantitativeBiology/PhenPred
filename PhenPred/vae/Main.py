@@ -36,14 +36,17 @@ if __name__ == "__main__":
 
     # Train and predictions
     # train.timestamp = "2023-06-08_12:56:58"
+    heam_lines = "Haematopoietic and Lymphoid"
+    heam_lines = (
+        (clines_db.samplesheet["tissue"] == heam_lines)
+        .loc[clines_db.samples]
+        .astype(int)
+    )
+
     train = CLinesTrain(
         clines_db,
         hyperparameters,
-        stratify_cv_by=(
-            clines_db.samplesheet["tissue"] == "Haematopoietic and Lymphoid"
-        )
-        .loc[clines_db.samples]
-        .astype(int),
+        stratify_cv_by=heam_lines,
     )
     train.run()
 
@@ -54,7 +57,7 @@ if __name__ == "__main__":
         view_names=list(hyperparameters["datasets"]),
         markers_joint=pd.concat(
             [
-                clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
+                # clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
                 clines_db.dfs["metabolomics"][["1-methylnicotinamide"]],
             ],
             axis=1,

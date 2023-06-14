@@ -58,8 +58,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._remove_features_missing_values()
         self._standardize_dfs()
 
-        self.view_names = list(self.views.keys())
-
+        # Model covariates
+        self.covariates = None
         if covariates is not None:
             self.covariates = pd.concat(
                 [
@@ -69,6 +69,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 axis=1,
             )
 
+        # Model labels
+        self.labels = None
         if label is not None:
             self.labels = self.samplesheet.loc[self.samples, self.label]
             self.labels = pd.get_dummies(self.labels)
@@ -89,7 +91,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         x = [df[idx] for df in self.views.values()]
         x_nans = [df[idx] for df in self.view_nans.values()]
 
-        y = [None, None]
+        y = [torch.empty(0), torch.empty(0)]
 
         if self.covariates is not None:
             y[0] = self.covariates.iloc[idx].values
@@ -175,10 +177,12 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.view_scalers = dict()
         self.view_feature_names = dict()
         self.view_nans = dict()
+        self.view_names = []
 
         for n, df in self.dfs.items():
             self.views[n], self.view_scalers[n], self.view_nans[n] = self.process_df(df)
             self.view_feature_names[n] = list(df.columns)
+            self.view_names.append(n)
 
     def _samples_union(self):
         # Union samples

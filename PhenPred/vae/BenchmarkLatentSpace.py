@@ -30,12 +30,15 @@ class LatentSpaceBenchmark:
             f"{data_folder}/samplesheet_cancercell.csv", index_col=0
         )
 
-        covariates_prot = self.data.dfs["proteomics"][["CDH1", "VIM"]].add_suffix(
-            "_prot"
-        )
-        covariates_trans = self.data.dfs["transcriptomics"][["CDH1", "VIM"]].add_suffix(
-            "_gexp"
-        )
+        if "proteomics" in self.data.dfs:
+            covariates_prot = self.data.dfs["proteomics"][["CDH1", "VIM"]].add_suffix(
+                "_prot"
+            )
+
+        if "transcriptomics" in self.data.dfs:
+            covariates_trans = self.data.dfs["transcriptomics"][
+                ["CDH1", "VIM"]
+            ].add_suffix("_gexp")
 
         self.df_drug_novel = pd.read_csv(
             f"{data_folder}/GDSC_fitted_dose_response_24Jul22_IC50.csv",
@@ -62,15 +65,17 @@ class LatentSpaceBenchmark:
                 self.ss_ccell["CopyNumberInstability"],
                 self.ss_ccell[["ploidy", "mutational_burden", "growth", "size"]],
                 self.ss_ccell["replicates_correlation"].rename("RepsCorrelation"),
-                covariates_prot,
-                covariates_trans,
+                covariates_prot if "proteomics" in self.data.dfs else None,
+                covariates_trans if "transcriptomics" in self.data.dfs else None,
                 pd.get_dummies(self.ss_ccell["media"]),
                 pd.get_dummies(self.ss["growth_properties_sanger"]).add_prefix(
                     "sanger_"
                 ),
                 pd.get_dummies(self.ss["growth_properties_broad"]).add_prefix("broad_"),
                 self.data.dfs["proteomics"].mean(1).rename("MeanProteomics"),
-                self.data.dfs["methylation"].mean(1).rename("MeanMethylation"),
+                self.data.dfs["methylation"].mean(1).rename("MeanMethylation")
+                if "methylation" in self.data.dfs
+                else None,
                 self.data.dfs["drugresponse"].mean(1).rename("MeanDrugResponse"),
                 self.df_drug_novel_bin.sum(1).rename("drug_responses").apply(np.log2),
             ],
