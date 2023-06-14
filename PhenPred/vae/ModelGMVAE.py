@@ -34,7 +34,6 @@ class CLinesGMVAE(nn.Module):
 
         # Encoders
         self.encoders = nn.ModuleList()
-
         for n in self.views_sizes:
             layer_sizes = [self.views_sizes[n]] + [
                 int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"]
@@ -58,8 +57,7 @@ class CLinesGMVAE(nn.Module):
         )
 
         # p(z|y)
-        self.y_mu = nn.Linear(self.k, self.hypers["latent_dim"])
-        self.y_var = nn.Linear(self.k, self.hypers["latent_dim"])
+        self.pzy = Gaussian(self.k, self.hypers["latent_dim"])
 
         # Decoders
         self.decoders = nn.ModuleList()
@@ -80,16 +78,16 @@ class CLinesGMVAE(nn.Module):
 
             self.decoders.append(nn.Sequential(*layers))
 
-        # weight initialization
-        for m in self.modules():
-            if m is not None and (
-                type(m) == nn.Linear
-                or type(m) == nn.Conv2d
-                or type(m) == nn.ConvTranspose2d
-            ):
-                torch.nn.init.xavier_normal_(m.weight)
-                if m.bias.data is not None:
-                    init.constant_(m.bias, 0)
+        # # weight initialization
+        # for m in self.modules():
+        #     if m is not None and (
+        #         type(m) == nn.Linear
+        #         or type(m) == nn.Conv2d
+        #         or type(m) == nn.ConvTranspose2d
+        #     ):
+        #         torch.nn.init.xavier_normal_(m.weight)
+        #         if m.bias.data is not None:
+        #             init.constant_(m.bias, 0)
 
     def forward(self, views, temperature=1.0, hard=0):
         # Group Bottleneck
@@ -111,8 +109,7 @@ class CLinesGMVAE(nn.Module):
         )
 
         # p(z|y)
-        y_mu = self.y_mu(y)
-        y_var = F.softplus(self.y_var(y))
+        y_mu, y_var, _ = self.pzy(y)
 
         # Decoders
         views_hat = []
