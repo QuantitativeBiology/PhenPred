@@ -157,7 +157,7 @@ class CLinesTrain:
                     )
 
         losses_df = self.save_losses()
-        self.plot_losses(losses_df, timestamp=self.timestamp)
+        self.plot_losses(losses_df)
 
     def predictions(self):
         latent_spaces = dict()
@@ -264,10 +264,7 @@ class CLinesTrain:
         return l
 
     @staticmethod
-    def plot_losses(losses_df, loss_terms=None, timestamp="", figsize=(3, 2)):
-        if loss_terms is None:
-            loss_terms = ["reconstruction", "gaussian", "categorical", "kl_divergence"]
-
+    def plot_losses(losses_df, loss_terms=None, figsize=(3, 2)):
         # Plot total losses
         plot_df = pd.melt(losses_df, id_vars=["epoch", "type"], value_vars="total")
 
@@ -289,9 +286,16 @@ class CLinesTrain:
             loc="upper left",
             bbox_to_anchor=(1, 1),
         )
-        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_train_validation_loss")
+        PhenPred.save_figure(
+            f"{plot_folder}/losses/{self.timestamp}_train_validation_loss"
+        )
 
         # Plot loss terms
+        if loss_terms is None:
+            loss_terms = [
+                c for c in losses_df if c not in ["cv", "epoch", "type", "total"]
+            ]
+
         plot_df = pd.melt(
             losses_df,
             id_vars=["epoch", "type"],
@@ -317,7 +321,7 @@ class CLinesTrain:
             xlabel="Epoch",
             ylabel="Loss",
         )
-        PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_reconst_reg_loss")
+        PhenPred.save_figure(f"{plot_folder}/losses/{self.timestamp}_reconst_reg_loss")
 
         # Plot losses views
         for ltype in ["reconstruction_", "kl_"]:
@@ -346,5 +350,5 @@ class CLinesTrain:
                 )
                 ax.set(xlabel="Epoch", ylabel=f"{ltype} Loss")
                 PhenPred.save_figure(
-                    f"{plot_folder}/losses/{timestamp}_{ltype}_omics_loss"
+                    f"{plot_folder}/losses/{self.timestamp}_{ltype}_omics_loss"
                 )

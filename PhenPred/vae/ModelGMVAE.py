@@ -6,12 +6,16 @@ from PhenPred.vae.Layers import BottleNeck, Gaussian, JointInference
 
 
 class CLinesGMVAE(nn.Module):
-    def __init__(self, hypers, views_sizes, k=2) -> None:
+    def __init__(
+        self, hypers, views_sizes, k=2, views_logits=128, hidden_size=256
+    ) -> None:
         super().__init__()
 
+        self.k = k
         self.hypers = hypers
         self.views_sizes = views_sizes
-        self.k = k
+        self.views_logits = views_logits
+        self.hidden_size = hidden_size
 
         self._build()
 
@@ -35,9 +39,11 @@ class CLinesGMVAE(nn.Module):
         # Encoders
         self.encoders = nn.ModuleList()
         for n in self.views_sizes:
-            layer_sizes = [self.views_sizes[n]] + [
-                int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"]
-            ]
+            layer_sizes = (
+                [self.views_sizes[n]]
+                + [int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"]]
+                + [self.views_logits]
+            )
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
@@ -45,15 +51,14 @@ class CLinesGMVAE(nn.Module):
                 layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.hypers["activation_function"])
 
-            layers.append(Gaussian(layer_sizes[-1], self.hypers["latent_dim"]))
-
             self.encoders.append(nn.Sequential(*layers))
 
         # Joint Inference
         self.joint_inference = JointInference(
-            self.hypers["latent_dim"] * len(self.views_sizes),
-            self.hypers["latent_dim"],
-            self.k,
+            x_dim=self.views_logits * len(self.views_sizes),
+            z_dim=self.hypers["latent_dim"],
+            y_dim=self.k,
+            hidden_size=self.hidden_size,
         )
 
         # p(z|y)
@@ -85,16 +90,13 @@ class CLinesGMVAE(nn.Module):
                 views[n] = self.groups[i](views[n])
 
         # Encoders
-        views_z, views_mu, views_var = [], [], []
-        for i, _ in enumerate(self.views_sizes):
-            v_mu, v_var, v_z = self.encoders[i](views[i])
-            views_z.append(v_z)
-            views_mu.append(v_mu)
-            views_var.append(v_var)
+        views_logits = [
+            self.encoders[i](views[i]) for i, _ in enumerate(self.views_sizes)
+        ]
 
         # Joint Inference
         z_mu, z_var, z, y_logits, y_prob, y = self.joint_inference(
-            torch.cat(views_z, dim=1), temperature, hard
+            torch.cat(views_logits, dim=1), temperature, hard
         )
 
         # p(z|y)
@@ -106,9 +108,6 @@ class CLinesGMVAE(nn.Module):
             views_hat.append(self.decoders[i](z))
 
         return dict(
-            views_z=views_z,
-            views_mu=views_mu,
-            views_var=views_var,
             views_hat=views_hat,
             z_mu=z_mu,
             z_var=z_var,

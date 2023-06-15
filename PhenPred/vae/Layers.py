@@ -111,11 +111,10 @@ class GumbelSoftmax(nn.Module):
 
 
 class JointInference(nn.Module):
-    def __init__(self, x_dim, z_dim, y_dim):
+    def __init__(self, x_dim, z_dim, y_dim, hidden_size=128):
         super().__init__()
 
         # q(y|x)
-        hidden_size = 128
         self.inference_qyx = torch.nn.ModuleList(
             [
                 nn.Linear(x_dim, hidden_size),
