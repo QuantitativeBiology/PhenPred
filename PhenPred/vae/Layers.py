@@ -115,7 +115,7 @@ class JointInference(nn.Module):
         super().__init__()
 
         # q(y|x)
-        hidden_size = int(x_dim * 0.7)
+        hidden_size = 128
         self.inference_qyx = torch.nn.ModuleList(
             [
                 nn.Linear(x_dim, hidden_size),

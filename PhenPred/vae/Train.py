@@ -147,11 +147,7 @@ class CLinesTrain:
                     ),
                 )
 
-                self.print_losses(
-                    cv_idx,
-                    epoch,
-                    keys=["reconstruction", "gaussian", "categorical", "kl_divergence"],
-                )
+                self.print_losses(cv_idx, epoch)
 
                 # decay gumbel temperature
                 if self.decay_temp == 1:
@@ -161,7 +157,7 @@ class CLinesTrain:
                     )
 
         losses_df = self.save_losses()
-        self.plot_losses(losses_df, self.timestamp)
+        self.plot_losses(losses_df, timestamp=self.timestamp)
 
     def predictions(self):
         latent_spaces = dict()
@@ -199,16 +195,14 @@ class CLinesTrain:
                     )
 
                 latent_spaces["joint"] = pd.DataFrame(
-                    model.module.reparameterize(mu_joint, logvar_joint).tolist(),
+                    out_net["z"].tolist(),
                     index=self.data.samples,
                     columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
                 )
 
-                for name, mus, logvars in zip(
-                    self.data.view_names, mu_views, logvar_views
-                ):
+                for name, view_z in zip(self.data.view_names, out_net["views_z"]):
                     latent_spaces[name] = pd.DataFrame(
-                        model.module.reparameterize(mus, logvars).tolist(),
+                        view_z.tolist(),
                         index=self.data.samples,
                         columns=[
                             f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])
@@ -255,8 +249,9 @@ class CLinesTrain:
         ptxt = f"[{datetime.now().strftime('%H:%M:%S')}] CV={cv_idx}, Epoch={epoch_idx} Loss (train/val)"
         ptxt += f" | Total={l.loc['train', 'total']:.2f}/{l.loc['val', 'total']:.2f}"
 
-        for k in keys:
-            ptxt += f" | {k}={l.loc['train', k]:.2f}/{l.loc['val', k]:.2f}"
+        for k in l.columns:
+            if k not in ["cv", "epoch", "type", "total"]:
+                ptxt += f" | {k}={l.loc['train', k]:.2f}/{l.loc['val', k]:.2f}"
 
         if pbar is not None:
             pbar.set_description(ptxt)
@@ -269,7 +264,10 @@ class CLinesTrain:
         return l
 
     @staticmethod
-    def plot_losses(losses_df, timestamp="", figsize=(3, 2)):
+    def plot_losses(losses_df, loss_terms=None, timestamp="", figsize=(3, 2)):
+        if loss_terms is None:
+            loss_terms = ["reconstruction", "gaussian", "categorical", "kl_divergence"]
+
         # Plot total losses
         plot_df = pd.melt(losses_df, id_vars=["epoch", "type"], value_vars="total")
 
@@ -297,7 +295,7 @@ class CLinesTrain:
         plot_df = pd.melt(
             losses_df,
             id_vars=["epoch", "type"],
-            value_vars=["mse", "kl", "covariate", "label"],
+            value_vars=loss_terms,
         )
 
         _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)
@@ -322,26 +320,31 @@ class CLinesTrain:
         PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_reconst_reg_loss")
 
         # Plot losses views
-        for ltype in ["mse", "kl"]:
-            plot_df = pd.melt(
-                losses_df,
-                id_vars=["epoch", "type"],
-                value_vars=[c for c in losses_df if c.startswith(f"{ltype}_")],
-            )
+        for ltype in ["reconstruction_", "kl_"]:
+            cols = [c for c in losses_df if c.startswith(f"{ltype}_")]
 
-            _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)
-            sns.lineplot(
-                data=plot_df,
-                x="epoch",
-                y="value",
-                hue="variable",
-                style="type",
-                ax=ax,
-            )
-            ax.legend(
-                title="Losses",
-                loc="upper left",
-                bbox_to_anchor=(1, 1),
-            )
-            ax.set(xlabel="Epoch", ylabel=f"{ltype} Loss")
-            PhenPred.save_figure(f"{plot_folder}/losses/{timestamp}_{ltype}_omics_loss")
+            if len(cols) > 0:
+                plot_df = pd.melt(
+                    losses_df,
+                    id_vars=["epoch", "type"],
+                    value_vars=cols,
+                )
+
+                _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)
+                sns.lineplot(
+                    data=plot_df,
+                    x="epoch",
+                    y="value",
+                    hue="variable",
+                    style="type",
+                    ax=ax,
+                )
+                ax.legend(
+                    title="Losses",
+                    loc="upper left",
+                    bbox_to_anchor=(1, 1),
+                )
+                ax.set(xlabel="Epoch", ylabel=f"{ltype} Loss")
+                PhenPred.save_figure(
+                    f"{plot_folder}/losses/{timestamp}_{ltype}_omics_loss"
+                )

@@ -112,8 +112,8 @@ class CLinesLosses:
         )
         return loss.mean()
 
-    @classmethod
-    def log_normal(cls, x, mu, var, eps=1e-8):
+    @staticmethod
+    def log_normal(x, mu, var, eps=1e-8):
         """Logarithm of normal distribution with mean=mu and variance=var
            log(x|μ, σ^2) = loss = -0.5 * Σ log(2π) + log(σ^2) + ((x - μ)/σ)^2
 
