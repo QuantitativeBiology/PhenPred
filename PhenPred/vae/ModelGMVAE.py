@@ -78,17 +78,6 @@ class CLinesGMVAE(nn.Module):
 
             self.decoders.append(nn.Sequential(*layers))
 
-        # # weight initialization
-        # for m in self.modules():
-        #     if m is not None and (
-        #         type(m) == nn.Linear
-        #         or type(m) == nn.Conv2d
-        #         or type(m) == nn.ConvTranspose2d
-        #     ):
-        #         torch.nn.init.xavier_normal_(m.weight)
-        #         if m.bias.data is not None:
-        #             init.constant_(m.bias, 0)
-
     def forward(self, views, temperature=1.0, hard=0):
         # Group Bottleneck
         if self.hypers["n_groups"] is not None:
