@@ -28,7 +28,6 @@ class CLinesLosses:
         logits, prob_cat = out_net["y_logits"], out_net["y_prob"]
         y_mu, y_var = out_net["y_mu"], out_net["y_var"]
         mu, var = out_net["z_mu"], out_net["z_var"]
-        means, log_variances = out_net["views_mu"], out_net["views_var"]
 
         # reconstruction loss
         loss_rec = 0
@@ -40,12 +39,6 @@ class CLinesLosses:
 
             loss_rec += cls.reconstruction_loss(real, predicted, rec_type)
 
-        # KL divergence loss
-        kl_loss = 0
-        for mu, log_var in zip(means, log_variances):
-            kl_loss += cls.kl_divergence(mu, log_var)
-        kl_loss *= 0.1
-
         # gaussian loss
         loss_gauss = cls.gaussian_loss(z, mu, var, y_mu, y_var)
 
@@ -53,7 +46,7 @@ class CLinesLosses:
         loss_cat = -cls.entropy(logits, prob_cat) - np.log(0.1)
 
         # total loss
-        loss_total = loss_rec + kl_loss + loss_gauss + loss_cat
+        loss_total = loss_rec + loss_gauss + loss_cat
 
         # obtain predictions
         _, predicted_labels = torch.max(logits, dim=1)
@@ -63,7 +56,6 @@ class CLinesLosses:
             reconstruction=loss_rec,
             gaussian=loss_gauss,
             categorical=loss_cat,
-            kl_divergence=kl_loss,
             predicted_labels=predicted_labels,
         )
 
