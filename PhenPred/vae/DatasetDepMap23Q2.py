@@ -16,9 +16,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def __init__(
         self,
         datasets,
+        label,
         decimals=4,
-        label=None,
-        covariates=None,
         feature_miss_rate_thres=0.9,
     ):
         super().__init__()
@@ -35,6 +34,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
             for n, df in self.dfs.items()
         }
 
+        # Dataset specific preprocessing
         for n in ["crisprcas9", "transcriptomics", "copynumber"]:
             if n in self.dfs:
                 self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
@@ -58,31 +58,20 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._remove_features_missing_values()
         self._standardize_dfs()
 
-        # Model covariates
-        self.covariates = None
-        if covariates is not None:
-            self.covariates = pd.concat(
-                [
-                    pd.get_dummies(self.samplesheet.loc[self.samples, covariates]),
-                    pd.get_dummies(self.n_samples_views().sum()).add_prefix("nviews_"),
-                ],
-                axis=1,
-            )
-
         # Model labels
-        self.labels = None
-        if label is not None:
-            self.labels = self.samplesheet.loc[self.samples, self.label]
-            self.labels = pd.get_dummies(self.labels)
+        self.labels = self.samplesheet.loc[self.samples, self.label]
+        self.labels = pd.get_dummies(self.labels)
 
-            self.labels_name = self.labels.columns.tolist()
-            self.labels_size = self.labels.shape[1]
+        self.labels_name = self.labels.columns.tolist()
+        self.labels_size = self.labels.shape[1]
 
-            self.labels = torch.tensor(self.labels.values, dtype=torch.float)
+        self.labels = torch.tensor(self.labels.values, dtype=torch.float)
 
-        print(
-            f"[{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}] Samples = {len(self.samples)}"
-        )
+        # Print
+        dataset_str = f"DepMap23Q2 | Samples = {len(self.samples):,}"
+        for n, df in self.dfs.items():
+            dataset_str += f" | {n} = {df.shape[1]:,}"
+        print(dataset_str)
 
     def __len__(self):
         return len(self.samples)
@@ -90,15 +79,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def __getitem__(self, idx):
         x = [df[idx] for df in self.views.values()]
         x_nans = [df[idx] for df in self.view_nans.values()]
-
-        y = [torch.empty(0), torch.empty(0)]
-
-        if self.covariates is not None:
-            y[0] = self.covariates.iloc[idx].values
-
-        if self.label is not None:
-            y[1] = self.labels[idx]
-
+        y = self.labels[idx]
         return x, y, x_nans
 
     def _map_genesymbols(self):
@@ -208,14 +189,12 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 ]
 
     def process_df(self, df):
-        # Normalize the data using StandardScaler
         scaler = StandardScaler()
         x = scaler.fit_transform(df).round(self.decimals)
 
-        x_nan = np.isnan(x)
+        x_nan = ~np.isnan(x)
         x = np.nan_to_num(x, copy=False)
 
-        # Convert to tensor
         x = torch.tensor(x, dtype=torch.float)
 
         return x, scaler, x_nan
@@ -230,6 +209,23 @@ class CLinesDatasetDepMap23Q2(Dataset):
         counts = counts.loc[:, counts.sum() > 0]
         counts = counts.loc[counts.sum(1).sort_values(ascending=False).index]
         return counts
+
+    def samples_by_tissue(self, tissue):
+        return (
+            (self.samplesheet["tissue"] == tissue)
+            .loc[self.samples]
+            .astype(int)
+            .rename(tissue)
+        )
+
+    def get_features(self, view_features_dict):
+        return pd.concat(
+            [
+                self.dfs[v].reindex(columns=f).add_suffix(f"_{v}")
+                for v, f in view_features_dict.items()
+            ],
+            axis=1,
+        )
 
     def plot_samples_overlap(self):
         plot_df = self.n_samples_views()

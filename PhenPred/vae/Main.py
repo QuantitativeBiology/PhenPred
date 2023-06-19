@@ -30,35 +30,25 @@ if __name__ == "__main__":
     clines_db = CLinesDatasetDepMap23Q2(
         label=hyperparameters["label"],
         datasets=hyperparameters["datasets"],
-        covariates=hyperparameters["covariates"],
         feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
     )
 
     # Train and predictions
     # train.timestamp = "2023-06-08_12:56:58"
-    heam_lines = "Haematopoietic and Lymphoid"
-    heam_lines = (
-        (clines_db.samplesheet["tissue"] == heam_lines)
-        .loc[clines_db.samples]
-        .astype(int)
+    train = CLinesTrain(
+        clines_db,
+        hyperparameters,
+        stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
     )
-
-    train = CLinesTrain(clines_db, hyperparameters, stratify_cv_by=heam_lines, k=3)
     train.run()
 
     # Run Latent Spaces Benchmark
     latent_benchmark = LatentSpaceBenchmark(train.timestamp, clines_db)
     latent_benchmark.run()
     latent_benchmark.plot_latent_spaces(
-        view_names=list(hyperparameters["datasets"]),
-        markers_joint=pd.concat(
-            [
-                # clines_db.dfs["transcriptomics"][["VIM", "CDH1"]],
-                clines_db.dfs["metabolomics"][["1-methylnicotinamide"]],
-            ],
-            axis=1,
+        markers=clines_db.get_features(
+            dict(metabolomics=["1-methylnicotinamide"], proteomics=["VIM", "CDH1"])
         ),
-        markers_views=clines_db.n_samples_views().sum().rename("N_Views").to_frame(),
     )
 
     # Run drug benchmark
