@@ -356,95 +356,68 @@ class LatentSpaceBenchmark:
 
     def plot_latent_spaces(
         self,
-        view_names,
         umap_neighbors=25,
         umap_min_dist=0.25,
         umap_metric="euclidean",
         umap_n_components=2,
-        markers_joint=None,
-        markers_views=None,
+        markers=None,
     ):
-        # Get Tissue Types
-        samplesheet = self.data.samplesheet.copy()
-        samplesheet = samplesheet["tissue"].fillna("Other tissue")
+        samplesheet = self.data.samplesheet["tissue"].fillna("Other tissue")
 
-        # Read latent spaces
-        latent_spaces = {
-            n: pd.read_csv(
-                f"{plot_folder}/files/{self.timestamp}_latent_{n}.csv.gz", index_col=0
-            )
-            for n in view_names + ["joint"]
-        }
+        z_joint = pd.read_csv(
+            f"{plot_folder}/files/{self.timestamp}_latent_joint.csv.gz", index_col=0
+        )
 
         # Get UMAP projections
-        latent_space_umaps = {
-            k: pd.DataFrame(
-                umap.UMAP(
-                    n_neighbors=umap_neighbors,
-                    min_dist=umap_min_dist,
-                    metric=umap_metric,
-                    n_components=umap_n_components,
-                ).fit_transform(v),
-                columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
-                index=v.index,
-            )
-            for k, v in latent_spaces.items()
-        }
+        z_joint_umap = pd.DataFrame(
+            umap.UMAP(
+                n_neighbors=umap_neighbors,
+                min_dist=umap_min_dist,
+                metric=umap_metric,
+                n_components=umap_n_components,
+            ).fit_transform(z_joint),
+            columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
+            index=z_joint.index,
+        )
 
         # Plot projections by tissue type
-        for l_name, l_space in latent_space_umaps.items():
-            plot_df = pd.concat([l_space, samplesheet], axis=1)
+        plot_df = pd.concat([z_joint_umap, samplesheet], axis=1)
 
-            _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
-            sns.scatterplot(
-                data=plot_df,
-                x="UMAP_1",
-                y="UMAP_2",
-                hue="tissue",
-                palette=PALETTE_TTYPE,
-                alpha=0.95,
-                ax=ax,
-            )
-            ax.set(
-                xlabel="UMAP_1",
-                ylabel="UMAP_2",
-                xticklabels=[],
-                yticklabels=[],
-            )
-            sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
-            ax.get_legend().get_title().set_fontsize("6")
+        _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
+        sns.scatterplot(
+            data=plot_df,
+            x="UMAP_1",
+            y="UMAP_2",
+            hue="tissue",
+            palette=PALETTE_TTYPE,
+            alpha=0.95,
+            ax=ax,
+        )
+        ax.set(
+            xlabel="UMAP_1",
+            ylabel="UMAP_2",
+            xticklabels=[],
+            yticklabels=[],
+        )
+        sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+        ax.get_legend().get_title().set_fontsize("6")
 
-            ax.get_xaxis().set_visible(False)
-            ax.get_yaxis().set_visible(False)
-            sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
 
-            ax.get_legend().get_title().set_fontsize("6")
+        ax.get_legend().get_title().set_fontsize("6")
 
-            PhenPred.save_figure(f"{plot_folder}/latent/{self.timestamp}_umap_{l_name}")
+        PhenPred.save_figure(f"{plot_folder}/latent/{self.timestamp}_umap_joint")
 
         # Plot projections by marker
-        if markers_joint is not None:
-            for m in markers_joint:
+        if markers is not None:
+            for m in markers:
                 self.plot_latent_continuous(
-                    pd.concat(
-                        [latent_space_umaps["joint"], markers_joint[m]], axis=1
-                    ).dropna(),
+                    pd.concat([z_joint_umap, markers[m]], axis=1).dropna(),
                     "joint",
                     m,
                 )
-
-        # Plot projections by marker
-        if markers_views is not None:
-            for l_name, l_space in latent_space_umaps.items():
-                if l_name == "joint":
-                    continue
-
-                for m in markers_views:
-                    self.plot_latent_continuous(
-                        pd.concat([l_space, markers_views[m]], axis=1).dropna(),
-                        l_name,
-                        m,
-                    )
 
     def plot_latent_continuous(self, plot_df, name, m):
         ax = GIPlot.gi_continuous_plot(

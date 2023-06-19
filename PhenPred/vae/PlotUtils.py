@@ -351,14 +351,14 @@ class CrispyPlot:
                     sns.kdeplot,
                     cmap=sns.light_palette(pal[n], as_cmap=True),
                     legend=False,
-                    shade=False,
-                    shade_lowest=False,
+                    fill=False,
+                    fill_lowest=False,
                     n_levels=9,
                     alpha=0.8,
                     lw=0.1,
                 )
 
-            g.plot_marginals(sns.kdeplot, color=pal[n], shade=True, legend=False)
+            g.plot_marginals(sns.kdeplot, color=pal[n], fill=True, legend=False)
 
         handles = [
             mpatches.Circle([0, 0], 0.25, facecolor=pal[s], label=s) for s in pal
@@ -426,8 +426,8 @@ class GIPlot(CrispyPlot):
 
         if plot_reg:
             sns.regplot(
-                x_gene,
-                y_gene,
+                x=x_gene,
+                y=y_gene,
                 data=plot_df,
                 line_kws=dict(lw=1.0, color=cls.PAL_DTRACE[1]),
                 marker="",
@@ -525,7 +525,7 @@ class GIPlot(CrispyPlot):
                 (plot_df[[size]] * -1) if size_inverse else plot_df[[size]]
             )
 
-        grid = sns.JointGrid(x_gene, y_gene, data=plot_df, space=0)
+        grid = sns.JointGrid(x=x_gene, y=y_gene, data=plot_df, space=0)
 
         # Joint
         if plot_reg:
@@ -582,7 +582,7 @@ class GIPlot(CrispyPlot):
                     # hist_kws=dict(linewidth=0, alpha=a),
                     cut=0,
                     legend=False,
-                    shade=True,
+                    fill=True,
                     color=pal[2] if h is None else pal[h],
                     label=h,
                 )

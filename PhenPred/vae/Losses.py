@@ -294,18 +294,18 @@ class CLinesLosses:
         return K / len(gamma)
 
     @classmethod
-    def get_optimizer(cls, hyper, model):
-        if hyper["optimizer_type"] == "adam":
+    def get_optimizer(cls, model, args):
+        if args["optimizer_type"] == "adam":
             return torch.optim.Adam(
                 model.parameters(),
-                lr=hyper["learning_rate"],
-                weight_decay=hyper["w_decay"],
+                lr=args["learning_rate"],
+                weight_decay=args["w_decay"],
             )
         else:
             return torch.optim.RAdam(
                 model.parameters(),
-                lr=hyper["learning_rate"],
-                weight_decay=hyper["w_decay"],
+                lr=args["learning_rate"],
+                weight_decay=args["w_decay"],
             )
 
     @classmethod

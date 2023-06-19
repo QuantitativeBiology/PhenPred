@@ -1,200 +1,129 @@
 import torch
 import PhenPred
-import numpy as np
-import pandas as pd
 import torch.nn as nn
-import matplotlib.pyplot as plt
-import seaborn as sns
-import scipy.stats as stats
-from datetime import datetime
-from sklearn.model_selection import KFold
-from torch.utils.data import DataLoader, Dataset
-from sklearn.preprocessing import StandardScaler
-from PhenPred.vae import CLinesVAEPlot as ploter
-from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
-from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
+from PhenPred.vae.Losses import CLinesLosses
+from PhenPred.vae.Layers import BottleNeck, Gaussian
 
 
-class OMIC_VAE(nn.Module):
+class MOVE(nn.Module):
     def __init__(
         self,
-        views,
-        hyperparameters,
-        conditional=None,
+        hypers,
+        views_sizes,
+        conditional_size,
+        batchnorm=True,
+        dropout=True,
     ):
-        super(OMIC_VAE, self).__init__()
+        super().__init__()
 
-        self.views = views
-        self.hyper = hyperparameters
-        self.conditional = conditional
+        self.hypers = hypers
+        self.views_sizes = views_sizes
+        self.conditional_size = conditional_size
+        self.batchnorm = batchnorm
+        self.dropout = dropout
 
-        print("# ---- OMIC_VAE ---- #")
-
-        # -- Bottlenecks
-        self.omics_bottlenecks = nn.ModuleList()
-        for n, v in self.views.items():
-            s = self._get_size_input(v.shape[1])
-            self.omics_bottlenecks.append(
-                BottleNeck(
-                    hidden_dim=s,
-                    group=self.hyper["group"],
-                    activation_function=self.hyper["activation_function"],
-                )
-            )
-            print(f"BottleNeck {n}: {s} -> {self.hyper['group']} -> {s}")
-
-        # -- Encoders
-        self.omics_encoders = nn.ModuleList()
-        for n, v in self.views.items():
-            s_i = self._get_size_group(self._get_size_input(v.shape[1]))
-            s_o = self._get_size_group(self.hyper["hidden_dim_1"] * v.shape[1])
-            self.omics_encoders.append(
-                nn.Sequential(
-                    nn.Linear(s_i, s_o),
-                    nn.Dropout(p=self.hyper["probability"]),
-                    self.hyper["activation_function"],
-                )
-            )
-            print(f"Encoder {n}: {s_i} -> {s_o}")
-
-        # -- Means and Log-Vars
-        self.mus, self.log_vars = nn.ModuleList(), nn.ModuleList()
-
-        for n, v in self.views.items():
-            s_i = self._get_size_group(self.hyper["hidden_dim_1"] * v.shape[1])
-            s_o = self.hyper["latent_dim"]
-
-            self.mus.append(nn.Sequential(nn.Linear(s_i, s_o)))
-            self.log_vars.append(nn.Sequential(nn.Linear(s_i, s_o)))
-            print(f"Means & Vars {n}: {s_i} -> {s_o}")
-
-        # -- Decoders
-        self.omics_decoders = nn.ModuleList()
-        for n, v in self.views.items():
-            s_i = self._get_size_input(self.hyper["latent_dim"])
-            s_g = self._get_size_group(self.hyper["hidden_dim_1"] * v.shape[1])
-            s_o = v.shape[1]
-
-            self.omics_decoders.append(
-                nn.Sequential(
-                    nn.Linear(s_i, s_g),
-                    # nn.Dropout(p=probability),
-                    self.hyper["activation_function"],
-                    nn.Linear(s_g, s_o),
-                )
-            )
-            print(f"Decoder {n}: {s_i} -> {s_g} -> {s_o}")
-
-    def _get_size_input(self, view_size):
-        if self.conditional is None:
-            return view_size
-        else:
-            return view_size + self.conditional.shape[1]
-
-    def _get_size_group(self, view_size):
-        return int(view_size // self.hyper["group"] * self.hyper["group"])
-
-    def mean_variance(self, h_bottlenecks):
-        means, logs = [], []
-
-        for h_bottleneck, mu, log_var in zip(h_bottlenecks, self.mus, self.log_vars):
-            means.append(mu(h_bottleneck))
-            logs.append(log_var(h_bottleneck))
-
-        return means, logs
-
-    def product_of_experts(self, means, logs):
-        logvar_joint = torch.sum(
-            torch.stack([1.0 / torch.exp(log_var) for log_var in logs]),
-            dim=0,
-        )
-        logvar_joint = torch.log(1.0 / logvar_joint)
-
-        mu_joint = torch.sum(
-            torch.stack([mu / torch.exp(log_var) for mu, log_var in zip(means, logs)]),
-            dim=0,
+        self.recon_criterion = CLinesLosses.reconstruction_loss_method(
+            self.hypers["reconstruction_loss"]
         )
 
-        mu_joint *= torch.exp(logvar_joint)
+        self._build()
 
-        return mu_joint, logvar_joint
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
 
-    def reparameterize(self, mean, log_var):
-        std = torch.exp(0.5 * log_var)
-        eps = torch.randn_like(log_var)
-        z = mean + eps * std
-        return z
+        print(f"# ---- MOVE")
+        self.total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        print(f"Total parameters: {self.total_params:,d}")
 
-    def encode(self, views, c=None):
-        hs = []
+    def _build(self):
+        self._build_encoders()
 
-        for view, encoder, bottleneck in zip(
-            views, self.omics_encoders, self.omics_bottlenecks
-        ):
-            v = view if self.conditional is None else torch.cat([view, c], dim=1)
+        self.joint = Gaussian(
+            self.hypers["latent_dim"] * len(self.views_sizes),
+            self.hypers["latent_dim"],
+        )
 
-            h = bottleneck(v)
-            h = encoder(h)
-            hs.append(h)
+        self._build_decoders()
 
-        return hs
-
-    def decode(self, z, c=None):
-        z_c = z if self.conditional is None else torch.cat([z, c], dim=1)
-        return [decoder(z_c) for decoder in self.omics_decoders]
-
-    def forward(self, views, c=None):
-        hs = self.encode(views, c)
-
-        means, log_variances = self.mean_variance(hs)
-
-        mu_joint, logvar_joint = self.product_of_experts(means, log_variances)
-
-        z = self.reparameterize(mu_joint, logvar_joint)
-
-        views_hat = self.decode(z, c)
-
-        return views_hat
-
-
-class BottleNeck(nn.Module):
-    def __init__(self, hidden_dim, group, activation_function):
-        super(BottleNeck, self).__init__()
-
-        self.activation_function = activation_function
-        self.hidden_dim = hidden_dim
-        self.group = group
-
-        self.groups = nn.ModuleList()
-        for _ in range(group):
-            group_layers = nn.ModuleList()
-            group_layers.append(
-                nn.Sequential(nn.Linear(hidden_dim, hidden_dim // group))
+    def _build_encoders(self):
+        self.encoders = nn.ModuleList()
+        for n in self.views_sizes:
+            layer_sizes = (
+                [self.views_sizes[n] + self.conditional_size]
+                + [int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"]]
+                + [self.hypers["latent_dim"]]
             )
-            group_layers.append(
-                nn.Sequential(nn.Linear(hidden_dim // group, hidden_dim // group))
-            )
-            self.groups.append(group_layers)
+            layers = nn.ModuleList()
+            for i in range(1, len(layer_sizes)):
+                layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
 
-    def forward(self, x):
-        activation = self.activation_function
+                if self.batchnorm:
+                    layers.append(nn.BatchNorm1d(layer_sizes[i]))
 
-        # start with the input, which in this case will be the result of the first
-        # fully connected layer
-        identity = torch.narrow(x, 1, 0, self.hidden_dim // self.group * self.group)
-        out = []
+                if self.dropout:
+                    layers.append(nn.Dropout(p=self.hypers["probability"]))
 
-        for group_layers in self.groups:
-            group_out = x
+                layers.append(self.hypers["activation_function"])
 
-            for layer in group_layers:
-                group_out = activation(layer(group_out))
-            out.append(group_out)
+            self.encoders.append(nn.Sequential(*layers))
 
-        # concatenate, the size should be equal to the hidden size
-        out = torch.cat(out, dim=1)
+    def _build_decoders(self):
+        self.decoders = nn.ModuleList()
+        for n in self.views_sizes:
+            layer_sizes = [self.hypers["latent_dim"] + self.conditional_size]
+            layer_sizes += [
+                int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
+            ]
 
-        # Why do we add here the identity
-        out += identity
+            layers = nn.ModuleList()
+            for i in range(1, len(layer_sizes)):
+                layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
 
-        return out
+                if self.batchnorm:
+                    layers.append(nn.BatchNorm1d(layer_sizes[i]))
+
+                if self.dropout:
+                    layers.append(nn.Dropout(p=self.hypers["probability"]))
+
+                layers.append(self.hypers["activation_function"])
+
+            layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
+            layers.append(nn.Sigmoid())
+
+            self.decoders.append(nn.Sequential(*layers))
+
+    def forward(self, x, y):
+        # Encoder
+        zs = [self.encoders[i](torch.cat([x[i], y], dim=1)) for i in range(len(x))]
+
+        # Joint
+        z, mu, log_var = self.joint(torch.cat(zs, dim=1))
+
+        # Decoder
+        x_hat = [self.decoders[i](torch.cat([z, y], dim=1)) for i in range(len(x))]
+
+        return x_hat, z, mu, log_var
+
+    def loss(self, x, x_hat, x_nans, mu, logvar):
+        # Reconstruction loss
+        recon_loss, recon_loss_views = 0, []
+        for i in range(len(x)):
+            recon_xi = self.recon_criterion(x_hat[i][x_nans[i]], x[i][x_nans[i]])
+            recon_loss_views.append(recon_xi)
+            recon_loss += recon_xi
+
+        # KL divergence loss
+        kl_loss = self.hypers["w_kl"] * CLinesLosses.kl_divergence(mu, logvar)
+
+        # Total loss
+        loss = recon_loss + kl_loss
+
+        return dict(
+            total=loss,
+            reconstruction=recon_loss,
+            reconstruction_views=recon_loss_views,
+            kl=kl_loss,
+        )
