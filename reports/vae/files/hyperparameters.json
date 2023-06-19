@@ -1,6 +1,8 @@
 {
     "dataname": "depmap23Q2",
     "datasets": {
+	"methylation": "methylation.csv",
+	"transcriptomics": "depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
         "proteomics": "proteomics.csv",
         "metabolomics": "metabolomics.csv",
         "drugresponse": "drugresponse.csv",
@@ -9,9 +11,9 @@
     "num_epochs": 50,
     "learning_rate": 5e-3,
     "batch_size": 33,
-    "n_folds": 5,
+    "n_folds": 3,
     "latent_dim": 50,
-    "hidden_dims": [0.3],
+    "hidden_dims": [0.7, 0.5],
     "probability": 0.4,
     "w_kl": 0.1,
     "optimizer_type": "adam",
