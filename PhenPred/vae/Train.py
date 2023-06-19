@@ -95,7 +95,7 @@ class CLinesTrain:
 
             data_test = torch.utils.data.Subset(self.data, test_idx)
             dataloader_test = DataLoader(
-                data_test, batch_size=len(data_test), shuffle=False
+                data_test, batch_size=self.hypers["batch_size"], shuffle=False
             )
 
             # Initialize Model and Optimizer

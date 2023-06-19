@@ -41,8 +41,13 @@ class MOVE(nn.Module):
     def _build(self):
         self._build_encoders()
 
-        self.joint = Gaussian(
+        self.view_concat = nn.Linear(
             self.hypers["latent_dim"] * len(self.views_sizes),
+            self.hypers["latent_dim"],
+        )
+
+        self.joint = Gaussian(
+            self.hypers["latent_dim"],
             self.hypers["latent_dim"],
         )
 
@@ -99,8 +104,11 @@ class MOVE(nn.Module):
         # Encoder
         zs = [self.encoders[i](torch.cat([x[i], y], dim=1)) for i in range(len(x))]
 
+        # Concatenate
+        z = self.view_concat(torch.cat(zs, dim=1))
+
         # Joint
-        z, mu, log_var = self.joint(torch.cat(zs, dim=1))
+        z, mu, log_var = self.joint(z)
 
         # Decoder
         x_hat = [self.decoders[i](torch.cat([z, y], dim=1)) for i in range(len(x))]
