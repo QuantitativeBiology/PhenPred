@@ -10,7 +10,7 @@
     },
     "num_epochs": 50,
     "learning_rate": 5e-3,
-    "batch_size": 33,
+    "batch_size": 32,
     "n_folds": 3,
     "latent_dim": 50,
     "hidden_dims": [0.7, 0.5],

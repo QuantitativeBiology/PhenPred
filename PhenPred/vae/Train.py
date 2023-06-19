@@ -1,3 +1,4 @@
+from re import S
 import torch
 import PhenPred
 import numpy as np
@@ -11,7 +12,12 @@ from PhenPred.vae import plot_folder
 from PhenPred.vae.Model import MOVE
 from torch.utils.data import DataLoader
 from PhenPred.vae.Losses import CLinesLosses
-from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.model_selection import (
+    KFold,
+    StratifiedKFold,
+    StratifiedShuffleSplit,
+    ShuffleSplit,
+)
 
 
 class CLinesTrain:
@@ -73,8 +79,16 @@ class CLinesTrain:
                     record_losses,
                 )
 
-    def cv_strategy(self):
-        if self.stratify_cv_by is not None:
+    def cv_strategy(self, shuffle_split=True):
+        if shuffle_split and self.stratify_cv_by is not None:
+            cv = StratifiedShuffleSplit(
+                n_splits=self.hypers["n_folds"], test_size=0.1
+            ).split(self.data, self.stratify_cv_by.reindex(self.data.samples))
+        elif shuffle_split:
+            cv = ShuffleSplit(n_splits=self.hypers["n_folds"], test_size=0.1).split(
+                self.data
+            )
+        elif self.stratify_cv_by is not None:
             cv = StratifiedKFold(n_splits=self.hypers["n_folds"], shuffle=True).split(
                 self.data, self.stratify_cv_by.reindex(self.data.samples)
             )
