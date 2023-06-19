@@ -85,11 +85,8 @@ class MOVE(nn.Module):
         # Encoder
         zs = [self.encoders[i](torch.cat([x[i], y], dim=1)) for i in range(len(x))]
 
-        # Concatenate
-        z = self.view_concat(torch.cat(zs, dim=1))
-
         # Joint
-        z, mu, log_var = self.joint(z)
+        z, mu, log_var = self.joint(torch.cat(zs, dim=1))
 
         # Decoder
         x_hat = [self.decoders[i](torch.cat([z, y], dim=1)) for i in range(len(x))]
