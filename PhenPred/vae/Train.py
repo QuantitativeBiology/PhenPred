@@ -54,9 +54,9 @@ class CLinesTrain:
         record_losses=None,
     ):
         for x, y, x_nans in dataloader:
-            x = x.to(self.device)
+            x = [i.to(self.device) for i in x]
+            x_nans = [i.to(self.device) for i in x_nans]
             y = y.to(self.device)
-            x_nans = x_nans.to(self.device)
 
             with torch.set_grad_enabled(model.training):
                 x_hat, _, mu, log_var = model(x, y)
