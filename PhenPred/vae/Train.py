@@ -8,11 +8,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from datetime import datetime
 from PhenPred.vae import plot_folder
+from PhenPred.vae.Model import MOVE
 from torch.utils.data import DataLoader
-from matplotlib.ticker import MaxNLocator
 from PhenPred.vae.Losses import CLinesLosses
-from PhenPred.vae.ModelCVAE import CLinesCVAE
-from PhenPred.vae.ModelGMVAE import CLinesGMVAE
 from sklearn.model_selection import KFold, StratifiedKFold
 
 
@@ -22,12 +20,6 @@ class CLinesTrain:
         data,
         hypers,
         stratify_cv_by=None,
-        k=2,
-        init_temp=1.0,
-        decay_temp=1.0,
-        hard_gumbel=0,
-        min_temp=0.5,
-        decay_temp_rate=0.013862944,
     ):
         self.data = data
         self.losses = []
@@ -36,25 +28,19 @@ class CLinesTrain:
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.k = k
-
-        # gumbel
-        self.init_temp = init_temp
-        self.decay_temp = decay_temp
-        self.hard_gumbel = hard_gumbel
-        self.min_temp = min_temp
-        self.decay_temp_rate = decay_temp_rate
-        self.gumbel_temp = self.init_temp
-
     def run(self):
         self.training()
+
+        losses_df = self.save_losses()
+        self.plot_losses(losses_df)
+
         self.predictions()
 
     def initialize_model(self):
-        model = CLinesGMVAE(
-            views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
+        model = MOVE(
             hypers=self.hypers,
-            k=self.k,
+            views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
+            conditional_size=self.data.labels.shape[1],
         )
         model = nn.DataParallel(model)
         model.to(self.device)
@@ -67,22 +53,13 @@ class CLinesTrain:
         dataloader,
         record_losses=None,
     ):
-        for views, classes, views_nans in dataloader:
-            views_nans = [~v for v in views_nans]
-
-            optimizer.zero_grad()
-
+        for x, y, x_nans in dataloader:
             with torch.set_grad_enabled(model.training):
-                out_net = model(views, self.gumbel_temp, self.hard_gumbel)
-
-                loss = CLinesLosses.unlabeled_loss(
-                    views=views,
-                    out_net=out_net,
-                    views_mask=views_nans,
-                    rec_type=self.hypers["reconstruction_loss"],
-                )
+                x_hat, _, mu, log_var = model(x, y)
+                loss = model.module.loss(x, x_hat, x_nans, mu, log_var)
 
                 if model.training:
+                    optimizer.zero_grad()
                     loss["total"].backward()
                     optimizer.step()
 
@@ -105,23 +82,23 @@ class CLinesTrain:
     def training(self):
         cv = self.cv_strategy()
 
-        for cv_idx, (train_idx, val_idx) in enumerate(cv, start=1):
+        for cv_idx, (train_idx, test_idx) in enumerate(cv, start=1):
             # Train and Test Data
             data_train = torch.utils.data.Subset(self.data, train_idx)
             dataloader_train = DataLoader(
                 data_train, batch_size=self.hypers["batch_size"], shuffle=True
             )
 
-            data_val = torch.utils.data.Subset(self.data, val_idx)
-            dataloader_val = DataLoader(
-                data_val, batch_size=len(data_val), shuffle=False
+            data_test = torch.utils.data.Subset(self.data, test_idx)
+            dataloader_test = DataLoader(
+                data_test, batch_size=len(data_test), shuffle=False
             )
 
             # Initialize Model and Optimizer
             model = self.initialize_model()
-            optimizer = CLinesLosses.get_optimizer(self.hypers, model)
+            optimizer = CLinesLosses.get_optimizer(model, self.hypers)
 
-            # Train and Validate Model
+            # Train and Test Model
             for epoch in range(1, self.hypers["num_epochs"] + 1):
                 model.train()
                 self.epoch(
@@ -139,7 +116,7 @@ class CLinesTrain:
                 self.epoch(
                     model,
                     optimizer,
-                    dataloader_val,
+                    dataloader_test,
                     dict(
                         cv=cv_idx,
                         epoch=epoch,
@@ -149,18 +126,7 @@ class CLinesTrain:
 
                 self.print_losses(cv_idx, epoch)
 
-                # decay gumbel temperature
-                if self.decay_temp == 1:
-                    self.gumbel_temp = np.maximum(
-                        self.init_temp * np.exp(-self.decay_temp_rate * epoch),
-                        self.min_temp,
-                    )
-
-        losses_df = self.save_losses()
-        self.plot_losses(losses_df)
-
     def predictions(self):
-        latent_spaces = dict()
         imputed_datasets = dict()
 
         # Data Loader
@@ -168,11 +134,12 @@ class CLinesTrain:
             self.data, batch_size=len(self.data.samples), shuffle=False
         )
 
-        # Fine-tune model
+        # Final training
         model = self.initialize_model()
-        optimizer = CLinesLosses.get_optimizer(self.hypers, model)
+        optimizer = CLinesLosses.get_optimizer(model, self.hypers)
+
+        model.train()
         for _ in range(1, self.hypers["num_epochs"] + 1):
-            model.train()
             self.epoch(
                 model,
                 optimizer,
@@ -182,32 +149,21 @@ class CLinesTrain:
         # Make predictions and latent spaces
         model.eval()
         with torch.no_grad():
-            for views, classes, _ in data_all:
-                labels = None if self.hypers["label"] is None else classes[1]
+            for x, y, _ in data_all:
+                x_hat, z, mu, log_var = model(x, y)
 
-                out_net = model(views)
-
-                for name, df in zip(self.data.view_names, out_net["views_hat"]):
+                for name, df in zip(self.data.view_names, x_hat):
                     imputed_datasets[name] = pd.DataFrame(
                         self.data.view_scalers[name].inverse_transform(df.tolist()),
                         index=self.data.samples,
                         columns=self.data.view_feature_names[name],
                     )
 
-                latent_spaces["joint"] = pd.DataFrame(
-                    out_net["z"].tolist(),
+                z = pd.DataFrame(
+                    z.tolist(),
                     index=self.data.samples,
                     columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
                 )
-
-                for name, view_z in zip(self.data.view_names, out_net["views_z"]):
-                    latent_spaces[name] = pd.DataFrame(
-                        view_z.tolist(),
-                        index=self.data.samples,
-                        columns=[
-                            f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])
-                        ],
-                    )
 
             # Write to file
             for name, df in imputed_datasets.items():
@@ -216,11 +172,10 @@ class CLinesTrain:
                     compression="gzip",
                 )
 
-            for name, df in latent_spaces.items():
-                df.round(5).to_csv(
-                    f"{plot_folder}/files/{self.timestamp}_latent_{name}.csv.gz",
-                    compression="gzip",
-                )
+            z.round(5).to_csv(
+                f"{plot_folder}/files/{self.timestamp}_latent_joint.csv.gz",
+                compression="gzip",
+            )
 
     def register_loss(self, loss, extra_fields=None):
         r = {
@@ -229,24 +184,20 @@ class CLinesTrain:
             if type(v) == torch.Tensor and v.numel() == 1
         }
 
-        if "mse_views" in loss:
-            for k, v in loss["mse_views"].items():
-                r[f"mse_{k}"] = float(v)
-
-        if "kl_views" in loss:
-            for k, v in loss["kl_views"].items():
-                r[f"kl_{k}"] = float(v)
+        if "reconstruction_views" in loss:
+            for i, v in enumerate(loss["reconstruction_views"]):
+                r[f"mse_{self.data.view_names[i]}"] = float(v)
 
         if extra_fields is not None:
             r.update(extra_fields)
 
         self.losses.append(r)
 
-    def print_losses(self, cv_idx, epoch_idx, pbar=None, keys=[]):
+    def print_losses(self, cv_idx, epoch_idx, pbar=None):
         l = pd.DataFrame(self.losses).query(f"cv == {cv_idx} & epoch == {epoch_idx}")
         l = l.groupby("type").mean()
 
-        ptxt = f"[{datetime.now().strftime('%H:%M:%S')}] CV={cv_idx}, Epoch={epoch_idx} Loss (train/val)"
+        ptxt = f"[{datetime.now().strftime('%H:%M:%S')}] CV={cv_idx:02}, Epoch={epoch_idx:03} Loss (train/val)"
         ptxt += f" | Total={l.loc['train', 'total']:.2f}/{l.loc['val', 'total']:.2f}"
 
         for k in l.columns:
@@ -263,8 +214,7 @@ class CLinesTrain:
         l.to_csv(f"{plot_folder}/files/{self.timestamp}_losses.csv", index=False)
         return l
 
-    @staticmethod
-    def plot_losses(losses_df, loss_terms=None, figsize=(3, 2)):
+    def plot_losses(self, losses_df, loss_terms=None, figsize=(3, 2)):
         # Plot total losses
         plot_df = pd.melt(losses_df, id_vars=["epoch", "type"], value_vars="total")
 
