@@ -11,16 +11,12 @@ class MOVE(nn.Module):
         hypers,
         views_sizes,
         conditional_size,
-        batchnorm=True,
-        dropout=True,
     ):
         super().__init__()
 
         self.hypers = hypers
         self.views_sizes = views_sizes
         self.conditional_size = conditional_size
-        self.batchnorm = batchnorm
-        self.dropout = dropout
 
         self.recon_criterion = CLinesLosses.reconstruction_loss_method(
             self.hypers["reconstruction_loss"]
@@ -41,13 +37,8 @@ class MOVE(nn.Module):
     def _build(self):
         self._build_encoders()
 
-        self.view_concat = nn.Linear(
-            self.hypers["latent_dim"] * len(self.views_sizes),
-            self.hypers["latent_dim"],
-        )
-
         self.joint = Gaussian(
-            self.hypers["latent_dim"],
+            self.hypers["latent_dim"] * len(self.views_sizes),
             self.hypers["latent_dim"],
         )
 
@@ -61,16 +52,12 @@ class MOVE(nn.Module):
                 + [int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"]]
                 + [self.hypers["latent_dim"]]
             )
+
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-
-                if self.batchnorm:
-                    layers.append(nn.BatchNorm1d(layer_sizes[i]))
-
-                if self.dropout:
-                    layers.append(nn.Dropout(p=self.hypers["probability"]))
-
+                layers.append(nn.BatchNorm1d(layer_sizes[i]))
+                layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.hypers["activation_function"])
 
             self.encoders.append(nn.Sequential(*layers))
@@ -78,21 +65,15 @@ class MOVE(nn.Module):
     def _build_decoders(self):
         self.decoders = nn.ModuleList()
         for n in self.views_sizes:
-            layer_sizes = [self.hypers["latent_dim"] + self.conditional_size]
-            layer_sizes += [
+            layer_sizes = [self.hypers["latent_dim"] + self.conditional_size] + [
                 int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
             ]
 
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-
-                if self.batchnorm:
-                    layers.append(nn.BatchNorm1d(layer_sizes[i]))
-
-                if self.dropout:
-                    layers.append(nn.Dropout(p=self.hypers["probability"]))
-
+                layers.append(nn.BatchNorm1d(layer_sizes[i]))
+                layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.hypers["activation_function"])
 
             layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
