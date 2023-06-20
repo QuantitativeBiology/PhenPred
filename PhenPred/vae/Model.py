@@ -18,17 +18,10 @@ class MOVE(nn.Module):
         self.views_sizes = views_sizes
         self.conditional_size = conditional_size
 
-        self.recon_criterion = CLinesLosses.reconstruction_loss_method(
-            self.hypers["reconstruction_loss"]
-        )
+        self.recon_criterion = self.hypers["reconstruction_loss"]
+        self.activation_function = self.hypers["activation_function"]
 
         self._build()
-
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_normal_(m.weight)
-                if m.bias is not None:
-                    nn.init.zeros_(m.bias)
 
         print(f"# ---- MOVE")
         self.total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
@@ -47,18 +40,18 @@ class MOVE(nn.Module):
     def _build_encoders(self):
         self.encoders = nn.ModuleList()
         for n in self.views_sizes:
-            layer_sizes = (
-                [self.views_sizes[n] + self.conditional_size]
-                + [int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"]]
-                + [self.hypers["latent_dim"]]
-            )
+            layer_sizes = [self.views_sizes[n] + self.conditional_size] + [
+                int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"]
+            ]
 
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-                layers.append(nn.BatchNorm1d(layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hypers["probability"]))
-                layers.append(self.hypers["activation_function"])
+                layers.append(self.activation_function)
+
+            layers.append(nn.Linear(layer_sizes[-1], self.hypers["latent_dim"]))
+            layers.append(self.activation_function)
 
             self.encoders.append(nn.Sequential(*layers))
 
@@ -72,12 +65,10 @@ class MOVE(nn.Module):
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-                layers.append(nn.BatchNorm1d(layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hypers["probability"]))
-                layers.append(self.hypers["activation_function"])
+                layers.append(self.activation_function)
 
             layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
-            layers.append(nn.Sigmoid())
 
             self.decoders.append(nn.Sequential(*layers))
 
@@ -86,7 +77,7 @@ class MOVE(nn.Module):
         zs = [self.encoders[i](torch.cat([x[i], y], dim=1)) for i in range(len(x))]
 
         # Joint
-        z, mu, log_var = self.joint(torch.cat(zs, dim=1))
+        mu, log_var, z = self.joint(torch.cat(zs, dim=1))
 
         # Decoder
         x_hat = [self.decoders[i](torch.cat([z, y], dim=1)) for i in range(len(x))]

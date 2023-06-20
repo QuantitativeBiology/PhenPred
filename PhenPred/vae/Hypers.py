@@ -9,16 +9,17 @@ class Hypers:
         if hypers_json is None:
             hypers_json = f"{plot_folder}/files/hyperparameters.json"
 
-        # Read json file and convert to dict
         with open(hypers_json, "r") as f:
             hypers = json.load(f)
 
-        # Parse activation function
         hypers["activation_function"] = CLinesLosses.activation_function(
-            hypers["activation_function_name"]
+            hypers["activation_function"]
         )
 
-        # Parse datasets
+        hypers["reconstruction_loss"] = CLinesLosses.reconstruction_loss_method(
+            hypers["reconstruction_loss"]
+        )
+
         hypers["datasets"] = {
             k: f"{data_folder}/{v}" for k, v in hypers["datasets"].items()
         }
