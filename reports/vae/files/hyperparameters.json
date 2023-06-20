@@ -13,7 +13,7 @@
     "latent_dim": 50,
     "hidden_dims": [0.4],
     "probability": 0.2,
-    "w_kl": 0.1,
+    "w_kl": 0.01,
     "optimizer_type": "adam",
     "w_decay": 5e-4,
     "reconstruction_loss": "mse",

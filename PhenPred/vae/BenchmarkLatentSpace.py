@@ -140,7 +140,7 @@ class LatentSpaceBenchmark:
         )
 
         # Clustermap
-        plot_df = corr.pivot("factor", "latent", "corr")
+        plot_df = corr.pivot(index="factor", columns="latent", values="corr")
         plot_df.columns = [f"L{l.split('_')[1]}" for l in plot_df.columns]
 
         x_order = natsorted(plot_df.columns)

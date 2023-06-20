@@ -149,15 +149,14 @@ class CLinesTrain:
 
         # Data Loader
         data_all = DataLoader(
-            self.data, batch_size=len(self.data.samples), shuffle=False
+            self.data, batch_size=self.hypers["batch_size"], shuffle=False
         )
 
-        # Final training
         model = self.initialize_model()
         optimizer = CLinesLosses.get_optimizer(model, self.hypers)
 
-        model.train()
         for _ in range(1, self.hypers["num_epochs"] + 1):
+            model.train()
             self.epoch(
                 model,
                 optimizer,
@@ -165,10 +164,13 @@ class CLinesTrain:
             )
 
         # Make predictions and latent spaces
+        data_all = DataLoader(
+            self.data, batch_size=len(self.data.samples), shuffle=False
+        )
         model.eval()
         with torch.no_grad():
             for x, y, _ in data_all:
-                x_hat, z, mu, log_var = model(x, y)
+                x_hat, z, _, _ = model(x, y)
 
                 for name, df in zip(self.data.view_names, x_hat):
                     imputed_datasets[name] = pd.DataFrame(
