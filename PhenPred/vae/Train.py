@@ -1,4 +1,3 @@
-from re import S
 import torch
 import PhenPred
 import numpy as np
@@ -262,62 +261,39 @@ class CLinesTrain:
         # Plot loss terms
         if loss_terms is None:
             loss_terms = [
-                c for c in losses_df if c not in ["cv", "epoch", "type", "total"]
+                c
+                for c in losses_df
+                if c not in ["cv", "epoch", "type", "total"] and "_" in c
             ]
 
-        plot_df = pd.melt(
-            losses_df,
-            id_vars=["epoch", "type"],
-            value_vars=loss_terms,
-        )
+        unique_prefix = {v.split("_")[0] for v in loss_terms}
+        for prefix in unique_prefix:
+            plot_df = pd.melt(
+                losses_df,
+                id_vars=["epoch", "type"],
+                value_vars=[c for c in loss_terms if c.startswith(prefix)],
+            )
 
-        _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)
-        sns.lineplot(
-            data=plot_df,
-            x="epoch",
-            y="value",
-            hue="variable",
-            style="type",
-            ax=ax,
-        )
-        ax.legend(
-            title="Losses",
-            loc="upper left",
-            bbox_to_anchor=(1, 1),
-        )
-        ax.set(
-            title=f"Total loss",
-            xlabel="Epoch",
-            ylabel="Loss",
-        )
-        PhenPred.save_figure(f"{plot_folder}/losses/{self.timestamp}_reconst_reg_loss")
-
-        # Plot losses views
-        for ltype in ["reconstruction_", "kl_"]:
-            cols = [c for c in losses_df if c.startswith(f"{ltype}_")]
-
-            if len(cols) > 0:
-                plot_df = pd.melt(
-                    losses_df,
-                    id_vars=["epoch", "type"],
-                    value_vars=cols,
-                )
-
-                _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)
-                sns.lineplot(
-                    data=plot_df,
-                    x="epoch",
-                    y="value",
-                    hue="variable",
-                    style="type",
-                    ax=ax,
-                )
-                ax.legend(
-                    title="Losses",
-                    loc="upper left",
-                    bbox_to_anchor=(1, 1),
-                )
-                ax.set(xlabel="Epoch", ylabel=f"{ltype} Loss")
-                PhenPred.save_figure(
-                    f"{plot_folder}/losses/{self.timestamp}_{ltype}_omics_loss"
-                )
+            _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)
+            sns.lineplot(
+                data=plot_df,
+                x="epoch",
+                y="value",
+                hue="variable",
+                style="type",
+                err_kws=dict(alpha=0.2, lw=0),
+                ax=ax,
+            )
+            ax.legend(
+                title="Losses",
+                loc="upper left",
+                bbox_to_anchor=(1, 1),
+            )
+            ax.set(
+                title=f"Total loss",
+                xlabel="Epoch",
+                ylabel="Loss",
+            )
+            PhenPred.save_figure(
+                f"{plot_folder}/losses/{self.timestamp}_{prefix}_losses"
+            )
