@@ -67,8 +67,8 @@ class CLinesTrain:
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(model.training):
-                x_hat, _, mu, log_var, mus, log_vars = model(x, y)
-                loss = model.module.loss(x, x_hat, x_nans, mu, log_var, mus, log_vars)
+                x_hat, _, mu, log_var = model(x, y)
+                loss = model.module.loss(x, x_hat, x_nans, mu, log_var)
 
                 if model.training:
                     loss["total"].backward()
