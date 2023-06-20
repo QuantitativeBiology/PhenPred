@@ -301,6 +301,12 @@ class CLinesLosses:
                 lr=args["learning_rate"],
                 weight_decay=args["w_decay"],
             )
+        elif args["optimizer_type"] == "sgd":
+            return torch.optim.SGD(
+                model.parameters(),
+                lr=args["learning_rate"],
+                weight_decay=args["w_decay"],
+            )
         else:
             return torch.optim.RAdam(
                 model.parameters(),

@@ -64,12 +64,13 @@ class CLinesTrain:
             x_nans = [i.to(self.device) for i in x_nans]
             y = y.to(self.device)
 
+            optimizer.zero_grad()
+
             with torch.set_grad_enabled(model.training):
-                x_hat, _, mu, log_var = model(x, y)
-                loss = model.module.loss(x, x_hat, x_nans, mu, log_var)
+                x_hat, _, mu, log_var, mus, log_vars = model(x, y)
+                loss = model.module.loss(x, x_hat, x_nans, mu, log_var, mus, log_vars)
 
                 if model.training:
-                    optimizer.zero_grad()
                     loss["total"].backward()
                     optimizer.step()
 
@@ -79,7 +80,7 @@ class CLinesTrain:
                     record_losses,
                 )
 
-    def cv_strategy(self, shuffle_split=True):
+    def cv_strategy(self, shuffle_split=False):
         if shuffle_split and self.stratify_cv_by is not None:
             cv = StratifiedShuffleSplit(
                 n_splits=self.hypers["n_folds"], test_size=0.1
@@ -219,7 +220,7 @@ class CLinesTrain:
         ptxt += f" | Total={l.loc['train', 'total']:.2f}/{l.loc['val', 'total']:.2f}"
 
         for k in l.columns:
-            if k not in ["cv", "epoch", "type", "total"]:
+            if k not in ["cv", "epoch", "type", "total"] and "_" not in k:
                 ptxt += f" | {k}={l.loc['train', k]:.2f}/{l.loc['val', k]:.2f}"
 
         if pbar is not None:
