@@ -1,3 +1,4 @@
+import sched
 from sklearn.covariance import log_likelihood
 import torch
 import PhenPred
@@ -345,3 +346,20 @@ class CLinesLosses:
             return nn.GaussianNLLLoss
         else:
             return F.mse_loss
+
+    @classmethod
+    def get_scheduler(cls, optimizer, args):
+        name = args["scheduler"].lower()
+
+        if name == "plateau":
+            return torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer,
+                mode="min",
+                threshold=args["scheduler_threshold"],
+                factor=args["scheduler_factor"],
+                patience=args["scheduler_patience"],
+                min_lr=args["scheduler_min_lr"],
+                verbose=True,
+            )
+        else:
+            return None
