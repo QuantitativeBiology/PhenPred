@@ -6,6 +6,7 @@ import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from datetime import datetime
+from scipy.stats import zscore
 from PhenPred.Utils import scale
 from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
@@ -58,9 +59,47 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._remove_features_missing_values()
         self._standardize_dfs()
 
+        # Genomics
+        self.driver_mutations = (
+            pd.read_csv(f"{data_folder}/mutations_summary_20230202.csv", index_col=0)
+            .assign(value=1)
+            .query("cancer_driver == True")
+        )
+        self.driver_mutations = pd.pivot_table(
+            self.driver_mutations,
+            index="model_id",
+            columns="gene_symbol",
+            values="value",
+            aggfunc="first",
+            fill_value=0,
+        )
+
+        # Growth
+        self.growth = (
+            pd.read_csv(f"{data_folder}/growth_rate_20220907.csv")
+            .groupby("model_id")
+            .mean()
+        )
+
         # Model labels
-        self.labels = self.samplesheet.loc[self.samples, self.label]
-        self.labels = pd.get_dummies(self.labels)
+        self.labels = (
+            pd.concat(
+                [
+                    pd.get_dummies(self.samplesheet[self.label]),
+                    pd.get_dummies(self.samplesheet["growth_properties_broad"]),
+                    pd.get_dummies(self.samplesheet["growth_properties_sanger"]),
+                    pd.get_dummies(self.samplesheet["cancer_type"]),
+                    self.driver_mutations.loc[:, self.driver_mutations.sum() >= 100],
+                    zscore(
+                        self.growth[["day4_day1_ratio", "doubling_time_hours"]],
+                        nan_policy="omit",
+                    ),
+                ],
+                axis=1,
+            )
+            .reindex(index=self.samples)
+            .fillna(0)
+        )
 
         self.labels_name = self.labels.columns.tolist()
         self.labels_size = self.labels.shape[1]
@@ -71,6 +110,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         dataset_str = f"DepMap23Q2 | Samples = {len(self.samples):,}"
         for n, df in self.dfs.items():
             dataset_str += f" | {n} = {df.shape[1]:,}"
+        dataset_str += f" | Labels = {self.labels_size:,}"
         print(dataset_str)
 
     def __len__(self):
