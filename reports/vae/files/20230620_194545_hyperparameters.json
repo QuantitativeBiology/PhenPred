@@ -1,0 +1,27 @@
+{
+    "dataname": "depmap23Q2",
+    "datasets": {
+        "methylation": "/data/benchmarks/clines//methylation.csv",
+        "transcriptomics": "/data/benchmarks/clines//depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
+        "proteomics": "/data/benchmarks/clines//proteomics.csv",
+        "metabolomics": "/data/benchmarks/clines//metabolomics.csv",
+        "drugresponse": "/data/benchmarks/clines//drugresponse.csv",
+        "crisprcas9": "/data/benchmarks/clines//depmap23Q2/CRISPRGeneEffect.csv"
+    },
+    "num_epochs": 150,
+    "learning_rate": 0.0001,
+    "batch_size": 32,
+    "n_folds": 3,
+    "latent_dim": 50,
+    "hidden_dims": [
+        0.4
+    ],
+    "probability": 0.2,
+    "w_kl": 0.1,
+    "optimizer_type": "adam",
+    "w_decay": 0.0005,
+    "reconstruction_loss": "<not serializable>",
+    "activation_function": "<not serializable>",
+    "feature_miss_rate_thres": 0.85,
+    "label": "tissue"
+}
