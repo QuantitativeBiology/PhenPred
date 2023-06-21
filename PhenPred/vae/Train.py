@@ -115,6 +115,7 @@ class CLinesTrain:
             # Initialize Model and Optimizer
             model = self.initialize_model()
             optimizer = CLinesLosses.get_optimizer(model, self.hypers)
+            scheduler = CLinesLosses.get_scheduler(optimizer, self.hypers)
 
             # Train and Test Model
             for epoch in range(1, self.hypers["num_epochs"] + 1):
@@ -143,6 +144,13 @@ class CLinesTrain:
                 )
 
                 self.print_losses(cv_idx, epoch)
+
+                if scheduler is not None:
+                    scheduler.step(
+                        self.get_losses(cv_idx, epoch, "type").loc[
+                            "val", "reconstruction"
+                        ]
+                    )
 
     def predictions(self):
         imputed_datasets = dict()
@@ -213,9 +221,14 @@ class CLinesTrain:
 
         self.losses.append(r)
 
-    def print_losses(self, cv_idx, epoch_idx, pbar=None):
+    def get_losses(self, cv_idx, epoch_idx, groupby=None):
         l = pd.DataFrame(self.losses).query(f"cv == {cv_idx} & epoch == {epoch_idx}")
-        l = l.groupby("type").mean()
+        if groupby is not None:
+            l = l.groupby(groupby).mean()
+        return l
+
+    def print_losses(self, cv_idx, epoch_idx, pbar=None):
+        l = self.get_losses(cv_idx, epoch_idx, groupby="type")
 
         ptxt = f"[{datetime.now().strftime('%H:%M:%S')}] CV={cv_idx:02}, Epoch={epoch_idx:03} Loss (train/val)"
         ptxt += f" | Total={l.loc['train', 'total']:.2f}/{l.loc['val', 'total']:.2f}"

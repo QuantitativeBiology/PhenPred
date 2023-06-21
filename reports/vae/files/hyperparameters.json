@@ -9,7 +9,7 @@
         "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv"
     },
     "num_epochs": 150,
-    "learning_rate": 1e-4,
+    "learning_rate": 1e-3,
     "batch_size": 32,
     "n_folds": 3,
     "latent_dim": 50,
@@ -19,7 +19,12 @@
     "optimizer_type": "adam",
     "w_decay": 5e-4,
     "reconstruction_loss": "mse",
-    "activation_function": "relu",
+    "activation_function": "leaky_relu",
     "feature_miss_rate_thres": 0.85,
-    "label": "tissue"
+    "label": "tissue",
+    "scheduler": "plateau",
+    "scheduler_threshold": 1e-4,
+    "scheduler_factor": 0.25,
+    "scheduler_patience": 5,
+    "scheduler_min_lr": 1e-6
 }
