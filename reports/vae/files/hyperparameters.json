@@ -19,7 +19,7 @@
     "optimizer_type": "adam",
     "w_decay": 5e-4,
     "reconstruction_loss": "mse",
-    "activation_function": "leaky_relu",
+    "activation_function": "tanh",
     "feature_miss_rate_thres": 0.85,
     "label": "tissue",
     "scheduler": "plateau",
