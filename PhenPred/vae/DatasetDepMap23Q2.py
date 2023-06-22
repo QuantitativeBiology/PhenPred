@@ -89,7 +89,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
                     pd.get_dummies(self.samplesheet["growth_properties_broad"]),
                     pd.get_dummies(self.samplesheet["growth_properties_sanger"]),
                     pd.get_dummies(self.samplesheet["cancer_type"]),
-                    self.driver_mutations.loc[:, self.driver_mutations.sum() >= 100],
+                    self.driver_mutations.loc[:, self.driver_mutations.sum() >= 15],
                     zscore(
                         self.growth[["day4_day1_ratio", "doubling_time_hours"]],
                         nan_policy="omit",
