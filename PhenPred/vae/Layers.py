@@ -49,10 +49,12 @@ class Gaussian(nn.Module):
         self.var = nn.Linear(in_dim, z_dim)
 
     def reparameterize(self, mu, var):
-        std = torch.sqrt(var + 1e-10)
-        noise = torch.randn_like(std)
-        z = mu + noise * std
-        return z
+        if self.training:
+            std = torch.sqrt(var + 1e-10)
+            noise = torch.randn_like(std)
+            return mu + noise * std
+        else:
+            return mu
 
     def forward(self, x):
         mu = self.mu(x)
