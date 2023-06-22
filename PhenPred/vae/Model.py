@@ -16,6 +16,10 @@ class MOVE(nn.Module):
 
         self.hypers = hypers
         self.views_sizes = views_sizes
+        self.views_latent_sizes = {
+            k: int(v * self.hypers["latent_view_ratio"])
+            for k, v in self.views_sizes.items()
+        }
         self.conditional_size = conditional_size
 
         self.recon_criterion = self.hypers["reconstruction_loss"]
@@ -26,13 +30,15 @@ class MOVE(nn.Module):
         print(f"# ---- MOVE")
         self.total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         print(f"Total parameters: {self.total_params:,d}")
+        print(self)
 
     def _build(self):
         self._build_encoders()
 
+        latent_views_sum = sum(self.views_latent_sizes.values())
         self.joint = Gaussian(
-            self.hypers["latent_dim"] * len(self.views_sizes),
-            self.hypers["latent_dim"],
+            latent_views_sum,
+            int(latent_views_sum * self.hypers["latent_view_ratio"]),
         )
 
         self._build_decoders()
@@ -50,15 +56,24 @@ class MOVE(nn.Module):
                 layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.activation_function)
 
-            layers.append(nn.Linear(layer_sizes[-1], self.hypers["latent_dim"]))
+            layers.append(
+                nn.Linear(
+                    layer_sizes[-1],
+                    self.views_latent_sizes[n],
+                )
+            )
             layers.append(self.activation_function)
 
             self.encoders.append(nn.Sequential(*layers))
 
     def _build_decoders(self):
+        latent_dims = int(
+            sum(self.views_latent_sizes.values()) * self.hypers["latent_view_ratio"]
+        )
+
         self.decoders = nn.ModuleList()
         for n in self.views_sizes:
-            layer_sizes = [self.hypers["latent_dim"] + self.conditional_size] + [
+            layer_sizes = [latent_views_sum + self.conditional_size] + [
                 int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
             ]
 

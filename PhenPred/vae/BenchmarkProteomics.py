@@ -470,6 +470,20 @@ class ProteomicsBenchmark:
             ]
         )
 
+        ttest_stat = (
+            stats.ttest_ind(
+                df_corrs.query("outofsample == 'In-sample'")["corr"],
+                df_corrs.query("outofsample == 'Out-of-sample'")["corr"],
+                equal_var=False,
+            ),
+        )
+
+        # t-test
+        print(
+            "T-test for correlation between in-sample and out-of-sample correlations:",
+            ttest_stat,
+        )
+
         # histogram coloured by out-of-sample
         _, ax = plt.subplots(1, 1, figsize=(2, 1.5), dpi=600)
 
@@ -483,22 +497,25 @@ class ProteomicsBenchmark:
             ax=ax,
         )
 
+        # change legend title
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(
+            handles=handles,
+            labels=[
+                f"{l} (N={len(df_corrs.query('outofsample == @l'))})" for l in labels
+            ],
+            title="",
+            fontsize=6,
+            loc="upper left",
+            frameon=False,
+        )
+
         g.set(
-            title=f"Sample VAE prediction correlation with CCLE",
-            xlabel="Pearson's r",
+            title=f"Comparison VAE with CCLE (T-test p={ttest_stat[1]:.2e})",
+            xlabel="Sample correlation (Pearson's r)",
             ylabel=f"Number of cell lines",
         )
 
         PhenPred.save_figure(
             f"{plot_folder}/proteomics/{self.timestamp}_imputed_corr_with_vae_hist",
-        )
-
-        # t-test
-        print(
-            "T-test for correlation between in-sample and out-of-sample correlations:",
-            stats.ttest_ind(
-                df_corrs.query("outofsample == 'In-sample'")["corr"],
-                df_corrs.query("outofsample == 'Out-of-sample'")["corr"],
-                equal_var=False,
-            ),
         )

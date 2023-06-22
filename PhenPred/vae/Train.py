@@ -32,6 +32,7 @@ class CLinesTrain:
         self.stratify_cv_by = stratify_cv_by
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.lrs = [(1, hypers["learning_rate"])]
 
     def run(self):
         self.training()
@@ -151,6 +152,9 @@ class CLinesTrain:
                             "val", "reconstruction"
                         ]
                     )
+                    current_lr = optimizer.param_groups[0]["lr"]
+                    if current_lr != self.lrs[-1][1]:
+                        self.lrs.append((epoch, current_lr))
 
     def predictions(self):
         imputed_datasets = dict()
@@ -247,6 +251,19 @@ class CLinesTrain:
         l.to_csv(f"{plot_folder}/files/{self.timestamp}_losses.csv", index=False)
         return l
 
+    def _plot_lr_rates(self, ax):
+        for e, lr in self.lrs:
+            ax.axvline(e, color="black", linestyle="--", alpha=0.5)
+            ax.text(
+                e,
+                ax.get_ylim()[1],
+                f"LR={lr:.0e}",
+                ha="center",
+                va="top",
+                rotation=90,
+                fontsize=4,
+            )
+
     def plot_losses(self, losses_df, loss_terms=None, figsize=(3, 2)):
         # Plot total losses
         plot_df = pd.melt(losses_df, id_vars=["epoch", "type"], value_vars="total")
@@ -259,6 +276,7 @@ class CLinesTrain:
             hue="type",
             ax=ax,
         )
+        self._plot_lr_rates(ax)
         ax.set(
             title=f"Train and Validation Loss",
             xlabel="Epoch",
@@ -299,6 +317,7 @@ class CLinesTrain:
                 err_kws=dict(alpha=0.2, lw=0),
                 ax=ax,
             )
+            self._plot_lr_rates(ax)
             ax.legend(
                 title="Losses",
                 loc="upper left",
