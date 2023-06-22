@@ -1,0 +1,31 @@
+{
+    "dataname": "depmap23Q2",
+    "datasets": {
+        "proteomics": "data/clines//proteomics.csv",
+        "metabolomics": "data/clines//metabolomics.csv",
+        "drugresponse": "data/clines//drugresponse.csv",
+        "crisprcas9": "data/clines//depmap23Q2/CRISPRGeneEffect.csv"
+    },
+    "num_epochs": 5,
+    "learning_rate": 0.0005631758397452528,
+    "batch_size": 97,
+    "n_folds": 3,
+    "latent_dim": 0.19249970678617262,
+    "hidden_dims": [
+        0.7,
+        0.4
+    ],
+    "probability": 0.412590337562573,
+    "w_kl": 0.028297003234778628,
+    "optimizer_type": "adam",
+    "w_decay": 2.0295844067645976e-06,
+    "reconstruction_loss": "mse",
+    "activation_function": "leaky_relu",
+    "feature_miss_rate_thres": 0.85,
+    "label": "tissue",
+    "scheduler": "plateau",
+    "scheduler_threshold": 2.6216001994284682e-05,
+    "scheduler_factor": 0.6573481255833763,
+    "scheduler_patience": 9,
+    "scheduler_min_lr": 8.462250690904023e-05
+}
