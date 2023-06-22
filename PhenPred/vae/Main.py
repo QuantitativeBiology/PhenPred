@@ -19,8 +19,8 @@ from PhenPred.vae.Train import CLinesTrain
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
 from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
-from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
+from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
 
 if __name__ == "__main__":

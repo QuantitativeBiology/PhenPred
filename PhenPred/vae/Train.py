@@ -98,8 +98,8 @@ class CLinesTrain:
 
         return cv
 
-    def training(self):
-        cv = self.cv_strategy()
+    def training(self, cv=None):
+        cv = self.cv_strategy() if cv is None else cv
 
         for cv_idx, (train_idx, test_idx) in enumerate(cv, start=1):
             # Train and Test Data
@@ -155,6 +155,8 @@ class CLinesTrain:
                     current_lr = optimizer.param_groups[0]["lr"]
                     if current_lr != self.lrs[-1][1]:
                         self.lrs.append((epoch, current_lr))
+
+        return self.get_losses(cv_idx, epoch, "type").loc["val", "reconstruction"]
 
     def predictions(self):
         imputed_datasets = dict()
