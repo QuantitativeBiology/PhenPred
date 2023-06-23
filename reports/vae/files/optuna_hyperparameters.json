@@ -1,31 +1,30 @@
 {
     "dataname": "depmap23Q2",
     "datasets": {
-        "proteomics": "data/clines//proteomics.csv",
-        "metabolomics": "data/clines//metabolomics.csv",
-        "drugresponse": "data/clines//drugresponse.csv",
-        "crisprcas9": "data/clines//depmap23Q2/CRISPRGeneEffect.csv"
+        "proteomics": "/data/benchmarks/clines//proteomics.csv",
+        "metabolomics": "/data/benchmarks/clines//metabolomics.csv",
+        "drugresponse": "/data/benchmarks/clines//drugresponse.csv",
+        "crisprcas9": "/data/benchmarks/clines//depmap23Q2/CRISPRGeneEffect.csv"
     },
-    "num_epochs": 5,
-    "learning_rate": 0.0005631758397452528,
-    "batch_size": 97,
+    "num_epochs": 363,
+    "learning_rate": 0.002389824600366569,
+    "batch_size": 113,
     "n_folds": 3,
-    "latent_dim": 0.19249970678617262,
+    "latent_dim": 0.1843209928015733,
     "hidden_dims": [
-        0.7,
         0.4
     ],
-    "probability": 0.412590337562573,
-    "w_kl": 0.028297003234778628,
+    "probability": 0.32851910572040405,
+    "w_kl": 0.0045276692456107555,
     "optimizer_type": "adam",
-    "w_decay": 2.0295844067645976e-06,
+    "w_decay": 8.840058511455999e-06,
     "reconstruction_loss": "mse",
     "activation_function": "leaky_relu",
     "feature_miss_rate_thres": 0.85,
     "label": "tissue",
     "scheduler": "plateau",
-    "scheduler_threshold": 2.6216001994284682e-05,
-    "scheduler_factor": 0.6573481255833763,
-    "scheduler_patience": 9,
-    "scheduler_min_lr": 8.462250690904023e-05
+    "scheduler_threshold": 0.000822267259050945,
+    "scheduler_factor": 0.7378056992340971,
+    "scheduler_patience": 6,
+    "scheduler_min_lr": 3.373470325989386e-05
 }
