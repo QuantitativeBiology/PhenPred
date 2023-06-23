@@ -26,6 +26,7 @@ class CLinesTrain:
         data,
         hypers,
         stratify_cv_by=None,
+        early_stop_patience=15,
     ):
         self.data = data
         self.losses = []
@@ -34,6 +35,7 @@ class CLinesTrain:
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.lrs = [(1, hypers["learning_rate"])]
+        self.early_stop_patience = early_stop_patience
 
     def run(self):
         self.training()
@@ -120,6 +122,7 @@ class CLinesTrain:
             scheduler = CLinesLosses.get_scheduler(optimizer, self.hypers)
 
             # Train and Test Model
+            loss_previous, loss_counter = None, 0
             for epoch in range(1, self.hypers["num_epochs"] + 1):
                 # Train
                 model.train()
@@ -147,30 +150,43 @@ class CLinesTrain:
                     ),
                 )
 
-                # Print
                 self.print_losses(cv_idx, epoch)
 
-                # Early stopping if NaN or Inf loss
-                val_rec = self.get_losses(cv_idx, epoch, "type").loc["val", "total"]
-                if np.isnan(val_rec) or np.isinf(val_rec):
-                    warnings.warn(
-                        f"NaN or Inf loss detected at cv {cv_idx}, epoch {epoch}."
-                    )
+                # Early Stopping
+                loss_current = self.get_losses(cv_idx, epoch, "type").loc[
+                    "val", "reconstruction"
+                ]
+
+                if np.isnan(loss_current) or np.isinf(loss_current):
+                    warnings.warn(f"NaN or Inf loss at cv {cv_idx}, epoch {epoch}.")
                     return np.nan
 
-                # Update Learning Rate if scheduler is used
-                if scheduler is not None:
-                    scheduler.step(
-                        self.get_losses(cv_idx, epoch, "type").loc[
-                            "val", "reconstruction"
-                        ]
-                    )
+                elif loss_previous is None:
+                    loss_previous = loss_current
 
-                    current_lr = optimizer.param_groups[0]["lr"]
-                    if round(current_lr, 4) < round(self.lrs[-1][1], 4):
-                        self.lrs.append((epoch, current_lr))
+                elif round(loss_current, 2) >= round(loss_previous, 2):
+                    loss_counter += 1
+
+                else:
+                    loss_counter = 0
+
+                if loss_counter >= self.early_stop_patience:
+                    warnings.warn(f"Early stopping at cv {cv_idx}, epoch {epoch}.")
+                    break
+
+                # Learning rate scheduler
+                if scheduler is not None:
+                    self.update_learning_rate(scheduler, optimizer, loss_current, epoch)
 
         return self.get_losses(cv_idx, epoch, "type").loc["val", "reconstruction"]
+
+    def update_learning_rate(self, scheduler, optimizer, loss_current, epoch):
+        scheduler.step(loss_current)
+
+        current_lr = optimizer.param_groups[0]["lr"]
+
+        if round(current_lr, 4) < round(self.lrs[-1][1], 4):
+            self.lrs.append((epoch, current_lr))
 
     def predictions(self):
         imputed_datasets = dict()
