@@ -59,59 +59,20 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._remove_features_missing_values()
         self._standardize_dfs()
 
-        # Genomics
-        self.driver_mutations = (
-            pd.read_csv(f"{data_folder}/mutations_summary_20230202.csv", index_col=0)
-            .assign(value=1)
-            .query("cancer_driver == True")
-        )
-        self.driver_mutations = pd.pivot_table(
-            self.driver_mutations,
-            index="model_id",
-            columns="gene_symbol",
-            values="value",
-            aggfunc="first",
-            fill_value=0,
-        )
+        self._import_mutations()
+        self._import_cnv()
+        self._import_growth()
 
-        # Growth
-        self.growth = (
-            pd.read_csv(f"{data_folder}/growth_rate_20220907.csv")
-            .groupby("model_id")
-            .mean()
-        )
+        self._build_labels()
 
-        # Model labels
-        self.labels = (
-            pd.concat(
-                [
-                    pd.get_dummies(self.samplesheet[self.label]),
-                    pd.get_dummies(self.samplesheet["growth_properties_broad"]),
-                    pd.get_dummies(self.samplesheet["growth_properties_sanger"]),
-                    pd.get_dummies(self.samplesheet["cancer_type"]),
-                    self.driver_mutations.loc[:, self.driver_mutations.sum() >= 15],
-                    zscore(
-                        self.growth[["day4_day1_ratio", "doubling_time_hours"]],
-                        nan_policy="omit",
-                    ),
-                ],
-                axis=1,
-            )
-            .reindex(index=self.samples)
-            .fillna(0)
-        )
+        print(self)
 
-        self.labels_name = self.labels.columns.tolist()
-        self.labels_size = self.labels.shape[1]
-
-        self.labels = torch.tensor(self.labels.values, dtype=torch.float)
-
-        # Print
-        dataset_str = f"DepMap23Q2 | Samples = {len(self.samples):,}"
+    def __str__(self) -> str:
+        str = f"DepMap23Q2 | Samples = {len(self.samples):,}"
         for n, df in self.dfs.items():
-            dataset_str += f" | {n} = {df.shape[1]:,}"
-        dataset_str += f" | Labels = {self.labels_size:,}"
-        print(dataset_str)
+            str += f" | {n} = {df.shape[1]:,}"
+        str += f" | Labels = {self.labels_size:,}"
+        return str
 
     def __len__(self):
         return len(self.samples)
@@ -121,6 +82,94 @@ class CLinesDatasetDepMap23Q2(Dataset):
         x_nans = [df[idx] for df in self.view_nans.values()]
         y = self.labels[idx]
         return x, y, x_nans
+
+    def _build_labels(self, genomic_n_min_obs=15):
+        # Tissue and cancer type
+        tissue = pd.get_dummies(self.samplesheet["tissue"])
+        cancer = pd.get_dummies(self.samplesheet["cancer_type"])
+
+        # Culture conditions
+        culture = pd.concat(
+            [
+                pd.get_dummies(self.samplesheet["growth_properties_broad"]),
+                pd.get_dummies(self.samplesheet["growth_properties_sanger"]),
+            ],
+            axis=1,
+        )
+
+        # Growth
+        growth = zscore(
+            self.growth[["day4_day1_ratio", "doubling_time_hours"]],
+            nan_policy="omit",
+        )
+
+        # Mutations
+        mutations = self.mutations.loc[:, self.mutations.sum() >= genomic_n_min_obs]
+
+        # Copy number variations
+        cnv = self.cnv.replace(
+            dict(Deletion=-2, Loss=-1, Neutral=0, Gain=1, Amplification=2)
+        ).fillna(0)
+        cnv = cnv.loc[:, ((cnv == -2).sum() + (cnv == 2).sum()) > genomic_n_min_obs]
+
+        # Concatenate
+        self.labels = pd.concat(
+            [
+                tissue,
+                cancer,
+                culture,
+                growth,
+                mutations,
+                cnv,
+            ],
+            axis=1,
+        )
+        self.labels = self.labels.reindex(index=self.samples).fillna(0)
+
+        # Props
+        self.labels_name = self.labels.columns.tolist()
+        self.labels_size = self.labels.shape[1]
+
+        self.labels = torch.tensor(self.labels.values, dtype=torch.float)
+
+    def _import_mutations(self):
+        self.mutations = (
+            pd.read_csv(f"{data_folder}/mutations_summary_20230202.csv", index_col=0)
+            .assign(value=1)
+            .query("cancer_driver == True")
+        )
+        self.mutations = pd.pivot_table(
+            self.mutations,
+            index="model_id",
+            columns="gene_symbol",
+            values="value",
+            aggfunc="first",
+            fill_value=0,
+        )
+
+    def _import_cnv(self):
+        self.cnv_df = pd.read_csv(f"{data_folder}/cnv_summary_20230303.csv")
+        self.cnv_df["cn_category"] = pd.Categorical(
+            self.cnv_df["cn_category"],
+            categories=["Neutral", "Deletion", "Loss", "Gain", "Amplification"],
+            ordered=True,
+        )
+        self.cnv_df = self.cnv_df.sort_values("cn_category")
+
+        self.cnv = pd.pivot_table(
+            self.cnv_df,
+            index="model_id",
+            columns="symbol",
+            values="cn_category",
+            aggfunc="first",
+        )
+
+    def _import_growth(self):
+        self.growth = (
+            pd.read_csv(f"{data_folder}/growth_rate_20220907.csv")
+            .groupby("model_id")
+            .mean()
+        )
 
     def _map_genesymbols(self):
         gene_map = (

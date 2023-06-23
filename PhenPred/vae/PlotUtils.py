@@ -195,9 +195,9 @@ class CrispyPlot:
     )
 
     # BOXPLOT PROPOS
-    BOXPROPS = dict(linewidth=1.0)
-    WHISKERPROPS = dict(linewidth=1.0)
-    MEDIANPROPS = dict(linestyle="-", linewidth=1.0, color="red")
+    BOXPROPS = dict(linewidth=0.5)
+    WHISKERPROPS = dict(linewidth=0.5)
+    MEDIANPROPS = dict(linestyle="-", linewidth=0.5, color="red")
     FLIERPROPS = dict(
         marker="o",
         markerfacecolor="black",
@@ -658,6 +658,7 @@ class GIPlot(CrispyPlot):
         style=None,
         scatter_kws=None,
         line_kws=None,
+        lowess=False,
         legend_title=None,
         discrete_pal=None,
         hue_order=None,
@@ -689,8 +690,9 @@ class GIPlot(CrispyPlot):
             palette=discrete_pal,
             data=plot_df,
             linewidth=0.3,
-            fliersize=1,
+            fliersize=0.5,
             notch=marginal_notch,
+            order=hue_order,
             saturation=1.0,
             xs=x,
             ys=y,
@@ -699,7 +701,7 @@ class GIPlot(CrispyPlot):
             boxprops=cls.BOXPROPS,
             whiskerprops=cls.WHISKERPROPS,
             flierprops=cls.FLIERPROPS,
-            medianprops=dict(linestyle="-", linewidth=1.0),
+            medianprops=dict(linestyle="-", linewidth=0.5),
         )
 
         if plot_reg:
@@ -707,14 +709,16 @@ class GIPlot(CrispyPlot):
                 x=x,
                 y=y,
                 data=plot_df,
-                color=discrete_pal[0],
+                color=cls.PAL_DTRACE[0],
                 truncate=True,
                 fit_reg=True,
                 scatter=False,
                 line_kws=line_kws,
+                lowess=lowess,
                 ax=grid.ax_joint,
             )
 
+        markers_ploted = set()
         for j, feature in enumerate(hue_order):
             dfs = plot_df[plot_df[z] == feature]
             dfs = (
@@ -731,10 +735,12 @@ class GIPlot(CrispyPlot):
                     color=discrete_pal[feature],
                     fit_reg=False,
                     scatter_kws=scatter_kws,
-                    label=mtype if j == 0 else None,
+                    label=None if mtype in markers_ploted else mtype,
                     marker=cls.MARKERS[i],
                     ax=grid.ax_joint,
                 )
+
+                markers_ploted.add(mtype)
 
         if style is not None:
             grid.ax_joint.legend(prop=dict(size=4), frameon=False, loc=2)
@@ -744,7 +750,7 @@ class GIPlot(CrispyPlot):
             if annot_text is None:
                 df_corr = plot_df.dropna(subset=[x, y, z])
                 cor, pval = pearsonr(df_corr[x], df_corr[y])
-                annot_text = f"R={cor:.2g}, p={pval:.1e}"
+                annot_text = f"r={cor:.2g}, p={pval:.1e}"
 
             grid.ax_joint.text(
                 0.95,
