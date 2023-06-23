@@ -22,7 +22,7 @@ from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
 
 class OptunaOptimization:
-    def __init__(self, data, hypers, n_splits=3, test_size=0.15, random_state=42):
+    def __init__(self, data, hypers, n_splits=3, test_size=0.1, random_state=42):
         self.data = data
         self.hypers = hypers
         self.n_splits = n_splits
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     )
     opt.optimize(
         OptunaOptimization(clines_db, hyperparameters),
-        n_trials=5,
+        n_trials=100,
         show_progress_bar=True,
         n_jobs=-1,
     )
