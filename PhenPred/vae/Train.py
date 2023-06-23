@@ -56,18 +56,18 @@ _hyperparameters = dict(
     mlp_join=False,
     concat_join=True,
     common_unique_join=False,
-    num_epochs=2000,
+    num_epochs=10,
     learning_rate=5e-5,
-    batch_size=50,
+    batch_size=100,
     n_folds=3,
     latent_dim=0.02,
     hidden_dims=[0.7, 0.3],
-    probability=0.5,
+    probability=0.4,
     view_dropout=0,
     n_groups=None,
-    beta=0.1,
+    beta=0.01,
     optimizer_type="adam",
-    w_decay=1e-5,
+    w_decay=0,
     loss_type="mse",
     reconstruction_loss="mse",
     activation_function=nn.ReLU(),
@@ -216,8 +216,6 @@ class CLinesTrain:
             # -- Cross Validation
             # train_loss, val_loss = self.cross_validation()
             train_loss, val_loss = self.full_train()
-
-
 
             # -- Train Losses (CV + Batch Average)
             losses_dict["train_total"].append(np.nanmean(train_loss["total"]))
