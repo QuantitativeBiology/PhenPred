@@ -56,7 +56,7 @@ if __name__ == "__main__":
     dres_benchmark.run()
 
     # Run proteomics benchmark
-    proteomics_benchmark = ProteomicsBenchmark(train.timestamp)
+    proteomics_benchmark = ProteomicsBenchmark(train.timestamp, clines_db)
     proteomics_benchmark.run()
 
     # Run CRISPR benchmark
