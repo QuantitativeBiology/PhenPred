@@ -17,7 +17,7 @@ class CLinesDatasetMOFA(Dataset):
             self.hypers = hypers
 
         self.dataset_name = f"MOFA_{self.hypers['dataname']}"
-        self.dataset_name += f"_Factors{self.hypers['latent_dim']}"
+        self.dataset_name += f"_Factors50"
         self.ddir = f"{data_folder}/mofa/{self.dataset_name}"
         self.view_names = list(self.hypers["datasets"])
 
