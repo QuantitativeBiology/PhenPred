@@ -48,9 +48,7 @@ class OptunaOptimization:
     def sample_params(self, trial):
         hypers = self.hypers.copy()
 
-        hypers["optimizer_type"] = trial.suggest_categorical(
-            "optimizer_type", ["adam", "sgd"]
-        )
+        hypers["optimizer_type"] = trial.suggest_categorical("optimizer_type", ["adam"])
         hypers["activation_function"] = trial.suggest_categorical(
             "activation_function", ["relu", "tanh", "leaky_relu", "sigmoid"]
         )
@@ -59,16 +57,16 @@ class OptunaOptimization:
         )
 
         hypers["w_kl"] = trial.suggest_float("w_kl", 0.0, 0.1)
-        hypers["w_decay"] = trial.suggest_float("w_decay", 1e-6, 1e-3, log=True)
+        hypers["w_decay"] = trial.suggest_float("w_decay", 1e-8, 1e-3, log=True)
         hypers["probability"] = trial.suggest_float("probability", 0.0, 0.5)
         hypers["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-5, 1e-1, log=True
         )
-        hypers["latent_dim"] = trial.suggest_float("latent_dim", 0.02, 0.2, log=True)
+        hypers["latent_dim"] = trial.suggest_float("latent_dim", 0.02, 0.3, log=True)
         hypers["scheduler_threshold"] = trial.suggest_float(
             "scheduler_threshold", 1e-6, 1e-3, log=True
         )
-        hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.1, 0.75)
+        hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.3, 0.85)
         hypers["scheduler_min_lr"] = trial.suggest_float(
             "scheduler_min_lr", 1e-6, 1e-4, log=True
         )

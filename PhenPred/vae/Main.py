@@ -35,7 +35,7 @@ if __name__ == "__main__":
     )
 
     # Train and predictions
-    # train.timestamp = "20230620_223211"
+    # train.timestamp = "20230621_192218"
     train = CLinesTrain(
         clines_db,
         hyperparameters,
