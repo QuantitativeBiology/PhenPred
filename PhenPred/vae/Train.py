@@ -1,5 +1,6 @@
 import torch
 import PhenPred
+import warnings
 import numpy as np
 import pandas as pd
 import torch.nn as nn
@@ -146,6 +147,10 @@ class CLinesTrain:
 
                 self.print_losses(cv_idx, epoch)
 
+                if np.isnan(self.get_losses(cv_idx, epoch, "type").loc["val", "total"]):
+                    warnings.warn(f"NaN loss detected at cv {cv_idx}, epoch {epoch}.")
+                    return np.nan
+
                 if scheduler is not None:
                     scheduler.step(
                         self.get_losses(cv_idx, epoch, "type").loc[
@@ -153,7 +158,7 @@ class CLinesTrain:
                         ]
                     )
                     current_lr = optimizer.param_groups[0]["lr"]
-                    if current_lr != self.lrs[-1][1]:
+                    if round(current_lr, 4) < round(self.lrs[-1][1], 4):
                         self.lrs.append((epoch, current_lr))
 
         return self.get_losses(cv_idx, epoch, "type").loc["val", "reconstruction"]
