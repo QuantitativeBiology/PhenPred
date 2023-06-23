@@ -48,7 +48,6 @@ class OptunaOptimization:
     def sample_params(self, trial):
         hypers = self.hypers.copy()
 
-        hypers["optimizer_type"] = trial.suggest_categorical("optimizer_type", ["adam"])
         hypers["activation_function"] = trial.suggest_categorical(
             "activation_function", ["relu", "tanh", "leaky_relu", "sigmoid"]
         )
