@@ -1,9 +1,3 @@
-import sys
-
-from sympy import plot
-
-sys.path.extend(["/home/egoncalves/PhenPred"])
-
 import PhenPred
 import numpy as np
 import pandas as pd
@@ -21,19 +15,18 @@ from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 
 
-_timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-
-
 class ProteomicsBenchmark:
-    def __init__(self, timestamp):
+    def __init__(self, timestamp, data):
         self.timestamp = timestamp
+
+        # Data
+        self.data = data
 
         # Import MOFA dataset
         self.mofa_db = CLinesDatasetMOFA()
 
         # Sample sheet
         self.ss = pd.read_csv(f"{data_folder}/cmp_model_list_20230307.csv", index_col=0)
-
         self.ss_ccell = pd.read_csv(
             f"{data_folder}/samplesheet_cancercell.csv", index_col=0
         )
@@ -88,17 +81,30 @@ class ProteomicsBenchmark:
         self.df_drug = pd.read_csv(f"{data_folder}/drugresponse.csv", index_col=0).T
 
         # Genomics
-        self.df_genomics = pd.read_csv(f"{data_folder}/genomics.csv", index_col=0).T
-
-        print(
-            f"[{_timestamp}] Samples = {len(self.samples)}, Features = {len(self.features)}"
+        self.cnv = pd.read_csv(f"{data_folder}/cnv_summary_20230303.csv")
+        self.cnv["cn_category"] = pd.Categorical(
+            self.cnv["cn_category"],
+            categories=["Neutral", "Deletion", "Loss", "Gain", "Amplification"],
+            ordered=True,
         )
+        self.cnv = self.cnv.sort_values("cn_category")
+
+        self.df_cnv = pd.pivot_table(
+            self.cnv,
+            index="model_id",
+            columns="symbol",
+            values="cn_category",
+            aggfunc="first",
+        )
+
+        # Transcriptomics
+        self.df_gexp = pd.read_csv(f"{data_folder}/transcriptomics.csv", index_col=0).T
 
     def run(self):
         self.compare_imputed_ccle()
         self.ccle_compare_by_genes()
-        self.associations()
         self.ccle_compare_with_vae()
+        self.copy_number()
 
     def place_imputed_values_in_nans(self):
         df_original = self.df_original.copy().reindex(
@@ -243,152 +249,6 @@ class ProteomicsBenchmark:
             f"{plot_folder}/proteomics/{self.timestamp}_imputed_facetgrid",
         )
 
-    def proteomics_genomics(self):
-        covs = pd.concat(
-            [
-                self.ss["growth_properties"].str.get_dummies(),
-                self.ss["tissue"].str.get_dummies()[
-                    ["Haematopoietic and Lymphoid", "Lung"]
-                ],
-            ],
-            axis=1,
-        ).dropna()
-
-        samples = list(
-            set(self.df_vae.index)
-            .intersection(self.df_genomics.index)
-            .intersection(covs.index)
-        )
-
-        X = self.df_genomics.loc[samples]
-        X = X.loc[:, X.sum() > 10]
-
-        Y = self.df_vae.loc[samples]
-
-        lm_genomics_vae = LModel(
-            Y=Y,
-            X=X,
-            M=covs.loc[samples],
-        ).fit_matrix()
-
-        return lm_genomics_vae
-
-    def associations(self):
-        z_vars = pd.concat(
-            [self.df_genomics, pd.get_dummies(self.ss["tissue"]).astype(int)], axis=1
-        )
-
-        for x_id, y_id, z_id, z_type in [
-            (
-                "MET",
-                "1403;AZD6094;GDSC1",
-                "gain.cnaPANCAN129..MET.",
-                "drug",
-            ),
-            (
-                "ERBB2",
-                "ERBB2",
-                "gain.cnaPANCAN301..CDK12.ERBB2.MED24.",
-                "crispr",
-            ),
-            (
-                "ERBB2",
-                "1558;Lapatinib;GDSC2",
-                "gain.cnaPANCAN301..CDK12.ERBB2.MED24.",
-                "drug",
-            ),
-            (
-                "EGFR",
-                "EGFR",
-                "EGFR_mut",
-                "crispr",
-            ),
-            (
-                "EGFR",
-                "EGFR",
-                "gain.cnaPANCAN124..EGFR.",
-                "crispr",
-            ),
-            (
-                "EGFR",
-                "1032;Afatinib;GDSC2",
-                "gain.cnaPANCAN124..EGFR.",
-                "drug",
-            ),
-            (
-                "RPL22L1",
-                "WRN",
-                "msi_status",
-                "crispr",
-            ),
-            (
-                "TP53",
-                "1047;Nutlin-3a (-);GDSC2",
-                "TP53_mut",
-                "drug",
-            ),
-        ]:
-            # x_id, y_id, z_id, z_type = (
-            #     "TP53",
-            #     "1047;Nutlin-3a (-);GDSC2",
-            #     "TP53_mut",
-            #     "drug",
-            # )
-
-            # Build plot dataframe
-            plot_df = pd.concat(
-                [
-                    self.df_vae[x_id].rename(f"{x_id}_vae"),
-                    self.df_original[x_id].rename(f"{x_id}_orig"),
-                    z_vars[z_id].replace({0: "WT", 1: z_id}),
-                ],
-                axis=1,
-            )
-            plot_df[y_id] = (
-                self.df_crispr[y_id] if z_type == "crispr" else self.df_drug[y_id]
-            )
-
-            plot_df.dropna(subset=[f"{x_id}_vae", y_id, z_id], inplace=True)
-
-            plot_df["predicted"] = plot_df[f"{x_id}_orig"].isnull()
-            plot_df["predicted"].replace(
-                {
-                    True: f"Predicted (N={plot_df['predicted'].sum()})",
-                    False: f"Observed (N={(~plot_df['predicted']).sum()})",
-                },
-                inplace=True,
-            )
-
-            pal, pal_order = {
-                z_id: "#fc8d62",
-                "WT": "#e1e1e1",
-                0: "#E1E1E1",
-            }, ["WT", z_id]
-
-            # Plot
-            g = GIPlot.gi_regression_marginal(
-                x=f"{x_id}_vae",
-                y=f"{y_id}",
-                z=z_id,
-                style="predicted",
-                plot_df=plot_df,
-                discrete_pal=pal,
-                hue_order=pal_order,
-                legend_title=f"{z_id}",
-                scatter_kws=dict(edgecolor="w", lw=0.1, s=16),
-            )
-
-            g.ax_joint.set_xlabel(f"{x_id} Proteomics (VAE)")
-            g.ax_joint.set_ylabel(
-                f"{y_id}\n{'CRISPR-Cas9' if z_type == 'crispr' else 'Drug'} (Observed)"
-            )
-
-            plt.gcf().set_size_inches(2, 2)
-
-            PhenPred.save_figure(
-                f"{plot_folder}/proteomics/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}",
-            )
-
     def ccle_compare_by_genes(self):
         features = list(set(self.df_vae).intersection(self.df_ccle))
         samples = list(set(self.df_vae.index).intersection(self.df_ccle.index))
@@ -519,3 +379,71 @@ class ProteomicsBenchmark:
         PhenPred.save_figure(
             f"{plot_folder}/proteomics/{self.timestamp}_imputed_corr_with_vae_hist",
         )
+
+    def copy_number(self):
+        # Color palette
+        palette = dict(
+            zip(
+                ["Deletion", "Loss", "Neutral", "Gain", "Amplification"],
+                sns.color_palette("RdYlGn", as_cmap=False, n_colors=5).as_hex(),
+            )
+        )
+        palette["Neutral"] = "#d9d9d9"
+
+        # Copy number loss events
+        loss_events = (self.df_cnv == "Deletion").sum().sort_values(ascending=False)
+        loss_events = loss_events[loss_events.index.isin(self.df_vae.columns)]
+
+        # Assemble dataframe
+        loss_events_list = [
+            ("CDKN2A", "CDKN2A"),
+            ("SMAD4", "SMAD4"),
+            ("CTNNB1", "CTNNB1"),
+        ]
+
+        for protein, cnv in loss_events_list:
+            # protein, cnv = ("TOP2A", "TOP2A")
+            df = (
+                pd.concat(
+                    [
+                        self.df_original[[protein]].add_suffix("_orig"),
+                        self.df_vae[[protein]].add_suffix("_vae"),
+                        self.df_gexp[[protein]].add_suffix("_trans"),
+                        self.df_cnv[[cnv]].add_suffix("_cnv"),
+                    ],
+                    axis=1,
+                )
+                .reindex(index=self.df_vae.index)
+                .dropna(subset=[f"{cnv}_cnv"])
+            )
+
+            df["predicted"] = df[f"{protein}_orig"].isnull()
+            df["predicted"].replace(
+                {
+                    True: f"Predicted (N={df['predicted'].sum()})",
+                    False: f"Observed (N={(~df['predicted']).sum()})",
+                },
+                inplace=True,
+            )
+
+            # Plot
+            g = GIPlot.gi_regression_marginal(
+                x=f"{protein}_vae",
+                y=f"{protein}_trans",
+                z=f"{protein}_cnv",
+                style="predicted",
+                plot_df=df,
+                discrete_pal=palette,
+                hue_order=palette.keys(),
+                legend_title=f"{protein}",
+                scatter_kws=dict(edgecolor="w", lw=0.1, s=16),
+            )
+
+            g.ax_joint.set_xlabel(f"{protein} Proteomics (VAE)")
+            g.ax_joint.set_ylabel(f"{protein} Transcriptomics (measured)")
+
+            plt.gcf().set_size_inches(2, 2)
+
+            PhenPred.save_figure(
+                f"{plot_folder}/proteomics/{self.timestamp}_loss_event_{protein}_{cnv}_scatter",
+            )

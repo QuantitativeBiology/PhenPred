@@ -121,6 +121,7 @@ class CLinesTrain:
 
             # Train and Test Model
             for epoch in range(1, self.hypers["num_epochs"] + 1):
+                # Train
                 model.train()
                 self.epoch(
                     model,
@@ -133,6 +134,7 @@ class CLinesTrain:
                     ),
                 )
 
+                # Test
                 model.eval()
                 self.epoch(
                     model,
@@ -145,18 +147,25 @@ class CLinesTrain:
                     ),
                 )
 
+                # Print
                 self.print_losses(cv_idx, epoch)
 
-                if np.isnan(self.get_losses(cv_idx, epoch, "type").loc["val", "total"]):
-                    warnings.warn(f"NaN loss detected at cv {cv_idx}, epoch {epoch}.")
+                # Early stopping if NaN or Inf loss
+                val_rec = self.get_losses(cv_idx, epoch, "type").loc["val", "total"]
+                if np.isnan(val_rec) or np.isinf(val_rec):
+                    warnings.warn(
+                        f"NaN or Inf loss detected at cv {cv_idx}, epoch {epoch}."
+                    )
                     return np.nan
 
+                # Update Learning Rate if scheduler is used
                 if scheduler is not None:
                     scheduler.step(
                         self.get_losses(cv_idx, epoch, "type").loc[
                             "val", "reconstruction"
                         ]
                     )
+
                     current_lr = optimizer.param_groups[0]["lr"]
                     if round(current_lr, 4) < round(self.lrs[-1][1], 4):
                         self.lrs.append((epoch, current_lr))
