@@ -536,6 +536,12 @@ class CLinesTrain:
 
         return dfs_imputed, joint_latent
 
+        # Save model
+        torch.save(
+            self.model.state_dict(),
+            f"{plot_folder}/files/{self.timestamp}_model.pt",
+        )
+
     def register_loss(self, loss, extra_fields=None):
         r = {
             k: np.round(float(v), 7)
