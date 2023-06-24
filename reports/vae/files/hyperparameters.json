@@ -1,8 +1,6 @@
 {
     "dataname": "depmap23Q2",
     "datasets": {
-        "methylation": "methylation.csv",
-        "transcriptomics": "depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
 	    "proteomics": "proteomics.csv",
         "metabolomics": "metabolomics.csv",
         "drugresponse": "drugresponse.csv",
