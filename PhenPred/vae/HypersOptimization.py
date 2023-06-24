@@ -101,7 +101,7 @@ if __name__ == "__main__":
         OptunaOptimization(clines_db, hyperparameters),
         n_trials=100,
         show_progress_bar=True,
-        n_jobs=32,
+        n_jobs=40,
     )
 
     # Print results
