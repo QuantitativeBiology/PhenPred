@@ -134,6 +134,7 @@ class CLinesTrain:
                         cv=cv_idx,
                         epoch=epoch,
                         type="train",
+                        lr=optimizer.param_groups[0]["lr"],
                     ),
                 )
 
@@ -147,6 +148,7 @@ class CLinesTrain:
                         cv=cv_idx,
                         epoch=epoch,
                         type="val",
+                        lr=optimizer.param_groups[0]["lr"],
                     ),
                 )
 
@@ -196,13 +198,13 @@ class CLinesTrain:
             self.data, batch_size=self.hypers["batch_size"], shuffle=False
         )
 
-        model = self.initialize_model()
-        optimizer = CLinesLosses.get_optimizer(model, self.hypers)
+        self.model = self.initialize_model()
+        optimizer = CLinesLosses.get_optimizer(self.model, self.hypers)
 
         for _ in range(1, self.hypers["num_epochs"] + 1):
-            model.train()
+            self.model.train()
             self.epoch(
-                model,
+                self.model,
                 optimizer,
                 data_all,
             )
@@ -211,10 +213,10 @@ class CLinesTrain:
         data_all = DataLoader(
             self.data, batch_size=len(self.data.samples), shuffle=False
         )
-        model.eval()
+        self.model.eval()
         with torch.no_grad():
             for x, y, _ in data_all:
-                x_hat, z, _, _ = model(x, y)
+                x_hat, z, _, _ = self.model(x, y)
 
                 for name, df in zip(self.data.view_names, x_hat):
                     imputed_datasets[name] = pd.DataFrame(
@@ -223,11 +225,8 @@ class CLinesTrain:
                         columns=self.data.view_feature_names[name],
                     )
 
-                z = pd.DataFrame(
-                    z.tolist(),
-                    index=self.data.samples,
-                    columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
-                )
+                z = pd.DataFrame(z.tolist(), index=self.data.samples)
+                z.columns = [f"Latent_{i+1}" for i in range(z.shape[1])]
 
             # Write to file
             for name, df in imputed_datasets.items():
@@ -270,7 +269,7 @@ class CLinesTrain:
         ptxt += f" | Total={l.loc['train', 'total']:.2f}/{l.loc['val', 'total']:.2f}"
 
         for k in l.columns:
-            if k not in ["cv", "epoch", "type", "total"] and "_" not in k:
+            if k not in ["cv", "epoch", "type", "total", "lr"] and "_" not in k:
                 ptxt += f" | {k}={l.loc['train', k]:.2f}/{l.loc['val', k]:.2f}"
 
         if pbar is not None:
@@ -285,12 +284,12 @@ class CLinesTrain:
 
     def _plot_lr_rates(self, ax):
         for e, lr in self.lrs:
-            ax.axvline(e, color="black", linestyle="--", alpha=0.5)
+            ax.axvline(e, color="black", linestyle="--", alpha=0.5, lw=0.3)
             ax.text(
                 e,
                 ax.get_ylim()[1],
                 f"LR={lr:.0e}",
-                ha="center",
+                ha="left",
                 va="top",
                 rotation=90,
                 fontsize=4,
@@ -328,7 +327,7 @@ class CLinesTrain:
             loss_terms = [
                 c
                 for c in losses_df
-                if c not in ["cv", "epoch", "type", "total"] and "_" in c
+                if c not in ["cv", "epoch", "type", "total", "lr"] and "_" in c
             ]
 
         unique_prefix = {v.split("_")[0] for v in loss_terms}

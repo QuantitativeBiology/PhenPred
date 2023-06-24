@@ -5,13 +5,11 @@ import seaborn as sns
 from math import sqrt
 import scipy.stats as stats
 import matplotlib.pyplot as plt
-from datetime import datetime
 import matplotlib.ticker as plticker
 from PhenPred.vae.PlotUtils import GIPlot
 from sklearn.metrics import mean_squared_error
-from PhenPred.vae import data_folder, plot_folder
-from PhenPred.vae.Utils import LModel
 from PhenPred.Utils import two_vars_correlation
+from PhenPred.vae import data_folder, plot_folder
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 
 
@@ -330,15 +328,12 @@ class ProteomicsBenchmark:
             ]
         )
 
-        ttest_stat = (
-            stats.ttest_ind(
-                df_corrs.query("outofsample == 'In-sample'")["corr"],
-                df_corrs.query("outofsample == 'Out-of-sample'")["corr"],
-                equal_var=False,
-            ),
+        ttest_stat = stats.ttest_ind(
+            df_corrs.query("outofsample == 'In-sample'")["corr"],
+            df_corrs.query("outofsample == 'Out-of-sample'")["corr"],
+            equal_var=False,
         )
 
-        # t-test
         print(
             "T-test for correlation between in-sample and out-of-sample correlations:",
             ttest_stat,
@@ -402,7 +397,7 @@ class ProteomicsBenchmark:
         ]
 
         for protein, cnv in loss_events_list:
-            # protein, cnv = ("TOP2A", "TOP2A")
+            # protein, cnv = ("SMAD4", "SMAD4")
             df = (
                 pd.concat(
                     [
@@ -432,7 +427,7 @@ class ProteomicsBenchmark:
                 y=f"{protein}_trans",
                 z=f"{protein}_cnv",
                 style="predicted",
-                plot_df=df,
+                plot_df=df.sort_values("predicted"),
                 discrete_pal=palette,
                 hue_order=palette.keys(),
                 legend_title=f"{protein}",
