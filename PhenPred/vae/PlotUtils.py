@@ -682,7 +682,14 @@ class GIPlot(CrispyPlot):
         if hue_order is None:
             hue_order = natsorted(set(plot_df[z]))
 
-        #
+        # Style
+        if style is None:
+            plot_df.assign(style=1, inplace=True)
+            style = "style"
+
+        makers_dict = dict(zip(plot_df[style].unique(), cls.MARKERS))
+
+        # Plot
         grid = sns.JointGrid(x=x, y=y, data=plot_df, space=0, ratio=8)
 
         grid.plot_marginals(
@@ -719,24 +726,19 @@ class GIPlot(CrispyPlot):
             )
 
         markers_ploted = set()
-        for j, feature in enumerate(hue_order):
-            dfs = plot_df[plot_df[z] == feature]
-            dfs = (
-                dfs.assign(style=1).groupby("style")
-                if style is None
-                else dfs.groupby(style)
-            )
+        for feature in hue_order:
+            dfs = plot_df[plot_df[z] == feature].groupby(style)
 
-            for i, (mtype, df) in enumerate(dfs):
+            for mtype, df in dfs:
                 sns.regplot(
                     x=x,
                     y=y,
                     data=df,
                     color=discrete_pal[feature],
+                    marker=makers_dict[mtype],
+                    label=None if mtype in markers_ploted else mtype,
                     fit_reg=False,
                     scatter_kws=scatter_kws,
-                    label=None if mtype in markers_ploted else mtype,
-                    marker=cls.MARKERS[i],
                     ax=grid.ax_joint,
                 )
 
