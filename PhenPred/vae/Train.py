@@ -166,11 +166,12 @@ class CLinesTrain:
                 elif loss_previous is None:
                     loss_previous = loss_current
 
-                elif round(loss_current, 2) >= round(loss_previous, 2):
-                    loss_counter += 1
+                elif round(loss_current, 2) < round(loss_previous, 2):
+                    loss_counter = 0
+                    loss_previous = loss_current
 
                 else:
-                    loss_counter = 0
+                    loss_counter += 1
 
                 if loss_counter >= self.early_stop_patience:
                     warnings.warn(f"Early stopping at cv {cv_idx}, epoch {epoch}.")
