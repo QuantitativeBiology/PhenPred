@@ -52,7 +52,7 @@ class OptunaOptimization:
             "activation_function", ["relu", "tanh", "leaky_relu", "sigmoid"]
         )
         hypers["hidden_dims"] = trial.suggest_categorical(
-            "hidden_dims", [[0.4], [0.5], [0.7], [0.7, 0.4]]
+            "hidden_dims", ["0.4", "0.5", "0.7", "0.7,0.4", "0.4,0.4"]
         )
 
         hypers["probability"] = trial.suggest_float("probability", 0.0, 0.5)
