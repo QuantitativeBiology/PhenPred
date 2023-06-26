@@ -1,6 +1,4 @@
 import json
-
-from sympy import hyper
 from PhenPred.vae import data_folder, plot_folder
 from PhenPred.vae.Losses import CLinesLosses
 
@@ -37,4 +35,8 @@ class Hypers:
         hypers["reconstruction_loss"] = CLinesLosses.reconstruction_loss_method(
             hypers["reconstruction_loss"]
         )
+
+        if type(hypers["hidden_dims"]) == str:
+            hypers["hidden_dims"] = [float(l) for l in hypers["hidden_dims"].split(",")]
+
         return hypers
