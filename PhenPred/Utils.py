@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import make_scorer
 from scipy.stats import pearsonr, spearmanr
+from sklearn.metrics import mean_squared_error
 
 
 def _pearsonr(y_true, y_pred):
@@ -68,6 +69,11 @@ def two_vars_correlation(
 
     if method == "spearman":
         r, p = spearmanr(var1[~nans_mask], var2[~nans_mask], nan_policy="omit")
+
+    elif method == "mse":
+        r = mean_squared_error(var1[~nans_mask], var2[~nans_mask])
+        p = np.nan
+
     else:
         r, p = pearsonr(var1[~nans_mask], var2[~nans_mask])
 

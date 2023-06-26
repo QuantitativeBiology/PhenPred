@@ -2,10 +2,10 @@ import PhenPred
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from math import sqrt
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
+from math import sqrt
 from PhenPred.vae.PlotUtils import GIPlot
 from sklearn.metrics import mean_squared_error
 from PhenPred.Utils import two_vars_correlation
@@ -165,7 +165,7 @@ class ProteomicsBenchmark:
             data=df_corrs,
             x="corr",
             y="impute",
-            palette="tab10",
+            palette="#ababab",
             orient="h",
             linewidth=0.3,
             fliersize=1,
@@ -271,7 +271,7 @@ class ProteomicsBenchmark:
             data=df_corrs,
             x="corr",
             y="impute",
-            palette="tab10",
+            palette="#ababab",
             orient="h",
             linewidth=0.3,
             fliersize=1,
@@ -350,19 +350,6 @@ class ProteomicsBenchmark:
             palette=["#80b1d3", "#fc8d62"],
             alpha=0.8,
             ax=ax,
-        )
-
-        # change legend title
-        handles, labels = ax.get_legend_handles_labels()
-        ax.legend(
-            handles=handles,
-            labels=[
-                f"{l} (N={len(df_corrs.query('outofsample == @l'))})" for l in labels
-            ],
-            title="",
-            fontsize=6,
-            loc="upper left",
-            frameon=False,
         )
 
         g.set(

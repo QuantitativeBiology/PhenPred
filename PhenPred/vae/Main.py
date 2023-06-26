@@ -52,7 +52,7 @@ if __name__ == "__main__":
     )
 
     # Run drug benchmark
-    dres_benchmark = DrugResponseBenchmark(train.timestamp)
+    dres_benchmark = DrugResponseBenchmark(train.timestamp, clines_db)
     dres_benchmark.run()
 
     # Run proteomics benchmark
