@@ -52,26 +52,18 @@ class OptunaOptimization:
             "activation_function", ["relu", "tanh", "leaky_relu", "sigmoid"]
         )
         hypers["hidden_dims"] = trial.suggest_categorical(
-            "hidden_dims", [[0.4], [0.7], [0.7, 0.4], [0.7, 0.4, 0.4]]
+            "hidden_dims", [[0.4], [0.5], [0.7], [0.7, 0.4]]
         )
 
-        hypers["w_kl"] = trial.suggest_float("w_kl", 0.0, 0.1)
-        hypers["w_decay"] = trial.suggest_float("w_decay", 1e-8, 1e-3, log=True)
         hypers["probability"] = trial.suggest_float("probability", 0.0, 0.5)
         hypers["learning_rate"] = trial.suggest_float(
-            "learning_rate", 1e-5, 1e-1, log=True
+            "learning_rate", 1e-5, 1e-2, log=True
         )
-        hypers["latent_dim"] = trial.suggest_float("latent_dim", 0.02, 0.3, log=True)
-        hypers["scheduler_threshold"] = trial.suggest_float(
-            "scheduler_threshold", 1e-6, 1e-3, log=True
-        )
+        hypers["latent_dim"] = trial.suggest_float("latent_dim", 0.02, 0.2)
         hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.3, 0.85)
-        hypers["scheduler_min_lr"] = trial.suggest_float(
-            "scheduler_min_lr", 1e-6, 1e-4, log=True
-        )
 
         hypers["num_epochs"] = trial.suggest_int("num_epochs", 150, 500)
-        hypers["batch_size"] = trial.suggest_int("batch_size", 32, 256)
+        hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
         hypers["scheduler_patience"] = trial.suggest_int("scheduler_patience", 5, 15)
 
         hypers = Hypers.parse_torch_functions(hypers)
