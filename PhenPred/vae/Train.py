@@ -194,8 +194,10 @@ class CLinesTrain:
         if round(current_lr, 4) < round(self.lrs[-1][1], 4):
             self.lrs.append((epoch, current_lr))
 
-    def predictions(self):
+    def predictions(self, n_epochs=None):
         imputed_datasets = dict()
+
+        n_epochs = self.hypers["num_epochs"] if n_epochs is None else n_epochs
 
         # Data Loader
         data_all = DataLoader(
@@ -205,7 +207,7 @@ class CLinesTrain:
         self.model = self.initialize_model()
         optimizer = CLinesLosses.get_optimizer(self.model, self.hypers)
 
-        for _ in range(1, self.hypers["num_epochs"] + 1):
+        for _ in range(1, n_epochs + 1):
             self.model.train()
             self.epoch(
                 self.model,
