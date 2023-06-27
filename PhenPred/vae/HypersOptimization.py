@@ -49,7 +49,7 @@ class OptunaOptimization:
         hypers = self.hypers.copy()
 
         hypers["activation_function"] = trial.suggest_categorical(
-            "activation_function", ["relu", "tanh", "leaky_relu", "sigmoid"]
+            "activation_function", ["relu", "leaky_relu", "sigmoid"]
         )
         hypers["hidden_dims"] = trial.suggest_categorical(
             "hidden_dims", ["0.4", "0.5", "0.7", "0.7,0.4", "0.4,0.4"]
