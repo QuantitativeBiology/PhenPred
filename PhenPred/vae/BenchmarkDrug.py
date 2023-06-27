@@ -192,7 +192,7 @@ class DrugResponseBenchmark:
             ]
 
         # CTD2
-        drespo_ctd2 = self.drugresponse_ctd.copy()
+        drespo_ctd2 = self.drugresponse_ctd2.copy()
 
         # VAE
         drespo_vae = self.drugresponse_vae.copy()

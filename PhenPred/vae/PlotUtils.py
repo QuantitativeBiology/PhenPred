@@ -684,10 +684,10 @@ class GIPlot(CrispyPlot):
 
         # Style
         if style is None:
-            plot_df.assign(style=1, inplace=True)
+            plot_df = plot_df.assign(style=1)
             style = "style"
 
-        makers_dict = dict(zip(plot_df[style].unique(), cls.MARKERS))
+        makers_dict = dict(zip(plot_df.loc[:, style].unique(), cls.MARKERS))
 
         # Plot
         grid = sns.JointGrid(x=x, y=y, data=plot_df, space=0, ratio=8)

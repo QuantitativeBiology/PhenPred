@@ -50,6 +50,7 @@ class CRISPRBenchmark:
         lm_genomics.to_csv(
             f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz",
             compression="gzip",
+            index=False,
         )
 
         self.plot_associations(lm_genomics)
@@ -279,8 +280,6 @@ class CRISPRBenchmark:
         for y_id, x_id, z_id in [
             ("BRAF", "MAPK1", "BRAF_mut"),
             ("FLI1", "TRIM8", "EWSR1.FLI1_mut"),
-            ("CTNNB1", "TCF7L2", "APC_mut"),
-            ("PAX8", "PARD3", "loss.cnaPANCAN399"),
             ("WRN", "RPL22L1", "msi_status"),
             ("KRAS", "DOCK5", "KRAS_mut"),
         ]:

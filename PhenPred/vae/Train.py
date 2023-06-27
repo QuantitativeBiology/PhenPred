@@ -82,6 +82,8 @@ class CLinesTrain:
                     loss,
                     record_losses,
                 )
+            else:
+                self.print_single_loss(loss)
 
     def cv_strategy(self, shuffle_split=False):
         if shuffle_split and self.stratify_cv_by is not None:
@@ -201,14 +203,15 @@ class CLinesTrain:
 
         # Data Loader
         data_all = DataLoader(
-            self.data, batch_size=self.hypers["batch_size"], shuffle=False
+            self.data, batch_size=len(self.data.samples), shuffle=False
         )
 
         self.model = self.initialize_model()
         optimizer = CLinesLosses.get_optimizer(self.model, self.hypers)
 
-        for _ in range(1, n_epochs + 1):
+        for e in range(1, n_epochs + 1):
             self.model.train()
+            print(f"Epoch {e:03}")
             self.epoch(
                 self.model,
                 optimizer,
@@ -216,9 +219,6 @@ class CLinesTrain:
             )
 
         # Make predictions and latent spaces
-        data_all = DataLoader(
-            self.data, batch_size=len(self.data.samples), shuffle=False
-        )
         self.model.eval()
         with torch.no_grad():
             for x, y, _ in data_all:
@@ -234,17 +234,17 @@ class CLinesTrain:
                 z = pd.DataFrame(z.tolist(), index=self.data.samples)
                 z.columns = [f"Latent_{i+1}" for i in range(z.shape[1])]
 
-            # Write to file
-            for name, df in imputed_datasets.items():
-                df.round(5).to_csv(
-                    f"{plot_folder}/files/{self.timestamp}_imputed_{name}.csv.gz",
+                # Write to file
+                for name, df in imputed_datasets.items():
+                    df.round(5).to_csv(
+                        f"{plot_folder}/files/{self.timestamp}_imputed_{name}.csv.gz",
+                        compression="gzip",
+                    )
+
+                z.round(5).to_csv(
+                    f"{plot_folder}/files/{self.timestamp}_latent_joint.csv.gz",
                     compression="gzip",
                 )
-
-            z.round(5).to_csv(
-                f"{plot_folder}/files/{self.timestamp}_latent_joint.csv.gz",
-                compression="gzip",
-            )
 
     def register_loss(self, loss, extra_fields=None):
         r = {
@@ -268,6 +268,19 @@ class CLinesTrain:
             l = l.groupby(groupby).mean()
         return l
 
+    def print_single_loss(self, loss_dict, pbar=None):
+        ptxt = f"[{datetime.now().strftime('%H:%M:%S')}] Loss "
+        ptxt += f" | Total={loss_dict['total']:.2f}"
+
+        for k in loss_dict:
+            if k not in ["cv", "epoch", "type", "total", "lr"] and "_" not in k:
+                ptxt += f" | {k}={loss_dict[k]:.2f}"
+
+        if pbar is not None:
+            pbar.set_description(ptxt)
+        else:
+            print(ptxt)
+
     def print_losses(self, cv_idx, epoch_idx, pbar=None):
         l = self.get_losses(cv_idx, epoch_idx, groupby="type")
 
@@ -287,6 +300,15 @@ class CLinesTrain:
         l = pd.DataFrame(self.losses)
         l.to_csv(f"{plot_folder}/files/{self.timestamp}_losses.csv", index=False)
         return l
+
+    def save_model(self):
+        if self.model is None:
+            warnings.warn("No model to save. Run predictions first.")
+        else:
+            torch.save(
+                self.model.state_dict(),
+                f"{plot_folder}/files/{self.timestamp}_model.pt",
+            )
 
     def _plot_lr_rates(self, ax):
         for e, lr in self.lrs:

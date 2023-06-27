@@ -165,7 +165,7 @@ class ProteomicsBenchmark:
             data=df_corrs,
             x="corr",
             y="impute",
-            palette="#ababab",
+            color="#ababab",
             orient="h",
             linewidth=0.3,
             fliersize=1,
@@ -271,7 +271,7 @@ class ProteomicsBenchmark:
             data=df_corrs,
             x="corr",
             y="impute",
-            palette="#ababab",
+            color="#ababab",
             orient="h",
             linewidth=0.3,
             fliersize=1,
@@ -378,7 +378,6 @@ class ProteomicsBenchmark:
 
         # Assemble dataframe
         loss_events_list = [
-            ("CDKN2A", "CDKN2A"),
             ("SMAD4", "SMAD4"),
             ("CTNNB1", "CTNNB1"),
         ]
