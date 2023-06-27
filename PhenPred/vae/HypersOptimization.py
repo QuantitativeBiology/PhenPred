@@ -89,6 +89,7 @@ if __name__ == "__main__":
         load_if_exists=True,
         storage=f"sqlite:///{plot_folder}/files/optuna.db",
     )
+
     opt.optimize(
         OptunaOptimization(clines_db, hyperparameters),
         n_trials=100,
