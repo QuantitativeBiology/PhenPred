@@ -158,8 +158,11 @@ class CLinesTrain:
                 loss_current = self.get_losses(cv_idx, epoch, "type").loc[
                     "val", "reconstruction"
                 ]
+                loss_current_total = self.get_losses(cv_idx, epoch, "type").loc[
+                    "val", "total"
+                ]
 
-                if np.isnan(loss_current) or np.isinf(loss_current):
+                if not (np.isfinite(loss_current) or np.isfinite(loss_current_total)):
                     warnings.warn(f"NaN or Inf loss at cv {cv_idx}, epoch {epoch}.")
                     return np.nan
 
