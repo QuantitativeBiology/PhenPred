@@ -35,13 +35,15 @@ if __name__ == "__main__":
     )
 
     # Train and predictions
-    # train.timestamp = "20230621_192218"
+    # train.timestamp = "20230627_142712"
     train = CLinesTrain(
         clines_db,
         hyperparameters,
         stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
     )
     train.run()
+    # train.predictions()
+    # train.save_model()
 
     # Run Latent Spaces Benchmark
     latent_benchmark = LatentSpaceBenchmark(train.timestamp, clines_db)
