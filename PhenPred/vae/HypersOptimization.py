@@ -75,6 +75,13 @@ if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
 
+    # For testing purposes only - remove methylation and transcriptomics
+    hyperparameters["datasets"] = {
+        k: v
+        for k, v in hyperparameters["datasets"].items()
+        if k not in ["methylation", "transcriptomics"]
+    }
+
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(
         label=hyperparameters["label"],
@@ -94,7 +101,7 @@ if __name__ == "__main__":
         OptunaOptimization(clines_db, hyperparameters),
         n_trials=100,
         show_progress_bar=True,
-        n_jobs=10,
+        n_jobs=1,
     )
 
     # Print results
