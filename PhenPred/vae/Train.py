@@ -26,7 +26,7 @@ class CLinesTrain:
         data,
         hypers,
         stratify_cv_by=None,
-        early_stop_patience=15,
+        early_stop_patience=20,
     ):
         self.data = data
         self.losses = []
@@ -312,6 +312,8 @@ class CLinesTrain:
             x="epoch",
             y="value",
             hue="type",
+            errorbar=("ci", 99),
+            err_kws=dict(alpha=0.2, lw=0),
             ax=ax,
         )
         self._plot_lr_rates(ax)
@@ -352,6 +354,7 @@ class CLinesTrain:
                 y="value",
                 hue="variable",
                 style="type",
+                errorbar=("ci", 99),
                 err_kws=dict(alpha=0.2, lw=0),
                 ax=ax,
             )
