@@ -4,7 +4,7 @@
 import os
 import sys
 
-proj_dir = "/home/egoncalves/PhenPred"
+proj_dir = "/home/scai/PhenPred"
 if not os.path.exists(proj_dir):
     proj_dir = "/Users/emanuel/Projects/PhenPred"
 sys.path.extend([proj_dir])
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         .astype(int)
     )
 
-    train = CLinesTrain(clines_db, hyperparameters, stratify_cv_by=heam_lines, k=3)
+    train = CLinesTrain(clines_db, hyperparameters, stratify_cv_by=heam_lines, k=5)
     train.run()
 
     # Run Latent Spaces Benchmark
@@ -65,13 +65,13 @@ if __name__ == "__main__":
     dres_benchmark = DrugResponseBenchmark(train.timestamp)
     dres_benchmark.run()
 
-    # Run proteomics benchmark
-    proteomics_benchmark = ProteomicsBenchmark(train.timestamp)
-    proteomics_benchmark.run()
-
-    # Run CRISPR benchmark
-    crispr_benchmark = CRISPRBenchmark(train.timestamp, clines_db)
-    crispr_benchmark.run()
+    # # Run proteomics benchmark
+    # proteomics_benchmark = ProteomicsBenchmark(train.timestamp)
+    # proteomics_benchmark.run()
+    #
+    # # Run CRISPR benchmark
+    # crispr_benchmark = CRISPRBenchmark(train.timestamp, clines_db)
+    # crispr_benchmark.run()
 
     # Write the hyperparameters to json file
     json.dump(

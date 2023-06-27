@@ -10,6 +10,7 @@ from sklearn.model_selection import GridSearchCV
 
 
 class CLinesLosses:
+
     @classmethod
     def unlabeled_loss(cls, views, out_net, views_mask=None, rec_type="mse"):
         """
@@ -28,11 +29,11 @@ class CLinesLosses:
         logits, prob_cat = out_net["y_logits"], out_net["y_prob"]
         y_mu, y_var = out_net["y_mu"], out_net["y_var"]
         mu, var = out_net["z_mu"], out_net["z_var"]
-
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # reconstruction loss
         loss_rec = 0
         for i, k in enumerate(views):
-            real, predicted = k, views_hat[i]
+            real, predicted = k.to(device), views_hat[i]
 
             if views_mask is not None:
                 real, predicted = real[views_mask[i]], predicted[views_mask[i]]

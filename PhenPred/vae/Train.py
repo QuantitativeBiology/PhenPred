@@ -200,14 +200,14 @@ class CLinesTrain:
                     columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
                 )
 
-                for name, view_z in zip(self.data.view_names, out_net["views_z"]):
-                    latent_spaces[name] = pd.DataFrame(
-                        view_z.tolist(),
-                        index=self.data.samples,
-                        columns=[
-                            f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])
-                        ],
-                    )
+                # for name, view_z in zip(self.data.view_names, out_net["views_z"]):
+                #     latent_spaces[name] = pd.DataFrame(
+                #         view_z.tolist(),
+                #         index=self.data.samples,
+                #         columns=[
+                #             f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])
+                #         ],
+                #     )
 
             # Write to file
             for name, df in imputed_datasets.items():
@@ -263,8 +263,7 @@ class CLinesTrain:
         l.to_csv(f"{plot_folder}/files/{self.timestamp}_losses.csv", index=False)
         return l
 
-    @staticmethod
-    def plot_losses(losses_df, loss_terms=None, figsize=(3, 2)):
+    def plot_losses(self, losses_df, loss_terms=None, figsize=(3, 2)):
         # Plot total losses
         plot_df = pd.melt(losses_df, id_vars=["epoch", "type"], value_vars="total")
 
