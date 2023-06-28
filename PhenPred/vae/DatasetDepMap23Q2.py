@@ -114,20 +114,12 @@ class CLinesDatasetDepMap23Q2(Dataset):
         # Fusions
         fusions = self.fusions.loc[:, self.fusions.sum() >= 5]
 
-        # MSI, Ploidy and mutational burden
+        # MSI
         msi = self.ss_cmp["msi_status"].replace({"MSS": 0, "MSI": 1}).astype(float)
-        mburden = self.ss_cmp[["ploidy_snp6", "ploidy_wes", "mutational_burden"]]
-        genetics = pd.concat(
-            [
-                msi.rename("MSI"),
-                zscore(mburden, nan_policy="omit"),
-            ],
-            axis=1,
-        )
 
         # Concatenate
         self.labels = pd.concat(
-            [tissue, cancer, culture, growth, mutations, cnv, fusions, genetics],
+            [tissue, cancer, culture, growth, mutations, cnv, fusions, msi],
             axis=1,
         )
         self.labels = self.labels.reindex(index=self.samples).fillna(0)
