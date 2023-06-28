@@ -18,34 +18,36 @@ from PhenPred.vae.Utils import two_vars_correlation, LModel
 
 
 class CRISPRBenchmark:
-    def __init__(self, timestamp, data, min_obs=10):
+    def __init__(
+        self, timestamp, data, vae_imputed, mofa_imputed, min_obs=15, skew_threshold=-2
+    ):
         self.timestamp = timestamp
+
         self.min_obs = min_obs
+        self.skew_threshold = skew_threshold
+
         self.data = data
+        self.vae_imputed = vae_imputed
+        self.mofa_imputed = mofa_imputed
 
-        # Original dataset
+        # CRISPR-Cas9 datasets
         self.df_original = data.dfs["crisprcas9"].dropna(how="all").dropna(axis=1)
-
-        # VAE imputed dataset
-        self.df_vae = pd.read_csv(
-            f"{plot_folder}/files/{timestamp}_imputed_crisprcas9.csv.gz", index_col=0
-        )
-
-        # VAE imputed trancriptomics dataset
-        self.df_vae_transcriptomics = pd.read_csv(
-            f"{plot_folder}/files/{timestamp}_imputed_transcriptomics.csv.gz",
-            index_col=0,
-        )
+        self.df_vae = self.vae_imputed["crisprcas9"]
 
         # Genomics
-        self.genomics = pd.read_csv(f"{data_folder}/genomics.csv", index_col=0).T
+        self.genomics = pd.concat(
+            [
+                self.data.mutations.add_suffix("_mut"),
+                (self.data.cnv == "Deletion").astype(int).add_suffix("_del"),
+                (self.data.cnv == "Amplification").astype(int).add_suffix("_amp"),
+            ],
+            axis=1,
+        )
 
         # Sample sheet
         self.ss = data.samplesheet.copy()
 
     def run(self):
-        self.sample_correlation()
-
         lm_genomics = self.genomic_associations(min_obs=self.min_obs)
         lm_genomics.to_csv(
             f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz",
@@ -53,35 +55,8 @@ class CRISPRBenchmark:
             index=False,
         )
 
-        self.plot_associations(lm_genomics)
+        self.associations_scatter_pvals(lm_genomics)
         self.gene_skew_correlation()
-
-    def sample_correlation(self):
-        samples = list(set(self.df_original.index).intersection(self.df_vae.index))
-        genes = list(set(self.df_original.columns).intersection(self.df_vae.columns))
-
-        samples_corr = pd.DataFrame(
-            {
-                s: two_vars_correlation(
-                    self.df_original.loc[s, genes], self.df_vae.loc[s, genes]
-                )
-                for s in samples
-            }
-        ).T
-
-        _, ax = plt.subplots(1, 1, figsize=(3, 1.5), dpi=600)
-
-        sns.histplot(samples_corr["corr"], bins=20, ax=ax)
-
-        ax.set(
-            xlabel="Pearson correlation",
-            ylabel="Number of samples",
-            title=f"Sample correlation (N={len(samples):,})",
-        )
-
-        PhenPred.save_figure(
-            f"{plot_folder}/crispr/{self.timestamp}_samples_corr_histogram"
-        )
 
     def gene_skew_correlation(self):
         plot_df = pd.concat(
@@ -92,7 +67,7 @@ class CRISPRBenchmark:
             axis=1,
         ).dropna()
 
-        _, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=600)
+        _, ax = plt.subplots(1, 1, figsize=(2, 2), dpi=600)
 
         sns.scatterplot(
             data=plot_df,
@@ -107,8 +82,9 @@ class CRISPRBenchmark:
             x="orig",
             y="vae",
             scatter=False,
-            color="#F2C500",
+            color="#fc8d62",
             truncate=True,
+            line_kws={"lw": 1},
             ax=ax,
         )
         ax.set(
@@ -116,6 +92,17 @@ class CRISPRBenchmark:
             xlabel="Skew original",
             ylabel=f"Skew VAE",
         )
+
+        # same axes limits and step sizes
+        ax_min, ax_max = (
+            min(plot_df["orig"].min(), plot_df["vae"].min()),
+            max(plot_df["orig"].max(), plot_df["vae"].max()),
+        )
+
+        ax.set_xlim(ax_min, ax_max)
+        ax.set_ylim(ax_min, ax_max)
+        ax.set_xticks(ax.get_yticks())
+        ax.set_yticks(ax.get_xticks())
 
         rmse = sqrt(mean_squared_error(plot_df["orig"], plot_df["vae"]))
         s, _ = stats.spearmanr(
@@ -135,7 +122,7 @@ class CRISPRBenchmark:
             f"{plot_folder}/crispr/{self.timestamp}_gene_skew_corrplot"
         )
 
-    def genomic_associations(self, min_obs=10):
+    def genomic_associations(self):
         # Covariates
         covs = pd.concat(
             [
@@ -145,9 +132,7 @@ class CRISPRBenchmark:
                 self.ss["growth_properties_broad"]
                 .str.get_dummies()
                 .add_prefix("broad_"),
-                self.ss["tissue"].str.get_dummies()[
-                    ["Haematopoietic and Lymphoid", "Lung"]
-                ],
+                self.ss["tissue"].str.get_dummies()[["Haematopoietic and Lymphoid"]],
             ],
             axis=1,
         )
@@ -159,20 +144,24 @@ class CRISPRBenchmark:
             ],
             axis=1,
         )
-        y_features = list(y_features.loc[(y_features < -2).any(axis=1)].index)
+        y_features = list(
+            y_features.loc[(y_features < self.skew_threshold).any(axis=1)].index
+        )
 
         # Genomics ~ CRISPR VAE
         samples = list(
             set(self.df_vae.dropna().index)
-            .intersection(self.genomics.dropna().index)
+            .intersection(self.data.mutations.index)
+            .intersection(self.data.cnv.index)
             .intersection(covs.reindex(index=self.df_vae.index).dropna().index)
         )
 
-        x_features = list(self.genomics.columns[self.genomics.loc[samples].sum() >= 10])
+        x = self.genomics.loc[samples].replace(np.nan, 0).astype(int)
+        x = x.loc[:, x.sum() >= self.min_obs]
 
         lm_genomics_vae = LModel(
             Y=self.df_vae.loc[samples, y_features],
-            X=self.genomics.loc[samples, x_features],
+            X=x.loc[samples],
             M=covs.loc[samples],
         ).fit_matrix()
 
@@ -184,15 +173,17 @@ class CRISPRBenchmark:
         # Genomics ~ CRISPR original
         samples = list(
             set(self.df_original.dropna().index)
-            .intersection(self.genomics.dropna().index)
+            .intersection(self.data.mutations.index)
+            .intersection(self.data.cnv.index)
             .intersection(covs.reindex(index=self.df_vae.index).dropna().index)
         )
 
-        x_features = list(self.genomics.columns[self.genomics.loc[samples].sum() >= 10])
+        x = self.genomics.loc[samples].replace(np.nan, 0).astype(int)
+        x = x.loc[:, x.sum() >= self.min_obs]
 
         lm_genomics_orig = LModel(
             Y=self.df_original.loc[samples],
-            X=self.genomics.loc[samples, x_features],
+            X=x.loc[samples],
             M=covs.loc[samples],
         ).fit_matrix()
 
@@ -216,29 +207,37 @@ class CRISPRBenchmark:
 
         return lm_genomics
 
-    def plot_associations(self, lm_genomics):
+    def associations_scatter_pvals(self, lm_genomics):
         plot_df = lm_genomics.query("fdr_orig < 0.05 | fdr_vae < 0.05").copy()
 
-        _, ax = plt.subplots(1, 1, figsize=(2.5, 2.5), dpi=600)
+        _, ax = plt.subplots(1, 1, figsize=(2, 2), dpi=600)
 
         sns.scatterplot(
             x=-np.log10(plot_df["pval_orig"]),
             y=-np.log10(plot_df["pval_vae"]),
-            color="#656565",
-            lw=0,
-            s=3,
+            color="black",
+            alpha=0.5,
+            linewidth=0,
+            s=5,
             zorder=1,
-            rasterized=True,
             ax=ax,
         )
+        # same axes limits and step sizes
+        ax_min, ax_max = (
+            min(
+                (-np.log10(plot_df["pval_orig"])).min(),
+                (-np.log10(plot_df["pval_vae"])).min(),
+            ),
+            max(
+                (-np.log10(plot_df["pval_orig"])).max(),
+                (-np.log10(plot_df["pval_vae"])).max(),
+            ),
+        )
 
-        loc = plticker.MultipleLocator(base=25)
-        ax.xaxis.set_major_locator(loc)
-        ax.yaxis.set_major_locator(loc)
-
-        # set same axis range for both axes
-        ax.set_xlim(0, 150)
-        ax.set_ylim(0, 150)
+        ax.set_xlim(ax_min, ax_max)
+        ax.set_ylim(ax_min, ax_max)
+        ax.set_xticks(ax.get_yticks())
+        ax.set_yticks(ax.get_xticks())
 
         ax.axline((0, 0), slope=1, color="black", lw=0.5, ls="-", zorder=-1)
 
@@ -268,7 +267,7 @@ class CRISPRBenchmark:
         )
 
         ax.set(
-            title=f"CRISPR-Cas9 ~ Genomics associations (N={plot_df.shape[0]:,})",
+            title=f"CRISPR-Cas9 ~ Genomics associations\n(N={plot_df.shape[0]:,})",
             xlabel="Original log-ratio p-value (-log10)",
             ylabel="VAE log-ratio p-value (-log10)",
         )
@@ -277,13 +276,14 @@ class CRISPRBenchmark:
             f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_pval_scatter",
         )
 
-        for y_id, x_id, z_id in [
-            ("BRAF", "MAPK1", "BRAF_mut"),
-            ("FLI1", "TRIM8", "EWSR1.FLI1_mut"),
-            ("WRN", "RPL22L1", "msi_status"),
-            ("KRAS", "DOCK5", "KRAS_mut"),
-        ]:
-            # y_id, x_id, z_id = ("KRAS", "DOCK5", "KRAS_mut")
+    def plot_associations(self, associations=None):
+        if associations is None:
+            associations = [
+                ("BRAF", "MAPK1", "BRAF_mut"),
+            ]
+
+        for y_id, x_id, z_id in associations:
+            # y_id, x_id, z_id = ("BRAF", "MAPK1", "BRAF_mut")
 
             plot_df = pd.concat(
                 [
@@ -294,6 +294,7 @@ class CRISPRBenchmark:
                 ],
                 axis=1,
             ).dropna(subset=[f"{x_id}_vae", f"{y_id}_vae", z_id])
+
             plot_df[z_id].replace({0: "WT", 1: z_id}, inplace=True)
             plot_df["predicted"] = (
                 plot_df[[f"{y_id}_orig", f"{x_id}_orig"]].isnull().any(axis=1)
@@ -306,21 +307,10 @@ class CRISPRBenchmark:
                 inplace=True,
             )
 
-            tissues = [
-                "Endometrium",
-                "Ovary",
-                "Large Intestine",
-                "Stomach",
-                "Haematopoietic and Lymphoid",
-            ]
-            plot_df["tissue_parsed"] = plot_df["tissue"].apply(
-                lambda x: x if x in tissues else "Other"
-            )
-
             pal, pal_order = {
                 z_id: "#fc8d62",
                 "WT": "#e1e1e1",
-                0: "#E1E1E1",
+                0: "#e1e1e1",
             }, ["WT", z_id]
 
             # Predicted
@@ -333,7 +323,7 @@ class CRISPRBenchmark:
                 discrete_pal=pal,
                 hue_order=pal_order,
                 legend_title=f"{z_id}",
-                scatter_kws=dict(edgecolor="w", lw=0.1, s=16),
+                scatter_kws=dict(edgecolor="w", lw=0.1, s=10, alpha=0.75),
             )
 
             g.ax_joint.set_xlabel(f"{x_id} CRISPR-Cas9 (VAE)")
@@ -344,181 +334,3 @@ class CRISPRBenchmark:
             PhenPred.save_figure(
                 f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}",
             )
-
-            # Original
-            df = plot_df[plot_df["predicted"].apply(lambda x: x.startswith("Observed"))]
-            g = GIPlot.gi_regression_marginal(
-                x=f"{x_id}_orig",
-                y=f"{y_id}_orig",
-                z=z_id,
-                style=None,
-                plot_df=df,
-                discrete_pal=pal,
-                hue_order=pal_order,
-                legend_title=f"{z_id}",
-                scatter_kws=dict(edgecolor="w", lw=0.1, s=16),
-            )
-
-            g.ax_joint.set_xlabel(f"{x_id} CRISPR-Cas9 (Measured)")
-            g.ax_joint.set_ylabel(f"{y_id} CRISPR-Cas9 (Measured)")
-
-            plt.gcf().set_size_inches(2, 2)
-
-            PhenPred.save_figure(
-                f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}_original",
-            )
-
-            # Tissue
-            pal = GIPlot.PAL_TISSUE_2
-            pal["Other"] = "#e1e1e1"
-            pal[0] = "#e1e1e1"
-            order = ["Other"] + tissues
-
-            if y_id in ["WRN"]:
-                g = GIPlot.gi_regression_marginal(
-                    x=f"{x_id}_vae",
-                    y=f"{y_id}_vae",
-                    z="tissue_parsed",
-                    style="predicted",
-                    plot_df=plot_df,
-                    discrete_pal=pal,
-                    legend_title="Tissue",
-                    hue_order=order,
-                    plot_annot=False,
-                    scatter_kws=dict(edgecolor="w", lw=0.1, s=16),
-                )
-
-                for i, c in enumerate(tissues[::-1]):
-                    df = plot_df.query(f"tissue_parsed == '{c}'")
-                    r, p = pearsonr(df[f"{x_id}_vae"], df[f"{y_id}_vae"])
-
-                    sns.regplot(
-                        x=f"{x_id}_vae",
-                        y=f"{y_id}_vae",
-                        data=plot_df.query(f"tissue_parsed == '{c}'"),
-                        color=pal[c],
-                        truncate=True,
-                        fit_reg=True,
-                        scatter=False,
-                        label=f"{c} (r={r:.2f}, p={p:.2e})",
-                        ci=None,
-                        line_kws=dict(lw=1.0, color=pal[c]),
-                        ax=g.ax_joint,
-                    )
-
-                    g.ax_joint.text(
-                        0.95,
-                        0.05 + 0.05 * i,
-                        f"{c} (r={r:.2f}, p={p:.2e})",
-                        fontsize=4,
-                        transform=g.ax_joint.transAxes,
-                        ha="right",
-                    )
-
-                g.ax_joint.set_xlabel(f"{x_id} CRISPR-Cas9 (VAE)")
-                g.ax_joint.set_ylabel(f"{y_id} CRISPR-Cas9 (VAE)")
-
-                plt.gcf().set_size_inches(2, 2)
-
-                PhenPred.save_figure(
-                    f"{plot_folder}/crispr/{self.timestamp}_lm_assoc_corrplot_{y_id}_{x_id}_{z_id}_tissue",
-                )
-
-    def gexp_associations(self):
-        samples = list(
-            set(self.df_vae.dropna().index).intersection(
-                self.df_vae_transcriptomics.dropna().index
-            )
-        )
-
-        x = self.df_vae_transcriptomics.loc[samples]
-        y = self.df_vae.loc[samples]
-
-        # Warping
-        cholsigmainv = np.linalg.cholesky(np.linalg.inv(np.cov(x)))
-        warped_x = x.T @ cholsigmainv
-        warped_intercept = cholsigmainv.sum(axis=0)
-
-        # Skewness
-        y_features = y.apply(skew).astype(float)
-        y_features = y_features.index.tolist()
-
-        x_features = x.apply(skew).astype(float)
-        x_features = x_features.index.tolist()
-
-        #
-        GLS_coef = pd.DataFrame(
-            np.empty((len(x_features), len(y_features))),
-            index=x_features,
-            columns=y_features,
-        )
-        GLS_se = pd.DataFrame(
-            np.empty((len(x_features), len(y_features))),
-            index=x_features,
-            columns=y_features,
-        )
-
-        for gene_index in x_features:
-            X = np.stack((warped_intercept, warped_x.loc[gene_index]), axis=1)
-            coef, residues = np.linalg.lstsq(X, y[y_features], rcond=None)[:2]
-            df = warped_x.shape[1] - 2
-            GLS_coef.loc[gene_index] = coef[1]
-            GLS_se.loc[gene_index] = np.sqrt(
-                np.linalg.pinv(X.T @ X)[1, 1] * residues / df
-            )
-
-        # P-value
-        df = warped_x.shape[1] - 2
-        GLS_p = 2 * stdtr(df, -np.abs(GLS_coef / GLS_se))
-
-        # FDR correction per column
-        GLS_fdr = GLS_p.apply(lambda x: multipletests(x, method="fdr_bh")[1], axis=0)
-
-        # Melt and merge all GLS matrices
-        gexp_associations = (
-            pd.concat(
-                [
-                    GLS_coef.stack().rename("coef"),
-                    GLS_se.stack().rename("se"),
-                    GLS_p.stack().rename("pval"),
-                    GLS_fdr.stack().rename("fdr"),
-                ],
-                axis=1,
-            )
-            .reset_index()
-            .rename(columns={"level_0": "gexp", "level_1": "crispr"})
-            .sort_values("pval")
-        )
-
-    def gls(self):
-        """
-        GLS regression of CRISPR-Cas9 screens.
-        Code adapted from https://github.com/kundajelab/coessentiality/blob/master/gene_pairs.py
-        """
-
-        screens = self.df_vae.T
-
-        cholsigmainv = np.linalg.cholesky(np.linalg.inv(np.cov(screens.T)))
-        warped_screens = screens.values @ cholsigmainv
-        warped_intercept = cholsigmainv.sum(axis=0)
-
-        def linear_regression(warped_screens, warped_intercept):
-            GLS_coef = np.empty((len(warped_screens), len(warped_screens)))
-            GLS_se = np.empty((len(warped_screens), len(warped_screens)))
-            ys = warped_screens.T
-
-            for gene_index in range(len(warped_screens)):
-                X = np.stack((warped_intercept, warped_screens[gene_index]), axis=1)
-                coef, residues = np.linalg.lstsq(X, ys, rcond=None)[:2]
-                df = warped_screens.shape[1] - 2
-                GLS_coef[gene_index] = coef[1]
-                GLS_se[gene_index] = np.sqrt(
-                    np.linalg.pinv(X.T @ X)[1, 1] * residues / df
-                )
-
-            return GLS_coef, GLS_se
-
-        GLS_coef, GLS_se = linear_regression(warped_screens, warped_intercept)
-        df = warped_screens.shape[1] - 2
-        GLS_p = 2 * stdtr(df, -np.abs(GLS_coef / GLS_se))
-        np.fill_diagonal(GLS_p, 1)

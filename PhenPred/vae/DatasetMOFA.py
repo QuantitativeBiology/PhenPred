@@ -1,49 +1,73 @@
+import os
 import pandas as pd
-from torch.utils.data import Dataset
 from PhenPred.vae import data_folder
 from PhenPred.vae.Hypers import Hypers
 
 
-class CLinesDatasetMOFA(Dataset):
-    def __init__(
-        self,
-        hypers=None,
-    ):
+class CLinesDatasetMOFA:
+    @staticmethod
+    def load_reconstructions(data, mode="nans_only", hypers=None):
+        """
+        Load imputed data and latent space from files. "nans_only" mode, original
+        measurements are mantained and only NaNs are imputed. "all" mode all
+        data is imputed.
+
+        Parameters
+        ----------
+        mode : str, optional
+            Loading mode of imputed data, by default "nans_only"
+
+        Returns
+        -------
+        dict
+            Dictionary of imputed dataframes
+            pandas.DataFrame
+                Latent space
+
+        Raises
+        ------
+        ValueError
+            If mode is not "nans_only" or "all"
+
+        """
+
+        if mode not in ["nans_only", "all"]:
+            raise ValueError(f"Invalid mode {mode}")
+
         if hypers is None:
-            self.hypers = Hypers.read_hyperparameters()
+            hypers = Hypers.read_hyperparameters()
         elif isinstance(hypers, str):
-            self.hypers = Hypers.read_hyperparameters(hypers)
-        else:
-            self.hypers = hypers
+            hypers = Hypers.read_hyperparameters(hypers)
 
-        self.dataset_name = f"MOFA_{self.hypers['dataname']}"
-        self.dataset_name += f"_Factors50"
-        self.ddir = f"{data_folder}/mofa/{self.dataset_name}"
-        self.view_names = list(self.hypers["datasets"])
+        # Dataset details
+        dataset_name = f"MOFA_{hypers['dataname']}"
+        dataset_name += f"_Factors50"
 
-        print(f"Loading MOFA results from {self.dataset_name}...")
+        ddir = f"{data_folder}/mofa/{dataset_name}"
 
-        self.factors = pd.read_csv(f"{self.ddir}_factors.csv", index_col=0)
+        # Load imputed data
+        dfs_imputed = {}
+        for n in data.dfs:
+            df_file = f"{ddir}_predicted_{n}.csv"
 
-        self.rsquare = pd.read_csv(f"{self.ddir}_rsquare.csv", index_col=0)
+            if not os.path.isfile(df_file):
+                continue
 
-        self.weights = {
-            n: pd.read_csv(f"{self.ddir}_weights_{n}.csv", index_col=0)
-            for n in self.view_names
-        }
+            df_imputed = pd.read_csv(df_file, index_col=0).T
+            df_imputed.columns = [c.split("_")[0] for c in df_imputed]
 
-        self.predicted = {
-            n: pd.read_csv(f"{self.ddir}_predicted_{n}.csv", index_col=0).T
-            for n in self.view_names
-        }
+            if mode == "nans_only":
+                df_imputed = data.dfs[n].combine_first(df_imputed)
 
-        self.imputed = {
-            n: pd.read_csv(f"{self.ddir}_imputed_{n}.csv", index_col=0).T
-            for n in self.view_names
-        }
+            dfs_imputed[n] = df_imputed
 
-        for n in self.view_names:
-            self.predicted[n].columns = [
-                v.split("_")[0] for v in self.predicted[n].columns
-            ]
-            self.imputed[n].columns = [v.split("_")[0] for v in self.imputed[n].columns]
+        # Load latent space
+        joint_latent = dict(
+            factors=pd.read_csv(f"{ddir}_factors.csv", index_col=0),
+            rsquare=pd.read_csv(f"{ddir}_rsquare.csv", index_col=0),
+            weights={
+                n: pd.read_csv(f"{ddir}_weights_{n}.csv", index_col=0) for n in data.dfs
+            },
+        )
+
+        return dfs_imputed, joint_latent

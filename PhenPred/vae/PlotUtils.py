@@ -5,12 +5,11 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.patches as mpatches
 from math import sqrt
+import scipy.stats as stats
 from natsort import natsorted
 from adjustText import adjust_text
 from matplotlib.lines import Line2D
-from scipy.stats import gaussian_kde
 from scipy.interpolate import interpn
-from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
 
@@ -224,7 +223,7 @@ class CrispyPlot:
     def density_interpolate(xx, yy, dtype="gaussian"):
         if dtype == "gaussian":
             xy = np.vstack([xx, yy])
-            zz = gaussian_kde(xy)(xy)
+            zz = stats.gaussian_kde(xy)(xy)
 
         else:
             data, x_e, y_e = np.histogram2d(xx, yy, bins=20)
@@ -751,8 +750,12 @@ class GIPlot(CrispyPlot):
         if plot_annot:
             if annot_text is None:
                 df_corr = plot_df.dropna(subset=[x, y, z])
-                cor, pval = pearsonr(df_corr[x], df_corr[y])
-                annot_text = f"r={cor:.2g}, p={pval:.1e}"
+
+                mse = mean_squared_error(df_corr[x], df_corr[y])
+                s, _ = stats.spearmanr(df_corr[x], df_corr[y])
+                r, _ = stats.pearsonr(df_corr[x], df_corr[y])
+
+                annot_text = f"r={r:.2g}; rho={s:.2g}; MSE={mse:.2f}"
 
             grid.ax_joint.text(
                 0.95,
