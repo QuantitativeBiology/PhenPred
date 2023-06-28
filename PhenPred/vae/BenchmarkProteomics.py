@@ -10,36 +10,28 @@ from PhenPred.vae.PlotUtils import GIPlot
 from sklearn.metrics import mean_squared_error
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
-from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 
 
 class ProteomicsBenchmark:
-    def __init__(self, timestamp, data):
+    def __init__(self, timestamp, data, vae_imputed, mofa_imputed):
         self.timestamp = timestamp
 
-        # Data
         self.data = data
+        self.vae_imputed = vae_imputed
+        self.mofa_imputed = mofa_imputed
 
-        # Import MOFA dataset
-        self.mofa_db = CLinesDatasetMOFA()
-
-        # Sample sheet
+        # Samplesheet
         self.ss = pd.read_csv(f"{data_folder}/cmp_model_list_20230307.csv", index_col=0)
-        self.ss_ccell = pd.read_csv(
-            f"{data_folder}/samplesheet_cancercell.csv", index_col=0
-        )
 
-        # Original dataset
-        self.df_original = pd.read_csv(f"{data_folder}/proteomics.csv", index_col=0).T
+        # Proteomics datasets
+        self.df_original = self.data.dfs["proteomics"]
+        self.df_vae = self.vae_imputed["proteomics"]
+        self.df_mofa = self.mofa_imputed["proteomics"]
+        self.df_mean = self.df_original.fillna(self.df_original.mean())
 
-        # Fully imputed autoencoder dataset
-        self.df_vae = pd.read_csv(
-            f"{plot_folder}/files/{timestamp}_imputed_proteomics.csv.gz", index_col=0
-        )
-
-        # MOFA imputed dataset
-        self.df_mofa_imputed = self.mofa_db.imputed["proteomics"]
-        self.df_mofa_predicted = self.mofa_db.predicted["proteomics"]
+        # Other relevant datasets
+        self.df_cnv = self.data.cnv
+        self.df_gexp = self.data.dfs["transcriptomics"]
 
         # Independent proteomics dataset - CCLE
         self.df_ccle = pd.read_csv(f"{data_folder}/proteomics_ccle.csv", index_col=0).T
@@ -59,103 +51,69 @@ class ProteomicsBenchmark:
         self.samples = (
             set(self.df_original.index)
             .intersection(set(self.df_vae.index))
-            .intersection(set(self.df_mofa_imputed.index))
-            .intersection(set(self.df_mofa_predicted.index))
+            .intersection(set(self.df_mofa.index))
             .intersection(set(self.df_ccle.index))
         )
 
         self.features = (
             set(self.df_original.columns)
             .intersection(set(self.df_vae.columns))
-            .intersection(set(self.df_mofa_imputed.columns))
-            .intersection(set(self.df_mofa_predicted.columns))
+            .intersection(set(self.df_mofa.columns))
             .intersection(set(self.df_ccle.columns))
         )
 
-        # CRISPR original dataset
-        self.df_crispr = pd.read_csv(f"{data_folder}/crisprcas9.csv", index_col=0).T
-
-        # Drug response original dataset
-        self.df_drug = pd.read_csv(f"{data_folder}/drugresponse.csv", index_col=0).T
-
-        # Genomics
-        self.cnv = pd.read_csv(f"{data_folder}/cnv_summary_20230303.csv")
-        self.cnv["cn_category"] = pd.Categorical(
-            self.cnv["cn_category"],
-            categories=["Neutral", "Deletion", "Loss", "Gain", "Amplification"],
-            ordered=True,
+        self.samples_without_prot = set(
+            self.df_original.index[self.df_original.isnull().all(1)]
         )
-        self.cnv = self.cnv.sort_values("cn_category")
-
-        self.df_cnv = pd.pivot_table(
-            self.cnv,
-            index="model_id",
-            columns="symbol",
-            values="cn_category",
-            aggfunc="first",
-        )
-
-        # Transcriptomics
-        self.df_gexp = pd.read_csv(f"{data_folder}/transcriptomics.csv", index_col=0).T
 
     def run(self):
         self.compare_imputed_ccle()
         self.ccle_compare_by_genes()
         self.ccle_compare_with_vae()
-        self.copy_number()
 
-    def place_imputed_values_in_nans(self):
-        df_original = self.df_original.copy().reindex(
-            index=self.samples, columns=self.features
+    def proteomics_datasets_dict(self, zscore=True, reindex=None):
+        dfs = dict(
+            original=self.df_original,
+            vae_imputed=self.df_vae,
+            mofa_imputed=self.df_mofa,
+            mean=self.df_mean,
         )
 
-        df_original_mofa_imputed = self.df_mofa_imputed.reindex(
-            index=self.samples, columns=self.features
-        )
+        if reindex is not None:
+            dfs = {
+                n: df.reindex(index=reindex[0], columns=reindex[1])
+                for n, df in dfs.items()
+            }
 
-        df_original_mofa_predicted = self.df_mofa_predicted.reindex(
-            index=self.samples, columns=self.features
-        )
+        if zscore:
+            dfs = {k: stats.zscore(df, nan_policy="omit") for k, df in dfs.items()}
 
-        df_original_vae_imputed = df_original.copy().fillna(
-            self.df_vae.reindex(index=self.samples, columns=self.features)
-        )
-
-        df_original_vae_predicted = self.df_vae.reindex(
-            index=self.samples, columns=self.features
-        )
-
-        df_original_mean_imputed = df_original.copy().fillna(df_original.mean())
-
-        return dict(
-            original=df_original,
-            mofa_imputed=df_original_mofa_imputed,
-            mofa_predicted=df_original_mofa_predicted,
-            vae_imputed=df_original_vae_imputed,
-            vae_predicted=df_original_vae_predicted,
-            mean=df_original_mean_imputed,
-        )
+        return dfs
 
     def compare_imputed_ccle(self):
-        # Proteomic datasets
-        df_imputed = self.place_imputed_values_in_nans()
-        df_ccle = self.df_ccle.reindex(index=self.samples, columns=self.features)
+        samples = self.samples.difference(self.samples_without_prot)
 
-        # Standardize
-        df_imputed = {
-            k: stats.zscore(df, nan_policy="omit") for k, df in df_imputed.items()
-        }
+        df_imputed = self.proteomics_datasets_dict(reindex=(samples, self.features))
+
+        df_ccle = self.df_ccle.reindex(index=samples, columns=self.features)
         df_ccle = stats.zscore(df_ccle, nan_policy="omit")
 
         # Correlation dataframe
-        df_corrs = pd.DataFrame(
-            [
-                two_vars_correlation(
-                    df_ccle.loc[s], df.loc[s], extra_fields=dict(sample=s, impute=k)
-                )
-                for s in self.samples
-                for k, df in df_imputed.items()
-            ]
+        df_corrs = (
+            pd.DataFrame(
+                [
+                    two_vars_correlation(
+                        df_ccle.loc[s], df.loc[s], extra_fields=dict(sample=s, impute=k)
+                    )
+                    for s in samples
+                    for k, df in df_imputed.items()
+                ]
+            )
+            .dropna()
+            .sort_values("pval")
+        )
+        df_corrs.to_csv(
+            f"{plot_folder}/proteomics/{self.timestamp}_ccle_correlations.csv"
         )
 
         # Boxplot
@@ -165,6 +123,7 @@ class ProteomicsBenchmark:
             data=df_corrs,
             x="corr",
             y="impute",
+            order=["original", "vae_imputed", "mofa_imputed", "mean"],
             color="#ababab",
             orient="h",
             linewidth=0.3,
@@ -172,8 +131,8 @@ class ProteomicsBenchmark:
             notch=True,
             saturation=1.0,
             showcaps=False,
-            boxprops=dict(linewidth=0.5),
-            whiskerprops=dict(linewidth=0.5),
+            boxprops=dict(linewidth=0.5, facecolor="white", edgecolor="black"),
+            whiskerprops=dict(linewidth=0.5, color="black"),
             flierprops=dict(
                 marker="o",
                 markerfacecolor="black",
@@ -182,7 +141,7 @@ class ProteomicsBenchmark:
                 markeredgecolor="none",
                 alpha=0.6,
             ),
-            medianprops=dict(linestyle="-", linewidth=0.5),
+            medianprops=dict(linestyle="-", linewidth=0.5, color="#fc8d62"),
             ax=ax,
         )
 
@@ -192,7 +151,7 @@ class ProteomicsBenchmark:
             ylabel=f"",
         )
 
-        ax.xaxis.set_major_locator(plticker.MultipleLocator(base=0.1))
+        ax.xaxis.set_major_locator(plticker.MultipleLocator(base=0.15))
         ax.grid(axis="x", lw=0.1, color="#e1e1e1", zorder=-1)
 
         PhenPred.save_figure(
@@ -203,14 +162,13 @@ class ProteomicsBenchmark:
         plot_df = pd.pivot_table(
             df_corrs, index="sample", columns="impute", values="corr"
         )
+
         plot_df = pd.melt(
             plot_df.reset_index(),
             value_vars=[
                 "mean",
                 "mofa_imputed",
-                "mofa_predicted",
                 "vae_imputed",
-                "vae_predicted",
             ],
             var_name="impute",
             value_name="corr",
@@ -231,16 +189,24 @@ class ProteomicsBenchmark:
             ax.text(
                 0.95,
                 0.05,
-                f"R={r:.2g}; Rho={s:.2g}; RMSE={rmse:.2f}, N={len(data):,}",
+                f"r={r:.2g}; rho={s:.2g}; RMSE={rmse:.2f}",
                 fontsize=6,
                 transform=ax.transAxes,
                 ha="right",
             )
             ax.axline((1, 1), slope=1, color="black", lw=0.5, ls="-", zorder=-1)
 
-        g = sns.FacetGrid(plot_df, col="impute")
+        g = sns.FacetGrid(plot_df, col="impute", height=2, aspect=1, sharey=True)
 
-        g.map_dataframe(sns.scatterplot, x="original", y="corr")
+        g.map_dataframe(
+            sns.scatterplot,
+            x="original",
+            y="corr",
+            color="#656565",
+            s=5,
+            alpha=0.8,
+            linewidth=0.1,
+        )
         g.map_dataframe(annotate)
 
         PhenPred.save_figure(
@@ -249,7 +215,9 @@ class ProteomicsBenchmark:
 
     def ccle_compare_by_genes(self):
         features = list(set(self.df_vae).intersection(self.df_ccle))
-        samples = list(set(self.df_vae.index).intersection(self.df_ccle.index))
+
+        samples = set(self.df_vae.index).intersection(self.df_ccle.index)
+        samples = list(samples.difference(self.samples_without_prot))
 
         # Correlation dataframe
         df_corrs = pd.DataFrame(
@@ -278,8 +246,8 @@ class ProteomicsBenchmark:
             notch=True,
             saturation=1.0,
             showcaps=False,
-            boxprops=dict(linewidth=0.5),
-            whiskerprops=dict(linewidth=0.5),
+            boxprops=dict(linewidth=0.5, facecolor="white", edgecolor="black"),
+            whiskerprops=dict(linewidth=0.5, color="black"),
             flierprops=dict(
                 marker="o",
                 markerfacecolor="black",
@@ -288,7 +256,7 @@ class ProteomicsBenchmark:
                 markeredgecolor="none",
                 alpha=0.6,
             ),
-            medianprops=dict(linestyle="-", linewidth=0.5),
+            medianprops=dict(linestyle="-", linewidth=0.5, color="#fc8d62"),
             ax=ax,
         )
 
@@ -320,7 +288,7 @@ class ProteomicsBenchmark:
                     extra_fields=dict(
                         sample=s,
                         outofsample="Out-of-sample"
-                        if s not in self.df_original.index
+                        if s in self.samples_without_prot
                         else "In-sample",
                     ),
                 )
@@ -332,6 +300,7 @@ class ProteomicsBenchmark:
             df_corrs.query("outofsample == 'In-sample'")["corr"],
             df_corrs.query("outofsample == 'Out-of-sample'")["corr"],
             equal_var=False,
+            nan_policy="omit",
         )
 
         print(
@@ -353,7 +322,7 @@ class ProteomicsBenchmark:
         )
 
         g.set(
-            title=f"Comparison VAE with CCLE (T-test p={ttest_stat[1]:.2e})",
+            title=f"Comparison VAE with CCLE\n(Welch's t-test p={ttest_stat[1]:.2e})",
             xlabel="Sample correlation (Pearson's r)",
             ylabel=f"Number of cell lines",
         )
@@ -362,7 +331,7 @@ class ProteomicsBenchmark:
             f"{plot_folder}/proteomics/{self.timestamp}_imputed_corr_with_vae_hist",
         )
 
-    def copy_number(self):
+    def copy_number(self, loss_events_list=None):
         # Color palette
         palette = dict(
             zip(
@@ -377,10 +346,10 @@ class ProteomicsBenchmark:
         loss_events = loss_events[loss_events.index.isin(self.df_vae.columns)]
 
         # Assemble dataframe
-        loss_events_list = [
-            ("SMAD4", "SMAD4"),
-            ("CTNNB1", "CTNNB1"),
-        ]
+        if loss_events_list is None:
+            loss_events_list = [
+                ("SMAD4", "SMAD4"),
+            ]
 
         for protein, cnv in loss_events_list:
             # protein, cnv = ("SMAD4", "SMAD4")

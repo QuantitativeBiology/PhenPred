@@ -16,6 +16,7 @@ import pandas as pd
 from PhenPred.vae import plot_folder
 from PhenPred.vae.Hypers import Hypers
 from PhenPred.vae.Train import CLinesTrain
+from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
 from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
@@ -35,18 +36,24 @@ if __name__ == "__main__":
     )
 
     # Train and predictions
-    # train.timestamp = "20230627_142712"
+    # train.timestamp = "20230627_232942"
     train = CLinesTrain(
         clines_db,
         hyperparameters,
         stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
     )
     train.run()
-    # train.predictions()
-    # train.save_model()
+
+    # Load imputed data
+    vae_imputed, vae_latent = train.load_vae_reconstructions(mode="nans_only")
+    mofa_imputed, mofa_latent = CLinesDatasetMOFA.load_reconstructions(
+        clines_db, mode="nans_only"
+    )
 
     # Run Latent Spaces Benchmark
-    latent_benchmark = LatentSpaceBenchmark(train.timestamp, clines_db)
+    latent_benchmark = LatentSpaceBenchmark(
+        train.timestamp, clines_db, vae_latent, mofa_latent
+    )
     latent_benchmark.plot_latent_spaces(
         markers=clines_db.get_features(
             dict(metabolomics=["1-methylnicotinamide"], proteomics=["VIM", "CDH1"])
@@ -54,16 +61,24 @@ if __name__ == "__main__":
     )
 
     # Run drug benchmark
-    dres_benchmark = DrugResponseBenchmark(train.timestamp, clines_db)
+    dres_benchmark = DrugResponseBenchmark(
+        train.timestamp, clines_db, vae_imputed, mofa_imputed
+    )
     dres_benchmark.run()
 
     # Run proteomics benchmark
-    proteomics_benchmark = ProteomicsBenchmark(train.timestamp, clines_db)
+    proteomics_benchmark = ProteomicsBenchmark(
+        train.timestamp, clines_db, vae_imputed, mofa_imputed
+    )
     proteomics_benchmark.run()
+    proteomics_benchmark.copy_number([("SMAD4", "SMAD4")])
 
     # Run CRISPR benchmark
-    crispr_benchmark = CRISPRBenchmark(train.timestamp, clines_db)
+    crispr_benchmark = CRISPRBenchmark(
+        train.timestamp, clines_db, vae_imputed, mofa_imputed
+    )
     crispr_benchmark.run()
+    crispr_benchmark.copy_number([("BRAF", "MAPK1", "BRAF_mut")])
 
     # Write the hyperparameters to json file
     json.dump(

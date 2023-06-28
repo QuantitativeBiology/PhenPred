@@ -5,7 +5,6 @@ import pandas as pd
 import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from datetime import datetime
 from scipy.stats import zscore
 from PhenPred.Utils import scale
 from torch.utils.data import Dataset

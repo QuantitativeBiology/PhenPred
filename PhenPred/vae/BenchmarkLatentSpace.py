@@ -7,22 +7,19 @@ import matplotlib.pyplot as plt
 from natsort import natsorted
 from PhenPred import PALETTE_TTYPE
 from PhenPred.vae.PlotUtils import GIPlot
-from sklearn.metrics import mean_squared_error
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 
 
 class LatentSpaceBenchmark:
-    def __init__(self, timestamp, data):
+    def __init__(self, timestamp, data, latent_space, mofa=None):
         self.data = data
         self.timestamp = timestamp
 
-        self.mofa_db = CLinesDatasetMOFA()
+        self.latent_space = latent_space
 
-        self.latent_space = pd.read_csv(
-            f"{plot_folder}/files/{self.timestamp}_latent_joint.csv.gz", index_col=0
-        )
+        self.mofa = mofa
 
         self.ss = data.samplesheet.copy()
 
@@ -30,16 +27,7 @@ class LatentSpaceBenchmark:
             f"{data_folder}/samplesheet_cancercell.csv", index_col=0
         )
 
-        if "proteomics" in self.data.dfs:
-            covariates_prot = self.data.dfs["proteomics"][["CDH1", "VIM"]].add_suffix(
-                "_prot"
-            )
-
-        if "transcriptomics" in self.data.dfs:
-            covariates_trans = self.data.dfs["transcriptomics"][
-                ["CDH1", "VIM"]
-            ].add_suffix("_gexp")
-
+        # Import novel drug response data
         self.df_drug_novel = pd.read_csv(
             f"{data_folder}/GDSC_fitted_dose_response_24Jul22_IC50.csv",
             index_col=0,
@@ -57,6 +45,17 @@ class LatentSpaceBenchmark:
                 for d in self.df_drug_novel.index
             }
         ).astype(float)
+
+        # Define covariates
+        if "proteomics" in self.data.dfs:
+            covariates_prot = self.data.dfs["proteomics"][["CDH1", "VIM"]].add_suffix(
+                "_prot"
+            )
+
+        if "transcriptomics" in self.data.dfs:
+            covariates_trans = self.data.dfs["transcriptomics"][
+                ["CDH1", "VIM"]
+            ].add_suffix("_gexp")
 
         self.covariates = pd.concat(
             [
@@ -118,8 +117,8 @@ class LatentSpaceBenchmark:
         )
 
     def correlate_mofa_factors(self, latents_corr):
-        factors = self.mofa_db.factors
-        variance = self.mofa_db.rsquare
+        factors = self.mofa["factors"]
+        variance = self.mofa["rsquare"]
 
         latents = self.latent_space
         covs = latents_corr.copy()
@@ -390,7 +389,7 @@ class LatentSpaceBenchmark:
             y="UMAP_2",
             hue="tissue",
             palette=PALETTE_TTYPE,
-            alpha=0.95,
+            alpha=0.75,
             ax=ax,
         )
         ax.set(

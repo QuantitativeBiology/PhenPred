@@ -19,13 +19,12 @@ from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 
 
 class DrugResponseBenchmark:
-    def __init__(self, timestamp, data):
+    def __init__(self, timestamp, data, vae_imputed, mofa_imputed):
         self.timestamp = timestamp
 
         self.data = data
-
-        # Import MOFA dataset
-        self.mofa_db = CLinesDatasetMOFA()
+        self.vae_imputed = vae_imputed
+        self.mofa_imputed = mofa_imputed
 
         # New drug response values
         self.drugresponse_new = pd.read_csv(
@@ -33,10 +32,7 @@ class DrugResponseBenchmark:
         ).T
 
         # Fully imputed autoencoder dataset
-        self.drugresponse_vae = pd.read_csv(
-            f"{plot_folder}/files/{self.timestamp}_imputed_drugresponse.csv.gz",
-            index_col=0,
-        )
+        self.drugresponse_vae = self.vae_imputed["drugresponse"]
 
         # Mean imputed dataset
         self.drugresponse_mean = self.data.dfs["drugresponse"].fillna(
@@ -53,7 +49,7 @@ class DrugResponseBenchmark:
             set(self.data.dfs["drugresponse"].index)
             .intersection(set(self.drugresponse_new.index))
             .intersection(set(self.drugresponse_vae.index))
-            .intersection(set(self.mofa_db.imputed["drugresponse"].index))
+            .intersection(set(self.mofa_imputed["drugresponse"].index))
             .intersection(set(self.drugresponse_mean.index))
         )
         self.samples = list(self.samples)
@@ -63,7 +59,7 @@ class DrugResponseBenchmark:
             set(self.data.dfs["drugresponse"].columns)
             .intersection(set(self.drugresponse_new.columns))
             .intersection(set(self.drugresponse_vae.columns))
-            .intersection(set(self.mofa_db.imputed["drugresponse"].columns))
+            .intersection(set(self.mofa_imputed["drugresponse"].columns))
             .intersection(set(self.drugresponse_mean.columns))
         )
         self.features = list(self.features)
@@ -88,7 +84,7 @@ class DrugResponseBenchmark:
         df_new_values = pd.concat(
             [
                 df_new_values.rename("original"),
-                self.mofa_db.imputed["drugresponse"]
+                self.mofa_imputed["drugresponse"]
                 .unstack()
                 .loc[df_new_values.index]
                 .rename("MOFA"),
@@ -105,25 +101,49 @@ class DrugResponseBenchmark:
         for y_var in ["MOFA", "mean", "VAE"]:
             plot_df = df_new_values[["original", y_var]].dropna()
 
-            _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
+            _, ax = plt.subplots(1, 1, figsize=(2.5, 2.5), dpi=600)
 
             sns.scatterplot(
                 data=plot_df,
                 x="original",
                 y=y_var,
-                alpha=0.75,
+                s=1.5,
+                alpha=0.50,
                 color="#656565",
+                linewidth=0.1,
                 ax=ax,
             )
-            sns.regplot(
+
+            sns.kdeplot(
                 data=plot_df,
-                x=plot_df["original"],
-                y=plot_df[y_var],
-                scatter=False,
-                color="#F2C500",
-                truncate=True,
+                x="original",
+                y=y_var,
+                levels=5,
+                color="#fc8d62",
+                linewidths=0.5,
                 ax=ax,
             )
+
+            # sns.regplot(
+            #     data=plot_df,
+            #     x="original",
+            #     y=y_var,
+            #     line_kws={"color": "#fc8d62", "linewidth": 0.5},
+            #     scatter=False,
+            #     truncate=True,
+            #     ax=ax,
+            # )
+
+            # same axes limits and step sizes
+            ax_min, ax_max = (
+                min(plot_df["original"].min(), plot_df[y_var].min()),
+                max(plot_df["original"].max(), plot_df[y_var].max()),
+            )
+            ax.set_xlim([ax_min, ax_max])
+            ax.set_ylim([ax_min, ax_max])
+            ax.set_xticks(ax.get_yticks())
+            ax.set_yticks(ax.get_xticks())
+
             ax.set(
                 title=f"Drug response prediction (N={plot_df.shape[0]:,})",
                 xlabel="Measured (novel dataset)",
@@ -147,7 +167,7 @@ class DrugResponseBenchmark:
                     "method": y_var,
                 }
             )
-            annot_text = f"R={r:.2g}; Rho={s:.2g}; MSE={mse:.2f}"
+            annot_text = f"r={r:.2g}; rho={s:.2g}; MSE={mse:.2f}"
             ax.text(
                 0.95, 0.05, annot_text, fontsize=6, transform=ax.transAxes, ha="right"
             )
@@ -160,7 +180,7 @@ class DrugResponseBenchmark:
         plot_df = pd.DataFrame(corr_dict)
 
         for y_var in ["MSE", "Spearman's rho", "Pearson's r"]:
-            _, ax = plt.subplots(1, 1, figsize=(3, 1.5), dpi=600)
+            _, ax = plt.subplots(1, 1, figsize=(2, 1), dpi=600)
 
             sns.barplot(
                 data=plot_df,
@@ -168,7 +188,8 @@ class DrugResponseBenchmark:
                 y="method",
                 order=["VAE", "MOFA", "mean"],
                 orient="h",
-                color="#656565",
+                color="black",
+                saturation=0.8,
                 ax=ax,
             )
 
@@ -201,7 +222,7 @@ class DrugResponseBenchmark:
             drespo_vae = drespo_vae.loc[:, ~drespo_vae.columns.duplicated(keep="last")]
 
         # MOFA
-        drespo_mofa = self.mofa_db.predicted["drugresponse"].copy()
+        drespo_mofa = self.mofa_imputed["drugresponse"].copy()
         drespo_mofa.columns = [c.split(";")[1].upper() for c in drespo_mofa]
         if drop_duplicates:
             drespo_mofa = drespo_mofa.loc[
@@ -328,15 +349,14 @@ class DrugResponseBenchmark:
             data=df_corrs,
             x="corr",
             y="df",
-            color="#ababab",
             orient="h",
             linewidth=0.3,
             fliersize=1,
             notch=True,
             saturation=1.0,
             showcaps=False,
-            boxprops=dict(linewidth=0.5),
-            whiskerprops=dict(linewidth=0.5),
+            boxprops=dict(linewidth=0.5, facecolor="white", edgecolor="black"),
+            whiskerprops=dict(linewidth=0.5, color="black"),
             flierprops=dict(
                 marker="o",
                 markerfacecolor="black",
@@ -345,7 +365,7 @@ class DrugResponseBenchmark:
                 markeredgecolor="none",
                 alpha=0.6,
             ),
-            medianprops=dict(linestyle="-", linewidth=0.5),
+            medianprops=dict(linestyle="-", linewidth=0.5, color="#fc8d62"),
             ax=ax,
         )
 

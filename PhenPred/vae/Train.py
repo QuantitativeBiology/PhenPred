@@ -1,3 +1,5 @@
+from operator import index
+import os
 import torch
 import PhenPred
 import warnings
@@ -245,6 +247,56 @@ class CLinesTrain:
                     f"{plot_folder}/files/{self.timestamp}_latent_joint.csv.gz",
                     compression="gzip",
                 )
+
+    def load_vae_reconstructions(self, mode="nans_only"):
+        """
+        Load imputed data and latent space from files. "nans_only" mode, original
+        measurements are mantained and only NaNs are imputed. "all" mode all
+        data is imputed.
+
+        Parameters
+        ----------
+        mode : str, optional
+            Loading mode of imputed data, by default "nans_only"
+
+        Returns
+        -------
+        dict
+            Dictionary of imputed dataframes
+            pandas.DataFrame
+                Latent space
+
+        Raises
+        ------
+        ValueError
+            If mode is not "nans_only" or "all"
+
+        """
+
+        if mode not in ["nans_only", "all"]:
+            raise ValueError(f"Invalid mode {mode}")
+
+        # Load imputed data
+        dfs_imputed = {}
+        for n in self.data.dfs:
+            df_file = f"{plot_folder}/files/{self.timestamp}_imputed_{n}.csv.gz"
+
+            if not os.path.isfile(df_file):
+                continue
+
+            df_imputed = pd.read_csv(df_file, index_col=0)
+
+            if mode == "nans_only":
+                df_imputed = self.data.dfs[n].combine_first(df_imputed)
+
+            dfs_imputed[n] = df_imputed
+
+        # Load latent space
+        joint_latent = pd.read_csv(
+            f"{plot_folder}/files/{self.timestamp}_latent_joint.csv.gz", index_col=0
+        )
+
+        return dfs_imputed, joint_latent
 
     def register_loss(self, loss, extra_fields=None):
         r = {
