@@ -35,27 +35,43 @@ class CRISPRBenchmark:
         self.df_vae = self.vae_imputed["crisprcas9"]
 
         # Genomics
+        self.mutations = self.data.mutations.add_suffix("_mut")
+        self.deletions = (self.data.cnv == "Deletion").astype(int).add_suffix("_del")
+        self.amplitifications = (
+            (self.data.cnv == "Amplification").astype(int).add_suffix("_amp")
+        )
+        self.fusions = self.data.fusions.add_suffix("_fusion")
+        self.msi = self.labels["msi_status"]
+
         self.genomics = pd.concat(
             [
-                self.data.mutations.add_suffix("_mut"),
-                (self.data.cnv == "Deletion").astype(int).add_suffix("_del"),
-                (self.data.cnv == "Amplification").astype(int).add_suffix("_amp"),
+                self.mutations,
+                self.deletions,
+                self.amplitifications,
+                self.fusions,
+                self.msi,
             ],
             axis=1,
         )
+        self.genomics = self.genomics.loc[:, self.genomics.sum() >= self.min_obs]
 
         # Sample sheet
         self.ss = data.samplesheet.copy()
 
-    def run(self):
-        lm_genomics = self.genomic_associations(min_obs=self.min_obs)
-        lm_genomics.to_csv(
-            f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz",
-            compression="gzip",
-            index=False,
-        )
+    def run(self, run_associations=True):
+        if run_associations:
+            self.lm_genomics = self.genomic_associations()
+            self.lm_genomics.to_csv(
+                f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz",
+                compression="gzip",
+                index=False,
+            )
+        else:
+            self.lm_genomics = pd.read_csv(
+                f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz"
+            )
 
-        self.associations_scatter_pvals(lm_genomics)
+        self.associations_scatter_pvals(self.lm_genomics)
         self.gene_skew_correlation()
 
     def gene_skew_correlation(self):
@@ -157,7 +173,6 @@ class CRISPRBenchmark:
         )
 
         x = self.genomics.loc[samples].replace(np.nan, 0).astype(int)
-        x = x.loc[:, x.sum() >= self.min_obs]
 
         lm_genomics_vae = LModel(
             Y=self.df_vae.loc[samples, y_features],
@@ -179,7 +194,6 @@ class CRISPRBenchmark:
         )
 
         x = self.genomics.loc[samples].replace(np.nan, 0).astype(int)
-        x = x.loc[:, x.sum() >= self.min_obs]
 
         lm_genomics_orig = LModel(
             Y=self.df_original.loc[samples],

@@ -60,6 +60,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         self._import_mutations()
         self._import_cnv()
+        self._import_fusions()
         self._import_growth()
 
         self._build_labels()
@@ -82,7 +83,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         y = self.labels[idx]
         return x, y, x_nans
 
-    def _build_labels(self, genomic_n_min_obs=15):
+    def _build_labels(self, min_obs=15):
         # Tissue and cancer type
         tissue = pd.get_dummies(self.samplesheet["tissue"])
         cancer = pd.get_dummies(self.samplesheet["cancer_type"])
@@ -103,24 +104,30 @@ class CLinesDatasetDepMap23Q2(Dataset):
         )
 
         # Mutations
-        mutations = self.mutations.loc[:, self.mutations.sum() >= genomic_n_min_obs]
+        mutations = self.mutations.loc[:, self.mutations.sum() >= min_obs]
 
         # Copy number variations
-        cnv = self.cnv.replace(
-            dict(Deletion=-2, Loss=-1, Neutral=0, Gain=1, Amplification=2)
-        ).fillna(0)
-        cnv = cnv.loc[:, ((cnv == -2).sum() + (cnv == 2).sum()) > genomic_n_min_obs]
+        cnv_map = dict(Deletion=-2, Loss=-1, Neutral=0, Gain=1, Amplification=2)
+        cnv = self.cnv.replace(cnv_map).fillna(0)
+        cnv = cnv.loc[:, ((cnv == -2).sum() + (cnv == 2).sum()) > min_obs]
+
+        # Fusions
+        fusions = self.fusions.loc[:, self.fusions.sum() >= 5]
+
+        # MSI, Ploidy and mutational burden
+        msi = self.ss_cmp["msi_status"].replace({"MSS": 0, "MSI-H": 1}).astype(float)
+        mburden = self.ss_cmp[["ploidy_snp6", "ploidy_wes", "mutational_burden"]]
+        genetics = pd.concat(
+            [
+                msi,
+                zscore(mburden, nan_policy="omit"),
+            ],
+            axis=1,
+        )
 
         # Concatenate
         self.labels = pd.concat(
-            [
-                tissue,
-                cancer,
-                culture,
-                growth,
-                mutations,
-                cnv,
-            ],
+            [tissue, cancer, culture, growth, mutations, cnv, fusions, genetics],
             axis=1,
         )
         self.labels = self.labels.reindex(index=self.samples).fillna(0)
@@ -130,6 +137,24 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.labels_size = self.labels.shape[1]
 
         self.labels = torch.tensor(self.labels.values, dtype=torch.float)
+
+    def _import_fusions(self):
+        self.fusions = pd.read_csv(f"{data_folder}/Fusions_20221214.txt").assign(
+            value=1
+        )
+        self.fusions["fusions"] = (
+            self.fusions["gene_symbol_3prime"]
+            + "_"
+            + self.fusions["gene_symbol_5prime"]
+        )
+
+        self.fusions = pd.pivot_table(
+            self.fusions,
+            index="model_id",
+            columns="fusions",
+            values="value",
+            fill_value=0,
+        )
 
     def _import_mutations(self):
         self.mutations = (
@@ -191,16 +216,16 @@ class CLinesDatasetDepMap23Q2(Dataset):
         cols = ["model_id", "BROAD_ID", "tissue", "cancer_type"]
 
         # Import samplesheets
-        ss_cmp = pd.read_csv(f"{data_folder}/model_list_20230505.csv")
+        self.ss_cmp = pd.read_csv(f"{data_folder}/model_list_20230505.csv")
 
-        ss_depmap = pd.read_csv(f"{data_folder}/depmap23Q2/Model.csv")
-        ss_depmap.rename(columns=col_rename, inplace=True)
+        self.ss_depmap = pd.read_csv(f"{data_folder}/depmap23Q2/Model.csv")
+        self.ss_depmap.rename(columns=col_rename, inplace=True)
 
         # Map sample IDs to Sanger IDs
         self.samplesheet = pd.concat(
             [
-                ss_cmp[cols].dropna().assign(source="sanger"),
-                ss_depmap[cols].dropna().assign(source="broad"),
+                self.ss_cmp[cols].dropna().assign(source="sanger"),
+                self.ss_depmap[cols].dropna().assign(source="broad"),
             ]
         )
 
@@ -228,14 +253,14 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         # Growth properties
         self.samplesheet["growth_properties_sanger"] = (
-            ss_cmp.set_index("model_id")
+            self.ss_cmp.set_index("model_id")
             .reindex(self.samplesheet.index)["growth_properties"]
             .fillna("Unknown")
             .values
         )
 
         self.samplesheet["growth_properties_broad"] = (
-            ss_depmap.set_index("BROAD_ID")
+            self.ss_depmap.set_index("BROAD_ID")
             .reindex(self.samplesheet["BROAD_ID"])["GrowthPattern"]
             .fillna("Unknown")
             .values
