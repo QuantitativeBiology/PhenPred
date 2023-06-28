@@ -41,7 +41,7 @@ class CRISPRBenchmark:
             (self.data.cnv == "Amplification").astype(int).add_suffix("_amp")
         )
         self.fusions = self.data.fusions.add_suffix("_fusion")
-        self.msi = self.labels["msi_status"]
+        self.msi = self.data.labels["MSI"]
 
         self.genomics = pd.concat(
             [
