@@ -78,7 +78,14 @@ if __name__ == "__main__":
         train.timestamp, clines_db, vae_imputed, mofa_imputed
     )
     crispr_benchmark.run()
-    crispr_benchmark.copy_number([("BRAF", "MAPK1", "BRAF_mut")])
+    crispr_benchmark.plot_associations(
+        [
+            ("BRAF", "MAPK1", "BRAF_mut"),
+            ("FLI1", "TRIM8", "FLI1_EWSR1_fusion"),
+            ("KRAS", "RAF1", "KRAS_mut"),
+            ("NRAS", "SHOC2", "NRAS_mut"),
+        ]
+    )
 
     # Write the hyperparameters to json file
     json.dump(
