@@ -119,7 +119,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         # Concatenate
         self.labels = pd.concat(
-            [tissue, cancer, culture, growth, mutations, cnv, fusions, msi],
+            [tissue, cancer, cancer, mutations, cnv, fusions, msi],
             axis=1,
         )
         self.labels = self.labels.reindex(index=self.samples).fillna(0)
