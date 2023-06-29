@@ -43,7 +43,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
             self.dfs["copynumber"] = self.dfs["copynumber"].dropna(how="all", axis=1)
 
         if "crisprcas9" in self.dfs:
-            self.dfs["crisprcas9"] = scale(self.dfs["crisprcas9"].T).T
+            # self.dfs["crisprcas9"] = scale(self.dfs["crisprcas9"].T).T
             self.dfs["crisprcas9"] = self.dfs["crisprcas9"].loc[
                 :, (self.dfs["crisprcas9"] < -0.5).sum() > 0
             ]
