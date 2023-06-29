@@ -43,14 +43,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
             self.dfs["copynumber"] = self.dfs["copynumber"].dropna(how="all", axis=1)
 
         if "crisprcas9" in self.dfs:
-            # self.dfs["crisprcas9"] = scale(self.dfs["crisprcas9"].T).T
+            self.dfs["crisprcas9"] = scale(self.dfs["crisprcas9"].T).T
             self.dfs["crisprcas9"] = self.dfs["crisprcas9"].loc[
                 :, (self.dfs["crisprcas9"] < -0.5).sum() > 0
-            ]
-
-        if "transcriptomics" in self.dfs:
-            self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
-                :, self.dfs["transcriptomics"].std() > 0.6
             ]
 
         self._build_samplesheet()
@@ -112,7 +107,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         cnv = cnv.loc[:, ((cnv == -2).sum() + (cnv == 2).sum()) > min_obs]
 
         # Fusions
-        fusions = self.fusions.loc[:, self.fusions.sum() >= 5]
+        fusions = self.fusions.loc[:, self.fusions.sum() >= 10]
 
         # MSI
         msi = self.ss_cmp["msi_status"].replace({"MSS": 0, "MSI": 1}).astype(float)

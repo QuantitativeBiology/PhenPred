@@ -106,6 +106,8 @@ class CLinesTrain:
         return cv
 
     def training(self, cv=None):
+        cv_idx, epoch = 0, 0
+
         cv = self.cv_strategy() if cv is None else cv
 
         for cv_idx, (train_idx, test_idx) in enumerate(cv, start=1):
