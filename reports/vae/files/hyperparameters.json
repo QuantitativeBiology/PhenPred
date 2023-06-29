@@ -13,7 +13,7 @@
     "batch_size": 32,
     "n_folds": 3,
     "latent_dim": 0.2,
-    "hidden_dims": [0.7],
+    "hidden_dims": [0.7, 0.4],
     "probability": 0.2,
     "w_kl": 0.01,
     "optimizer_type": "adam",

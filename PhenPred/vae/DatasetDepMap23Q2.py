@@ -48,6 +48,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 :, (self.dfs["crisprcas9"] < -0.5).sum() > 0
             ]
 
+        if "transcriptomics" in self.dfs:
+            self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
+                :, self.dfs["transcriptomics"].std() > 0.6
+            ]
+
         self._build_samplesheet()
         self._samples_union()
         self._remove_features_missing_values()
@@ -78,7 +83,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         y = self.labels[idx]
         return x, y, x_nans
 
-    def _build_labels(self, min_obs=15):
+    def _build_labels(self, min_obs=30):
         # Tissue and cancer type
         tissue = pd.get_dummies(self.samplesheet["tissue"])
         cancer = pd.get_dummies(self.samplesheet["cancer_type"])
