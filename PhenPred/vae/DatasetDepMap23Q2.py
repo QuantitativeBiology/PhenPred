@@ -270,6 +270,19 @@ class CLinesDatasetDepMap23Q2(Dataset):
             self.view_feature_names[n] = list(df.columns)
             self.view_names.append(n)
 
+    def process_df(self, df, with_mean=False, with_std=False):
+        scaler = StandardScaler(with_mean=with_mean, with_std=with_std)
+
+        x = scaler.fit_transform(df).round(self.decimals)
+
+        x_nan = ~np.isnan(x)
+
+        x[~x_nan] = np.nanmean(x)
+
+        x = torch.tensor(x, dtype=torch.float)
+
+        return x, scaler, x_nan
+
     def _samples_union(self):
         # Union samples
         self.samples = pd.concat(
@@ -292,17 +305,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 self.dfs[n] = self.dfs[n].loc[
                     :, self.dfs[n].isnull().mean() < self.feature_miss_rate_thres
                 ]
-
-    def process_df(self, df):
-        scaler = StandardScaler()
-        x = scaler.fit_transform(df).round(self.decimals)
-
-        x_nan = ~np.isnan(x)
-        x = np.nan_to_num(x, copy=False)
-
-        x = torch.tensor(x, dtype=torch.float)
-
-        return x, scaler, x_nan
 
     def n_samples_views(self):
         counts = (
