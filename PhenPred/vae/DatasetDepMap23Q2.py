@@ -83,7 +83,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         y = self.labels[idx]
         return x, y, x_nans
 
-    def _build_labels(self, min_obs=30):
+    def _build_labels(self, min_obs=15):
         # Tissue and cancer type
         tissue = pd.get_dummies(self.samplesheet["tissue"])
         cancer = pd.get_dummies(self.samplesheet["cancer_type"])
