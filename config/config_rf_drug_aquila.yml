@@ -1,6 +1,6 @@
 ---
 DATA:
-  dir: "/home/egoncalves/PhenPred/datasets"
+  dir: "/home/scai/PhenPred/datasets"
   min_count: 100
 
 ML:

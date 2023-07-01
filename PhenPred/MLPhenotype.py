@@ -8,7 +8,7 @@ import sys
 
 sys.path.extend([
 	"/Volumes/GoogleDrive-108722195023672559969/My Drive/Grants/2023 ERC STG/PhenPred",
-	"/home/egoncalves/PhenPred",
+	"/home/scai/PhenPred",
 ])
 
 import numpy as np

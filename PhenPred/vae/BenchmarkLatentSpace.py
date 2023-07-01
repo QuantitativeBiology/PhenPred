@@ -140,7 +140,7 @@ class LatentSpaceBenchmark:
         )
 
         # Clustermap
-        plot_df = corr.pivot("factor", "latent", "corr")
+        plot_df = corr.pivot(index="factor", columns="latent", values="corr")
         plot_df.columns = [f"L{l.split('_')[1]}" for l in plot_df.columns]
 
         x_order = natsorted(plot_df.columns)
@@ -373,7 +373,8 @@ class LatentSpaceBenchmark:
             n: pd.read_csv(
                 f"{plot_folder}/files/{self.timestamp}_latent_{n}.csv.gz", index_col=0
             )
-            for n in view_names + ["joint"]
+            # for n in view_names + ["joint"]
+            for n in ["joint"]
         }
 
         # Get UMAP projections
