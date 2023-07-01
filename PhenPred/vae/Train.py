@@ -18,16 +18,16 @@ from sklearn.model_selection import KFold, StratifiedKFold
 
 class CLinesTrain:
     def __init__(
-        self,
-        data,
-        hypers,
-        stratify_cv_by=None,
-        k=2,
-        init_temp=1.0,
-        decay_temp=1.0,
-        hard_gumbel=0,
-        min_temp=0.5,
-        decay_temp_rate=0.013862944,
+            self,
+            data,
+            hypers,
+            stratify_cv_by=None,
+            k=2,
+            init_temp=1.0,
+            decay_temp=1.0,
+            hard_gumbel=0,
+            min_temp=0.5,
+            decay_temp_rate=0.013862944,
     ):
         self.data = data
         self.losses = []
@@ -55,17 +55,19 @@ class CLinesTrain:
             views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
             hypers=self.hypers,
             k=self.k,
+            views_logits=self.hypers['views_logits'],
         )
         model = nn.DataParallel(model)
         model.to(self.device)
         return model
 
     def epoch(
-        self,
-        model,
-        optimizer,
-        dataloader,
-        record_losses=None,
+            self,
+            model,
+            optimizer,
+            dataloader,
+            record_losses=None,
+            epoch_num=None,
     ):
         for views, classes, views_nans in dataloader:
             views_nans = [~v for v in views_nans]
@@ -74,12 +76,25 @@ class CLinesTrain:
 
             with torch.set_grad_enabled(model.training):
                 out_net = model(views, self.gumbel_temp, self.hard_gumbel)
+                # if epoch_num is not None and epoch_num > 500:
+                #     w_rec = 1
+                #     w_gauss = 0.025
+                #     w_cat = 0.025
+                # else:
+                #     w_rec = 1
+                #     w_gauss = 0.0001
+                #     w_cat = 0.0001
+
+                w_rec = 1
+                w_gauss = 0.001
+                w_cat = 0.01
 
                 loss = CLinesLosses.unlabeled_loss(
                     views=views,
                     out_net=out_net,
                     views_mask=views_nans,
                     rec_type=self.hypers["reconstruction_loss"],
+                    w_rec=w_rec, w_gauss=w_gauss, w_cat=w_cat
                 )
 
                 if model.training:
@@ -94,11 +109,11 @@ class CLinesTrain:
 
     def cv_strategy(self):
         if self.stratify_cv_by is not None:
-            cv = StratifiedKFold(n_splits=self.hypers["n_folds"], shuffle=True).split(
+            cv = StratifiedKFold(n_splits=self.hypers["n_folds"], shuffle=True, random_state=42).split(
                 self.data, self.stratify_cv_by.reindex(self.data.samples)
             )
         else:
-            cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True).split(self.data)
+            cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True, random_state=42).split(self.data)
 
         return cv
 
@@ -133,6 +148,7 @@ class CLinesTrain:
                         epoch=epoch,
                         type="train",
                     ),
+                    epoch_num=epoch
                 )
 
                 model.eval()
@@ -145,6 +161,7 @@ class CLinesTrain:
                         epoch=epoch,
                         type="val",
                     ),
+                    epoch_num=epoch
                 )
 
                 self.print_losses(cv_idx, epoch)
@@ -171,12 +188,13 @@ class CLinesTrain:
         # Fine-tune model
         model = self.initialize_model()
         optimizer = CLinesLosses.get_optimizer(self.hypers, model)
-        for _ in range(1, self.hypers["num_epochs"] + 1):
+        for epoch in range(1, self.hypers["num_epochs"] + 1):
             model.train()
             self.epoch(
                 model,
                 optimizer,
                 data_all,
+                epoch_num=epoch
             )
 
         # Make predictions and latent spaces
@@ -197,7 +215,7 @@ class CLinesTrain:
                 latent_spaces["joint"] = pd.DataFrame(
                     out_net["z"].tolist(),
                     index=self.data.samples,
-                    columns=[f"Latent_{i+1}" for i in range(self.hypers["latent_dim"])],
+                    columns=[f"Latent_{i + 1}" for i in range(self.hypers["latent_dim"])],
                 )
 
                 # for name, view_z in zip(self.data.view_names, out_net["views_z"]):

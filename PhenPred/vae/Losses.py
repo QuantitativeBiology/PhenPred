@@ -12,7 +12,7 @@ from sklearn.model_selection import GridSearchCV
 class CLinesLosses:
 
     @classmethod
-    def unlabeled_loss(cls, views, out_net, views_mask=None, rec_type="mse"):
+    def unlabeled_loss(cls, views, out_net, views_mask=None, rec_type="mse", w_rec=1, w_gauss=0.01, w_cat=0.001):
         """
         Sourced from: https://github.com/jariasf/GMVAE/tree/master/pytorch
 
@@ -47,7 +47,9 @@ class CLinesLosses:
         loss_cat = -cls.entropy(logits, prob_cat) - np.log(0.1)
 
         # total loss
-        loss_total = loss_rec + loss_gauss + loss_cat
+        # loss_total = loss_rec + 0.01 * loss_gauss + 0.001 * loss_cat
+        # w_gauss = 0.0001 if loss_gauss < 2 else w_gauss
+        loss_total = w_rec * loss_rec + w_gauss * loss_gauss + w_cat * loss_cat
 
         # obtain predictions
         _, predicted_labels = torch.max(logits, dim=1)
@@ -147,18 +149,18 @@ class CLinesLosses:
 
     @classmethod
     def loss_function(
-        cls,
-        hypers,
-        views,
-        views_hat,
-        means,
-        log_variances,
-        z_joint,
-        views_nans=None,
-        covariates=None,
-        labels=None,
-        labels_hat=None,
-        z_pre=None,
+            cls,
+            hypers,
+            views,
+            views_hat,
+            means,
+            log_variances,
+            z_joint,
+            views_nans=None,
+            covariates=None,
+            labels=None,
+            labels_hat=None,
+            z_pre=None,
     ):
         # Compute reconstruction loss across views
         mse_loss, view_mse_loss = 0, {}
@@ -213,26 +215,26 @@ class CLinesLosses:
 
     @classmethod
     def class_mlp(
-        cls,
-        x,
-        y,
-        mode="pred",
-        param_grid={
-            "hidden_layer_sizes": [(50,), (50, 40), (50, 40, 31)],
-            "activation": ["sigmoid", "logistic", "tanh", "relu"],
-            "alpha": [1e-5, 1e-4, 1e-3, 1e-2, 0.1],
-            "learning_rate": ["constant", "adaptive"],
-            "solver": ["sgd", "adam"],
-            "max_iter": [500, 1000, 2500, 3000],
-        },
-        params={
-            "activation": "logistic",
-            "alpha": 0.0001,
-            "hidden_layer_sizes": (50,),
-            "learning_rate": "adaptive",
-            "max_iter": 500,
-            "solver": "adam",
-        },
+            cls,
+            x,
+            y,
+            mode="pred",
+            param_grid={
+                "hidden_layer_sizes": [(50,), (50, 40), (50, 40, 31)],
+                "activation": ["sigmoid", "logistic", "tanh", "relu"],
+                "alpha": [1e-5, 1e-4, 1e-3, 1e-2, 0.1],
+                "learning_rate": ["constant", "adaptive"],
+                "solver": ["sgd", "adam"],
+                "max_iter": [500, 1000, 2500, 3000],
+            },
+            params={
+                "activation": "logistic",
+                "alpha": 0.0001,
+                "hidden_layer_sizes": (50,),
+                "learning_rate": "adaptive",
+                "max_iter": 500,
+                "solver": "adam",
+            },
     ):
         if mode == "grid":
             mlp = MLPClassifier()

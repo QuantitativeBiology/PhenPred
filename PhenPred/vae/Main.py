@@ -35,7 +35,7 @@ if __name__ == "__main__":
     )
 
     # Train and predictions
-    # train.timestamp = "2023-06-08_12:56:58"
+    # train.timestamp = "2023-06-08_12:56:58    "
     heam_lines = "Haematopoietic and Lymphoid"
     heam_lines = (
         (clines_db.samplesheet["tissue"] == heam_lines)
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         .astype(int)
     )
 
-    train = CLinesTrain(clines_db, hyperparameters, stratify_cv_by=heam_lines, k=5)
+    train = CLinesTrain(clines_db, hyperparameters, stratify_cv_by=heam_lines, k=50)
     train.run()
 
     # Run Latent Spaces Benchmark
