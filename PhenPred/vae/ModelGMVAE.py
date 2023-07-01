@@ -59,8 +59,7 @@ class CLinesGMVAE(nn.Module):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
                 # layers.append(nn.BatchNorm1d(layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hypers["probability"]))
-                if i != len(layer_sizes) - 1:
-                    layers.append(self.hypers["activation_function"])
+                layers.append(self.hypers["activation_function"])
 
             self.encoders.append(nn.Sequential(*layers))
 
@@ -86,9 +85,15 @@ class CLinesGMVAE(nn.Module):
         # Decoders
         self.decoders = nn.ModuleList()
         for n in self.views_sizes:
-            layer_sizes = [self.hypers["latent_dim"]] + [
-                int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
-            ]
+            if self.views_logits > 1:
+                layer_sizes = [self.hypers["latent_dim"]] + [self.views_logits * len(self.views_sizes)] + [
+                    int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
+                ]
+            else:
+                layer_sizes = [self.hypers["latent_dim"]] + [
+                    sum([int(self.views_logits * self.views_sizes[n]) for n in self.views_sizes])] + [
+                                  int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
+                              ]
 
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):

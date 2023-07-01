@@ -47,7 +47,7 @@ class CLinesTrain:
         self.gumbel_temp = self.init_temp
 
     def run(self):
-        self.training()
+        # self.training()
         self.predictions()
 
     def initialize_model(self):
@@ -87,7 +87,7 @@ class CLinesTrain:
 
                 w_rec = 1
                 w_gauss = 0.001
-                w_cat = 0.01
+                w_cat = 0.001
 
                 loss = CLinesLosses.unlabeled_loss(
                     views=views,
