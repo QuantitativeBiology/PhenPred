@@ -7,7 +7,7 @@ from PhenPred.vae.Layers import BottleNeck, Gaussian, JointInference
 
 class CLinesGMVAE(nn.Module):
     def __init__(
-        self, hypers, views_sizes, k=2, views_logits=128, hidden_size=256
+        self, hypers, views_sizes, k=50, views_logits=256, hidden_size=512
     ) -> None:
         super().__init__()
 
@@ -17,25 +17,18 @@ class CLinesGMVAE(nn.Module):
         self.views_logits = views_logits
         self.hidden_size = hidden_size
 
+        self.y_mu = nn.Linear(self.k, self.hypers["latent_dim"])
+        self.y_var = nn.Linear(self.k, self.hypers["latent_dim"])
+
         self._build()
 
         print(f"# ---- CLinesGMVAE: k={self.k}")
         self.total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         print(f"Total parameters: {self.total_params:,d}")
+        print(self)
+        
 
     def _build(self):
-        # Group Bottleneck
-        if self.hypers["n_groups"] is not None:
-            self.groups = nn.ModuleList()
-            for n in self.views_sizes:
-                self.groups.append(
-                    BottleNeck(
-                        self.views_sizes[n],
-                        self.hypers["n_groups"],
-                        self.hypers["activation_function"],
-                    )
-                )
-
         # Encoders
         self.encoders = nn.ModuleList()
         for n in self.views_sizes:
@@ -47,7 +40,7 @@ class CLinesGMVAE(nn.Module):
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-                layers.append(nn.BatchNorm1d(layer_sizes[i]))
+                # layers.append(nn.BatchNorm1d(layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.hypers["activation_function"])
 
@@ -61,9 +54,6 @@ class CLinesGMVAE(nn.Module):
             hidden_size=self.hidden_size,
         )
 
-        # p(z|y)
-        self.pzy = Gaussian(self.k, self.hypers["latent_dim"])
-
         # Decoders
         self.decoders = nn.ModuleList()
         for n in self.views_sizes:
@@ -74,7 +64,7 @@ class CLinesGMVAE(nn.Module):
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-                layers.append(nn.BatchNorm1d(layer_sizes[i]))
+                # layers.append(nn.BatchNorm1d(layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.hypers["activation_function"])
 
@@ -83,12 +73,14 @@ class CLinesGMVAE(nn.Module):
 
             self.decoders.append(nn.Sequential(*layers))
 
-    def forward(self, views, temperature=1.0, hard=0):
-        # Group Bottleneck
-        if self.hypers["n_groups"] is not None:
-            for i, n in enumerate(self.views_sizes):
-                views[n] = self.groups[i](views[n])
 
+    def pzy(self, y):
+        y_mu = self.y_mu(y)
+        y_var = F.softplus(self.y_var(y))
+        return y_mu, y_var
+    
+
+    def forward(self, views, temperature=1.0, hard=0):
         # Encoders
         views_logits = [
             self.encoders[i](views[i]) for i, _ in enumerate(self.views_sizes)
@@ -100,7 +92,7 @@ class CLinesGMVAE(nn.Module):
         )
 
         # p(z|y)
-        y_mu, y_var, _ = self.pzy(y)
+        y_mu, y_var = self.pzy(y)
 
         # Decoders
         views_hat = []
