@@ -16,7 +16,7 @@
     "batch_size": 100,
     "n_folds": 3,
     "latent_dim": 0.05,
-    "hidden_dims": [0.7],
+    "hidden_dims": [0.5],
     "probability": 0.4,
     "w_kl": 0.001,
     "views_logits": 256,
