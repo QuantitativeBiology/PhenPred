@@ -41,10 +41,10 @@ class CLinesTrain:
         self.early_stop_patience = early_stop_patience
 
     def run(self):
-        self.training()
+        # self.training()
 
-        losses_df = self.save_losses()
-        self.plot_losses(losses_df)
+        # losses_df = self.save_losses()
+        # self.plot_losses(losses_df)
 
         self.predictions()
 
@@ -91,18 +91,22 @@ class CLinesTrain:
     def cv_strategy(self, shuffle_split=False):
         if shuffle_split and self.stratify_cv_by is not None:
             cv = StratifiedShuffleSplit(
-                n_splits=self.hypers["n_folds"], test_size=0.1, random_state=42,
+                n_splits=self.hypers["n_folds"],
+                test_size=0.1,
+                random_state=42,
             ).split(self.data, self.stratify_cv_by.reindex(self.data.samples))
         elif shuffle_split:
-            cv = ShuffleSplit(n_splits=self.hypers["n_folds"], test_size=0.1, random_state=42).split(
-                self.data
-            )
+            cv = ShuffleSplit(
+                n_splits=self.hypers["n_folds"], test_size=0.1, random_state=42
+            ).split(self.data)
         elif self.stratify_cv_by is not None:
-            cv = StratifiedKFold(n_splits=self.hypers["n_folds"], shuffle=True, random_state=42).split(
-                self.data, self.stratify_cv_by.reindex(self.data.samples)
-            )
+            cv = StratifiedKFold(
+                n_splits=self.hypers["n_folds"], shuffle=True, random_state=42
+            ).split(self.data, self.stratify_cv_by.reindex(self.data.samples))
         else:
-            cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True, random_state=42).split(self.data)
+            cv = KFold(
+                n_splits=self.hypers["n_folds"], shuffle=True, random_state=42
+            ).split(self.data)
 
         return cv
 
@@ -449,6 +453,7 @@ class CLinesTrain:
                 f"{plot_folder}/losses/{self.timestamp}_{prefix}_losses"
             )
 
+
 class CLinesTrainGMVAE(CLinesTrain):
     def __init__(
         self,
@@ -485,7 +490,10 @@ class CLinesTrainGMVAE(CLinesTrain):
             views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
             hypers=self.hypers,
             k=self.k,
-            views_logits=self.hypers['views_logits'],
+            views_logits=self.hypers["views_logits"],
+            conditional_size=self.data.labels.shape[1]
+            if self.hypers["use_conditional"]
+            else 0,
         )
         model = nn.DataParallel(model)
         model.to(self.device)
@@ -506,7 +514,7 @@ class CLinesTrainGMVAE(CLinesTrain):
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(model.training):
-                out_net = model(x, self.gumbel_temp, self.hard_gumbel)
+                out_net = model(x, self.gumbel_temp, self.hard_gumbel, y)
                 w_rec = 1
                 w_gauss = 0.001
                 w_cat = 0.001
@@ -516,7 +524,9 @@ class CLinesTrainGMVAE(CLinesTrain):
                     out_net=out_net,
                     views_mask=x_nans,
                     rec_type=self.hypers["reconstruction_loss"],
-                    w_rec=w_rec, w_gauss=w_gauss, w_cat=w_cat
+                    w_rec=w_rec,
+                    w_gauss=w_gauss,
+                    w_cat=w_cat,
                 )
 
                 if model.training:
@@ -555,7 +565,7 @@ class CLinesTrainGMVAE(CLinesTrain):
         self.model.eval()
         with torch.no_grad():
             for x, y, _ in data_all:
-                out_net = self.model(x)
+                out_net = self.model(x, self.gumbel_temp, self.hard_gumbel, y)
                 x_hat = out_net["views_hat"]
                 z = out_net["z"]
                 for name, df in zip(self.data.view_names, x_hat):

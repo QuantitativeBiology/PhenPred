@@ -7,7 +7,13 @@ from PhenPred.vae.Layers import BottleNeck, Gaussian, JointInference
 
 class CLinesGMVAE(nn.Module):
     def __init__(
-        self, hypers, views_sizes, k=50, views_logits=256, hidden_size=512
+        self,
+        hypers,
+        views_sizes,
+        k=50,
+        views_logits=256,
+        hidden_size=512,
+        conditional_size=0,
     ) -> None:
         super().__init__()
 
@@ -16,6 +22,7 @@ class CLinesGMVAE(nn.Module):
         self.views_sizes = views_sizes
         self.views_logits = views_logits
         self.hidden_size = hidden_size
+        self.conditional_size = conditional_size
 
         self.y_mu = nn.Linear(self.k, self.hypers["latent_dim"])
         self.y_var = nn.Linear(self.k, self.hypers["latent_dim"])
@@ -26,14 +33,13 @@ class CLinesGMVAE(nn.Module):
         self.total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         print(f"Total parameters: {self.total_params:,d}")
         print(self)
-        
 
     def _build(self):
         # Encoders
         self.encoders = nn.ModuleList()
         for n in self.views_sizes:
             layer_sizes = (
-                [self.views_sizes[n]]
+                [self.views_sizes[n] + self.conditional_size]
                 + [int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"]]
                 + [self.views_logits]
             )
@@ -57,7 +63,7 @@ class CLinesGMVAE(nn.Module):
         # Decoders
         self.decoders = nn.ModuleList()
         for n in self.views_sizes:
-            layer_sizes = [self.hypers["latent_dim"]] + [
+            layer_sizes = [self.hypers["latent_dim"] + self.conditional_size] + [
                 int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
             ]
 
@@ -73,18 +79,22 @@ class CLinesGMVAE(nn.Module):
 
             self.decoders.append(nn.Sequential(*layers))
 
-
     def pzy(self, y):
         y_mu = self.y_mu(y)
         y_var = F.softplus(self.y_var(y))
         return y_mu, y_var
-    
 
-    def forward(self, views, temperature=1.0, hard=0):
+    def forward(self, views, temperature=1.0, hard=0, conditionals=None):
         # Encoders
-        views_logits = [
-            self.encoders[i](views[i]) for i, _ in enumerate(self.views_sizes)
-        ]
+        if self.conditional_size == 0:
+            views_logits = [
+                self.encoders[i](views[i]) for i, _ in enumerate(self.views_sizes)
+            ]
+        else:
+            views_logits = [
+                self.encoders[i](torch.cat((views[i], conditionals), dim=1))
+                for i, _ in enumerate(self.views_sizes)
+            ]
 
         # Joint Inference
         z_mu, z_var, z, y_logits, y_prob, y = self.joint_inference(
@@ -96,8 +106,12 @@ class CLinesGMVAE(nn.Module):
 
         # Decoders
         views_hat = []
-        for i, n in enumerate(self.views_sizes):
-            views_hat.append(self.decoders[i](z))
+        if self.conditional_size == 0:
+            for i, n in enumerate(self.views_sizes):
+                views_hat.append(self.decoders[i](z))
+        else:
+            for i, n in enumerate(self.views_sizes):
+                views_hat.append(self.decoders[i](torch.cat((z, conditionals), dim=1)))
 
         return dict(
             views_hat=views_hat,
