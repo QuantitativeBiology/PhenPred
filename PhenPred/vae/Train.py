@@ -41,10 +41,10 @@ class CLinesTrain:
         self.early_stop_patience = early_stop_patience
 
     def run(self):
-        # self.training()
+        self.training()
 
-        # losses_df = self.save_losses()
-        # self.plot_losses(losses_df)
+        losses_df = self.save_losses()
+        self.plot_losses(losses_df)
 
         self.predictions()
 

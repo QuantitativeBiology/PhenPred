@@ -33,24 +33,25 @@ if __name__ == "__main__":
         label=hyperparameters["label"],
         datasets=hyperparameters["datasets"],
         feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
-        standardize=hyperparameters["standardize"] if "standardize" in hyperparameters else False,
+        standardize=hyperparameters["standardize"],
     )
 
     # Train and predictions
     # train.timestamp = "20230627_232942"
-    if "model" not in hyperparameters or hyperparameters["model"] == "MOVE":
+    if hyperparameters["model"] == "GMVAE":
+        train = CLinesTrainGMVAE(
+            clines_db,
+            hyperparameters,
+            stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
+            k=100,
+        )
+    else:
         train = CLinesTrain(
             clines_db,
             hyperparameters,
             stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
         )
-    elif hyperparameters["model"] == "GMVAE":
-        train = CLinesTrainGMVAE(
-            clines_db,
-            hyperparameters,
-            stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
-            k=100
-        )
+
     train.run()
 
     # Load imputed data
