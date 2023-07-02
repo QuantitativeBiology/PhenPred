@@ -9,6 +9,7 @@
         "transcriptomics": "depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv"
     },
     "model": "GMVAE",
+    "standardize": true,
     "num_epochs": 250,
     "learning_rate": 4e-4,
     "batch_size": 100,
