@@ -17,6 +17,12 @@ class Hypers:
 
         hypers = cls.read_json(hypers_json)
 
+        if "model" not in hypers:
+            hypers["model"] = "MOVE"
+
+        if "standardize" not in hypers:
+            hypers["standardize"] = False
+
         hypers["datasets"] = {
             k: f"{data_folder}/{v}" for k, v in hypers["datasets"].items()
         }
