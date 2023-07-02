@@ -4,7 +4,7 @@
 import os
 import sys
 
-proj_dir = "/home/egoncalves/PhenPred"
+proj_dir = "/home/scai/PhenPred"
 if not os.path.exists(proj_dir):
     proj_dir = "/Users/emanuel/Projects/PhenPred"
 sys.path.extend([proj_dir])
@@ -15,7 +15,7 @@ import argparse
 import pandas as pd
 from PhenPred.vae import plot_folder
 from PhenPred.vae.Hypers import Hypers
-from PhenPred.vae.Train import CLinesTrain
+from PhenPred.vae.Train import CLinesTrain, CLinesTrainGMVAE
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
@@ -33,15 +33,24 @@ if __name__ == "__main__":
         label=hyperparameters["label"],
         datasets=hyperparameters["datasets"],
         feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
+        standardize=hyperparameters["standardize"] if "standardize" in hyperparameters else False,
     )
 
     # Train and predictions
     # train.timestamp = "20230627_232942"
-    train = CLinesTrain(
-        clines_db,
-        hyperparameters,
-        stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
-    )
+    if "model" not in hyperparameters or hyperparameters["model"] == "MOVE":
+        train = CLinesTrain(
+            clines_db,
+            hyperparameters,
+            stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
+        )
+    elif hyperparameters["model"] == "GMVAE":
+        train = CLinesTrainGMVAE(
+            clines_db,
+            hyperparameters,
+            stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
+            k=100
+        )
     train.run()
 
     # Load imputed data

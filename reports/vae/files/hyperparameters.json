@@ -6,16 +6,22 @@
 	"proteomics": "proteomics.csv",
         "metabolomics": "metabolomics.csv",
         "drugresponse": "drugresponse.csv",
-        "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv"
+        "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv",
+        "methylation": "methylation.csv",
+        "transcriptomics": "depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv"
     },
-    "num_epochs": 250,
+    "model": "GMVAE",
+    "standardize": true,
+    "num_epochs": 500,
     "learning_rate": 4e-4,
-    "batch_size": 32,
+    "use_conditional": true,
+    "batch_size": 100,
     "n_folds": 3,
-    "latent_dim": 0.2,
-    "hidden_dims": [0.7, 0.4],
-    "probability": 0.2,
-    "w_kl": 0.01,
+    "latent_dim": 50,
+    "hidden_dims": [0.7],
+    "probability": 0.4,
+    "w_kl": 0.001,
+    "views_logits": 256,
     "optimizer_type": "adam",
     "w_decay": 5e-4,
     "reconstruction_loss": "mse",
@@ -25,6 +31,6 @@
     "scheduler": "plateau",
     "scheduler_threshold": 1e-4,
     "scheduler_factor": 0.65,
-    "scheduler_patience": 5,
-    "scheduler_min_lr": 1e-6
+    "scheduler_patience": 20,
+    "scheduler_min_lr": 5e-6
 }

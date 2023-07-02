@@ -12,6 +12,7 @@ from tqdm import tqdm
 from datetime import datetime
 from PhenPred.vae import plot_folder
 from PhenPred.vae.Model import MOVE
+from PhenPred.vae.ModelGMVAE import CLinesGMVAE
 from torch.utils.data import DataLoader
 from PhenPred.vae.Losses import CLinesLosses
 from sklearn.model_selection import (
@@ -40,10 +41,10 @@ class CLinesTrain:
         self.early_stop_patience = early_stop_patience
 
     def run(self):
-        self.training()
+        # self.training()
 
-        losses_df = self.save_losses()
-        self.plot_losses(losses_df)
+        # losses_df = self.save_losses()
+        # self.plot_losses(losses_df)
 
         self.predictions()
 
@@ -90,18 +91,22 @@ class CLinesTrain:
     def cv_strategy(self, shuffle_split=False):
         if shuffle_split and self.stratify_cv_by is not None:
             cv = StratifiedShuffleSplit(
-                n_splits=self.hypers["n_folds"], test_size=0.1
+                n_splits=self.hypers["n_folds"],
+                test_size=0.1,
+                random_state=42,
             ).split(self.data, self.stratify_cv_by.reindex(self.data.samples))
         elif shuffle_split:
-            cv = ShuffleSplit(n_splits=self.hypers["n_folds"], test_size=0.1).split(
-                self.data
-            )
+            cv = ShuffleSplit(
+                n_splits=self.hypers["n_folds"], test_size=0.1, random_state=42
+            ).split(self.data)
         elif self.stratify_cv_by is not None:
-            cv = StratifiedKFold(n_splits=self.hypers["n_folds"], shuffle=True).split(
-                self.data, self.stratify_cv_by.reindex(self.data.samples)
-            )
+            cv = StratifiedKFold(
+                n_splits=self.hypers["n_folds"], shuffle=True, random_state=42
+            ).split(self.data, self.stratify_cv_by.reindex(self.data.samples))
         else:
-            cv = KFold(n_splits=self.hypers["n_folds"], shuffle=True).split(self.data)
+            cv = KFold(
+                n_splits=self.hypers["n_folds"], shuffle=True, random_state=42
+            ).split(self.data)
 
         return cv
 
@@ -447,3 +452,140 @@ class CLinesTrain:
             PhenPred.save_figure(
                 f"{plot_folder}/losses/{self.timestamp}_{prefix}_losses"
             )
+
+
+class CLinesTrainGMVAE(CLinesTrain):
+    def __init__(
+        self,
+        data,
+        hypers,
+        stratify_cv_by=None,
+        early_stop_patience=80,
+        k=50,
+        init_temp=1.0,
+        decay_temp=1.0,
+        hard_gumbel=0,
+        min_temp=0.5,
+        decay_temp_rate=0.013862944,
+    ):
+        super().__init__(
+            data,
+            hypers,
+            stratify_cv_by,
+            early_stop_patience,
+        )
+
+        self.k = k
+
+        # gumbel
+        self.init_temp = init_temp
+        self.decay_temp = decay_temp
+        self.hard_gumbel = hard_gumbel
+        self.min_temp = min_temp
+        self.decay_temp_rate = decay_temp_rate
+        self.gumbel_temp = self.init_temp
+
+    def initialize_model(self):
+        model = CLinesGMVAE(
+            views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
+            hypers=self.hypers,
+            k=self.k,
+            views_logits=self.hypers["views_logits"],
+            conditional_size=self.data.labels.shape[1]
+            if self.hypers["use_conditional"]
+            else 0,
+        )
+        model = nn.DataParallel(model)
+        model.to(self.device)
+        return model
+
+    def epoch(
+        self,
+        model,
+        optimizer,
+        dataloader,
+        record_losses=None,
+    ):
+        for x, y, x_nans in dataloader:
+            x = [i.to(self.device) for i in x]
+            x_nans = [i.to(self.device) for i in x_nans]
+            y = y.to(self.device)
+
+            optimizer.zero_grad()
+
+            with torch.set_grad_enabled(model.training):
+                out_net = model(x, self.gumbel_temp, self.hard_gumbel, y)
+                w_rec = 1
+                w_gauss = 0.001
+                w_cat = 0.001
+
+                loss = CLinesLosses.unlabeled_loss(
+                    views=x,
+                    out_net=out_net,
+                    views_mask=x_nans,
+                    rec_type=self.hypers["reconstruction_loss"],
+                    w_rec=w_rec,
+                    w_gauss=w_gauss,
+                    w_cat=w_cat,
+                )
+
+                if model.training:
+                    loss["total"].backward()
+                    optimizer.step()
+
+            if record_losses is not None:
+                self.register_loss(
+                    loss,
+                    record_losses,
+                )
+
+    def predictions(self, n_epochs=None):
+        imputed_datasets = dict()
+
+        n_epochs = self.hypers["num_epochs"] if n_epochs is None else n_epochs
+
+        # Data Loader
+        data_all = DataLoader(
+            self.data, batch_size=len(self.data.samples), shuffle=False
+        )
+
+        self.model = self.initialize_model()
+        optimizer = CLinesLosses.get_optimizer(self.model, self.hypers)
+
+        for e in range(1, n_epochs + 1):
+            self.model.train()
+            print(f"Epoch {e:03}")
+            self.epoch(
+                self.model,
+                optimizer,
+                data_all,
+            )
+
+        # Make predictions and latent spaces
+        self.model.eval()
+        with torch.no_grad():
+            for x, y, _ in data_all:
+                out_net = self.model(x, self.gumbel_temp, self.hard_gumbel, y)
+                x_hat = out_net["views_hat"]
+                z = out_net["z"]
+                for name, df in zip(self.data.view_names, x_hat):
+                    imputed_datasets[name] = pd.DataFrame(
+                        self.data.view_scalers[name].inverse_transform(df.tolist()),
+                        index=self.data.samples,
+                        columns=self.data.view_feature_names[name],
+                    )
+
+                z = pd.DataFrame(z.tolist(), index=self.data.samples)
+                z.columns = [f"Latent_{i+1}" for i in range(z.shape[1])]
+
+                # Write to file
+                for name, df in imputed_datasets.items():
+                    df.round(5).to_csv(
+                        f"{plot_folder}/files/{self.timestamp}_imputed_{name}.csv.gz",
+                        compression="gzip",
+                    )
+
+                z.round(5).to_csv(
+                    f"{plot_folder}/files/{self.timestamp}_latent_joint.csv.gz",
+                    compression="gzip",
+                )
