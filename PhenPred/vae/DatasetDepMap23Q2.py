@@ -128,7 +128,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.labels_name = self.labels.columns.tolist()
         self.labels_size = self.labels.shape[1]
 
-        self.labels = torch.tensor(self.labels.values, dtype=torch.float)
+        self.labels = torch.tensor(self.labels.values.astype(float), dtype=torch.float)
 
     def _import_fusions(self):
         self.fusions = pd.read_csv(f"{data_folder}/Fusions_20221214.txt").assign(
@@ -182,7 +182,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
     def _import_growth(self):
         self.growth = (
-            pd.read_csv(f"{data_folder}/growth_rate_20220907.csv")
+            pd.read_csv(f"{data_folder}/growth_rate_20220907.csv").drop("model_name",axis=1)
             .groupby("model_id")
             .mean()
         )
