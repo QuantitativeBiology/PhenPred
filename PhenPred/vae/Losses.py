@@ -12,7 +12,7 @@ from sklearn.model_selection import GridSearchCV
 
 class CLinesLosses:
     @classmethod
-    def unlabeled_loss(cls, views, out_net, views_mask=None, rec_type="mse"):
+    def unlabeled_loss(cls, views, out_net, views_mask=None, rec_type="mse", w_rec=1, w_gauss=0.01, w_cat=0.001):
         """
         Sourced from: https://github.com/jariasf/GMVAE/tree/master/pytorch
 
@@ -38,7 +38,10 @@ class CLinesLosses:
             if views_mask is not None:
                 real, predicted = real[views_mask[i]], predicted[views_mask[i]]
 
-            loss_rec += cls.reconstruction_loss(real, predicted, rec_type)
+            if type(rec_type) == str:
+                loss_rec += cls.reconstruction_loss(real, predicted, rec_type)
+            else:
+                loss_rec += rec_type(real, predicted)
 
         # gaussian loss
         loss_gauss = cls.gaussian_loss(z, mu, var, y_mu, y_var)
@@ -47,7 +50,7 @@ class CLinesLosses:
         loss_cat = -cls.entropy(logits, prob_cat) - np.log(0.1)
 
         # total loss
-        loss_total = loss_rec + loss_gauss + loss_cat
+        loss_total = w_rec * loss_rec + w_gauss * loss_gauss + w_cat * loss_cat
 
         # obtain predictions
         _, predicted_labels = torch.max(logits, dim=1)
