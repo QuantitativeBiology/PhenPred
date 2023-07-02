@@ -1,14 +1,12 @@
 {
     "dataname": "depmap23Q2",
     "datasets": {
-	"methylation": "methylation.csv",
+	    "methylation": "methylation.csv",
         "transcriptomics": "depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
-	"proteomics": "proteomics.csv",
+	    "proteomics": "proteomics.csv",
         "metabolomics": "metabolomics.csv",
         "drugresponse": "drugresponse.csv",
-        "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv",
-        "methylation": "methylation.csv",
-        "transcriptomics": "depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv"
+        "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv"
     },
     "model": "GMVAE",
     "standardize": true,
