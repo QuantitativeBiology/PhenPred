@@ -19,6 +19,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         label,
         decimals=4,
         feature_miss_rate_thres=0.9,
+        standardize=False,
     ):
         super().__init__()
 
@@ -26,6 +27,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.datasets = datasets
         self.decimals = decimals
         self.feature_miss_rate_thres = feature_miss_rate_thres
+        self.stamdardize = standardize
 
         # Read csv files
         self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
@@ -128,7 +130,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.labels_name = self.labels.columns.tolist()
         self.labels_size = self.labels.shape[1]
 
-        self.labels = torch.tensor(self.labels.values, dtype=torch.float)
+        self.labels = torch.tensor(self.labels.values.astype(float), dtype=torch.float)
 
     def _import_fusions(self):
         self.fusions = pd.read_csv(f"{data_folder}/Fusions_20221214.txt").assign(
@@ -182,7 +184,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
     def _import_growth(self):
         self.growth = (
-            pd.read_csv(f"{data_folder}/growth_rate_20220907.csv")
+            pd.read_csv(f"{data_folder}/growth_rate_20220907.csv").drop("model_name",axis=1)
             .groupby("model_id")
             .mean()
         )
@@ -266,7 +268,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.view_names = []
 
         for n, df in self.dfs.items():
-            self.views[n], self.view_scalers[n], self.view_nans[n] = self.process_df(df)
+            self.views[n], self.view_scalers[n], self.view_nans[n] = self.process_df(df,with_mean=self.stamdardize, with_std=self.stamdardize)
             self.view_feature_names[n] = list(df.columns)
             self.view_names.append(n)
 
