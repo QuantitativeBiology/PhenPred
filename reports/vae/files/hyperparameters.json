@@ -28,6 +28,6 @@
     "scheduler": "plateau",
     "scheduler_threshold": 1e-4,
     "scheduler_factor": 0.65,
-    "scheduler_patience": 30,
+    "scheduler_patience": 20,
     "scheduler_min_lr": 5e-6
 }
