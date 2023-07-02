@@ -33,6 +33,7 @@ if __name__ == "__main__":
         label=hyperparameters["label"],
         datasets=hyperparameters["datasets"],
         feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
+        standardize=hyperparameters["standardize"] if "standardize" in hyperparameters else False,
     )
 
     # Train and predictions
@@ -48,7 +49,7 @@ if __name__ == "__main__":
             clines_db,
             hyperparameters,
             stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
-            k=50
+            k=100
         )
     train.run()
 
