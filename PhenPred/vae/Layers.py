@@ -121,8 +121,6 @@ class JointInference(nn.Module):
             [
                 nn.Linear(x_dim, hidden_size),
                 nn.ReLU(),
-                nn.Linear(hidden_size, hidden_size),
-                nn.ReLU(),
                 GumbelSoftmax(hidden_size, y_dim),
             ]
         )
@@ -131,8 +129,6 @@ class JointInference(nn.Module):
         self.inference_qzyx = torch.nn.ModuleList(
             [
                 nn.Linear(x_dim + y_dim, hidden_size),
-                nn.ReLU(),
-                nn.Linear(hidden_size, hidden_size),
                 nn.ReLU(),
                 Gaussian(hidden_size, z_dim),
             ]
