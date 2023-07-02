@@ -455,7 +455,7 @@ class CLinesTrainGMVAE(CLinesTrain):
         data,
         hypers,
         stratify_cv_by=None,
-        early_stop_patience=20,
+        early_stop_patience=80,
         k=50,
         init_temp=1.0,
         decay_temp=1.0,
