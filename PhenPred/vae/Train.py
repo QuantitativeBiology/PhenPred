@@ -508,8 +508,8 @@ class CLinesTrainGMVAE(CLinesTrain):
             with torch.set_grad_enabled(model.training):
                 out_net = model(x, self.gumbel_temp, self.hard_gumbel)
                 w_rec = 1
-                w_gauss = 0.0001
-                w_cat = 0.0001
+                w_gauss = 0.001
+                w_cat = 0.001
 
                 loss = CLinesLosses.unlabeled_loss(
                     views=x,
