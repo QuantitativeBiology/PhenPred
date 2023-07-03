@@ -492,7 +492,7 @@ class CLinesTrainGMVAE(CLinesTrain):
             k=self.k,
             views_logits=self.hypers["views_logits"],
             conditional_size=self.data.labels.shape[1]
-            if self.hypers["use_conditional"]
+            if self.hypers["use_conditional_gmvae"]
             else 0,
         )
         model = nn.DataParallel(model)
@@ -516,8 +516,8 @@ class CLinesTrainGMVAE(CLinesTrain):
             with torch.set_grad_enabled(model.training):
                 out_net = model(x, self.gumbel_temp, self.hard_gumbel, y)
                 w_rec = 1
-                w_gauss = 0.001
-                w_cat = 0.001
+                w_gauss = self.hypers["w_gaussian"]
+                w_cat = self.hypers["w_cat"]
 
                 loss = CLinesLosses.unlabeled_loss(
                     views=x,
