@@ -53,15 +53,15 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 :, (self.dfs["crisprcas9"] < -0.5).sum() > 0
             ]
 
-        if "transcriptomics" in self.dfs:
-            self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
-                :, self.dfs["transcriptomics"].std() > 1.2
-            ]
+        # if "transcriptomics" in self.dfs:
+        #     self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
+        #         :, self.dfs["transcriptomics"].std() > 1.2
+        #     ]
 
-        if "methylation" in self.dfs:
-            self.dfs["methylation"] = self.dfs["methylation"].loc[
-                :, self.dfs["methylation"].std() > 0.075
-            ]
+        # if "methylation" in self.dfs:
+        #     self.dfs["methylation"] = self.dfs["methylation"].loc[
+        #         :, self.dfs["methylation"].std() > 0.075
+        #     ]
 
         if self.normalize_samples:
             self.dfs = {n: self.normalize_dataset(df) for n, df in self.dfs.items()}
