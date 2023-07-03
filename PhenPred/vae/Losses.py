@@ -41,16 +41,20 @@ class CLinesLosses:
 
         # reconstruction loss
         loss_rec = 0
+        recon_loss_views = []
         for i, k in enumerate(views):
             real, predicted = k, views_hat[i]
 
             if views_mask is not None:
                 real, predicted = real[views_mask[i]], predicted[views_mask[i]]
 
+
             if type(rec_type) == str:
-                loss_rec += cls.reconstruction_loss(real, predicted, rec_type)
+                recon_xi = cls.reconstruction_loss(real, predicted, rec_type)
             else:
-                loss_rec += rec_type(real, predicted)
+                recon_xi = rec_type(real, predicted)
+            loss_rec += recon_xi
+            recon_loss_views.append(recon_xi)
 
         # gaussian loss
         loss_gauss = cls.gaussian_loss(z, mu, var, y_mu, y_var)
@@ -67,6 +71,7 @@ class CLinesLosses:
         loss_dic = dict(
             total=loss_total,
             reconstruction=loss_rec,
+            reconstruction_views=recon_loss_views,
             gaussian=loss_gauss,
             categorical=loss_cat,
             predicted_labels=predicted_labels,

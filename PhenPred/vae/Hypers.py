@@ -23,6 +23,12 @@ class Hypers:
         if "standardize" not in hypers:
             hypers["standardize"] = False
 
+        if "w_gaussian" not in hypers:
+            hypers["w_gaussian"] = 0.01
+
+        if "w_cat" not in hypers:
+            hypers["w_cat"] = 0.01
+
         hypers["datasets"] = {
             k: f"{data_folder}/{v}" for k, v in hypers["datasets"].items()
         }
