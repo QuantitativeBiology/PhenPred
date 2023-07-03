@@ -32,12 +32,12 @@ class CLinesDatasetDepMap23Q2(Dataset):
         # Read csv files
         self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
         self.dfs = {
-            n: df if n in ["crisprcas9", "transcriptomics", "copynumber"] else df.T
+            n: df if n in ["crisprcas9", "copynumber"] else df.T
             for n, df in self.dfs.items()
         }
 
         # Dataset specific preprocessing
-        for n in ["crisprcas9", "transcriptomics", "copynumber"]:
+        for n in ["crisprcas9", "copynumber"]:
             if n in self.dfs:
                 self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
 
@@ -50,10 +50,10 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 :, (self.dfs["crisprcas9"] < -0.5).sum() > 15
             ]
 
-        if "transcriptomics" in self.dfs:
-            self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
-                :, self.dfs["transcriptomics"].std() > 0.6
-            ]
+        # if "transcriptomics" in self.dfs:
+        #     self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
+        #         :, self.dfs["transcriptomics"].std() > 0.6
+        #     ]
 
         self._build_samplesheet()
         self._samples_union()
