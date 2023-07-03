@@ -1,3 +1,4 @@
+import re
 import torch
 import PhenPred
 import numpy as np
@@ -8,8 +9,9 @@ import matplotlib.pyplot as plt
 from scipy.stats import zscore
 from PhenPred.Utils import scale
 from torch.utils.data import Dataset
-from sklearn.preprocessing import StandardScaler
 from PhenPred.vae import data_folder, plot_folder
+from sklearn.feature_selection import VarianceThreshold
+from sklearn.preprocessing import StandardScaler, PowerTransformer, normalize
 
 
 class CLinesDatasetDepMap23Q2(Dataset):
@@ -20,6 +22,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
         decimals=4,
         feature_miss_rate_thres=0.9,
         standardize=False,
+        normalize_features=False,
+        normalize_samples=False,
     ):
         super().__init__()
 
@@ -27,33 +31,40 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.datasets = datasets
         self.decimals = decimals
         self.feature_miss_rate_thres = feature_miss_rate_thres
-        self.stamdardize = standardize
+        self.standardize = standardize
+        self.normalize_features = normalize_features
+        self.normalize_samples = normalize_samples
 
         # Read csv files
         self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
         self.dfs = {
-            n: df if n in ["crisprcas9", "copynumber"] else df.T
-            for n, df in self.dfs.items()
+            n: df if n in ["crisprcas9"] else df.T for n, df in self.dfs.items()
         }
 
         # Dataset specific preprocessing
-        for n in ["crisprcas9", "copynumber"]:
+        for n in ["crisprcas9"]:
             if n in self.dfs:
                 self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
 
-        if "copynumber" in self.dfs:
-            self.dfs["copynumber"] = self.dfs["copynumber"].dropna(how="all", axis=1)
-
+        # Filter features
         if "crisprcas9" in self.dfs:
             self.dfs["crisprcas9"] = scale(self.dfs["crisprcas9"].T).T
             self.dfs["crisprcas9"] = self.dfs["crisprcas9"].loc[
                 :, (self.dfs["crisprcas9"] < -0.5).sum() > 0
             ]
 
-        # if "transcriptomics" in self.dfs:
-        #     self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
-        #         :, self.dfs["transcriptomics"].std() > 1.2
-        #     ]
+        if "transcriptomics" in self.dfs:
+            self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
+                :, self.dfs["transcriptomics"].std() > 1.2
+            ]
+
+        if "methylation" in self.dfs:
+            self.dfs["methylation"] = self.dfs["methylation"].loc[
+                :, self.dfs["methylation"].std() > 0.075
+            ]
+
+        if self.normalize_samples:
+            self.dfs = {n: self.normalize_dataset(df) for n, df in self.dfs.items()}
 
         self._build_samplesheet()
         self._samples_union()
@@ -269,14 +280,24 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.view_names = []
 
         for n, df in self.dfs.items():
-            self.views[n], self.view_scalers[n], self.view_nans[n] = self.process_df(
-                df, with_mean=self.stamdardize, with_std=self.stamdardize
-            )
+            self.views[n], self.view_scalers[n], self.view_nans[n] = self.process_df(df)
             self.view_feature_names[n] = list(df.columns)
             self.view_names.append(n)
 
-    def process_df(self, df, with_mean=False, with_std=False):
-        scaler = StandardScaler(with_mean=with_mean, with_std=with_std)
+    def normalize_dataset(self, df):
+        l2_norms = np.sqrt(np.nansum(df**2, axis=1))
+        df_norm = df / l2_norms[:, np.newaxis]
+        return df_norm
+
+    def process_df(self, df):
+        if self.normalize_features:
+            scaler = PowerTransformer(
+                method="yeo-johnson", standardize=self.standardize
+            )
+        else:
+            scaler = StandardScaler(
+                with_mean=self.standardize, with_std=self.standardize
+            )
 
         x = scaler.fit_transform(df).round(self.decimals)
 
