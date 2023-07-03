@@ -1,12 +1,12 @@
 {
     "dataname": "depmap23Q2",
     "datasets": {
-	"methylation": "methylation.csv",
-        "transcriptomics": "depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv",
-	"proteomics": "proteomics.csv",
+	    "proteomics": "proteomics.csv",
         "metabolomics": "metabolomics.csv",
         "drugresponse": "drugresponse.csv",
-        "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv"
+        "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv",
+        "methylation": "methylation.csv",
+        "transcriptomics": "depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv"
     },
     "model": "MOVE",
     "standardize": true,
@@ -15,8 +15,9 @@
     "use_conditional": true,
     "batch_size": 100,
     "n_folds": 3,
-    "latent_dim": 0.05,
-    "hidden_dims": [0.5],
+    "view_latent_dim": 0.05,
+    "latent_dim": 50,
+    "hidden_dims": [0.7],
     "probability": 0.4,
     "w_kl": 0.001,
     "views_logits": 256,
