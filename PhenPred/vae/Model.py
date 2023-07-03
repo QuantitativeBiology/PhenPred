@@ -17,7 +17,8 @@ class MOVE(nn.Module):
         self.hypers = hypers
         self.views_sizes = views_sizes
         self.views_latent_sizes = {
-            k: int(v * self.hypers["view_latent_dim"]) for k, v in self.views_sizes.items()
+            k: int(v * self.hypers["view_latent_dim"])
+            for k, v in self.views_sizes.items()
         }
         self.conditional_size = conditional_size
 

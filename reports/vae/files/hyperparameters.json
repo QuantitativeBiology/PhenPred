@@ -6,7 +6,7 @@
         "drugresponse": "drugresponse.csv",
         "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv",
         "methylation": "methylation.csv",
-        "transcriptomics": "depmap23Q2/OmicsExpressionProteinCodingGenesTPMLogp1.csv"
+        "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv"
     },
     "model": "GMVAE",
     "standardize": true,

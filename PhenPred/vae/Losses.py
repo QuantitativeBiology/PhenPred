@@ -12,7 +12,16 @@ from sklearn.model_selection import GridSearchCV
 
 class CLinesLosses:
     @classmethod
-    def unlabeled_loss(cls, views, out_net, views_mask=None, rec_type="mse", w_rec=1, w_gauss=0.01, w_cat=0.001):
+    def unlabeled_loss(
+        cls,
+        views,
+        out_net,
+        views_mask=None,
+        rec_type="mse",
+        w_rec=1,
+        w_gauss=0.01,
+        w_cat=0.001,
+    ):
         """
         Sourced from: https://github.com/jariasf/GMVAE/tree/master/pytorch
 
