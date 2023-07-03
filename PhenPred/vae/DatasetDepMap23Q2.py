@@ -32,12 +32,12 @@ class CLinesDatasetDepMap23Q2(Dataset):
         # Read csv files
         self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
         self.dfs = {
-            n: df if n in ["crisprcas9", "transcriptomics", "copynumber"] else df.T
+            n: df if n in ["crisprcas9", "copynumber"] else df.T
             for n, df in self.dfs.items()
         }
 
         # Dataset specific preprocessing
-        for n in ["crisprcas9", "transcriptomics", "copynumber"]:
+        for n in ["crisprcas9", "copynumber"]:
             if n in self.dfs:
                 self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
 
@@ -50,10 +50,10 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 :, (self.dfs["crisprcas9"] < -0.5).sum() > 0
             ]
 
-        if "transcriptomics" in self.dfs:
-            self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
-                :, self.dfs["transcriptomics"].std() > 0.6
-            ]
+        # if "transcriptomics" in self.dfs:
+        #     self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
+        #         :, self.dfs["transcriptomics"].std() > 1.2
+        #     ]
 
         self._build_samplesheet()
         self._samples_union()
@@ -184,7 +184,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
     def _import_growth(self):
         self.growth = (
-            pd.read_csv(f"{data_folder}/growth_rate_20220907.csv").drop("model_name",axis=1)
+            pd.read_csv(f"{data_folder}/growth_rate_20220907.csv")
+            .drop("model_name", axis=1)
             .groupby("model_id")
             .mean()
         )
@@ -268,7 +269,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.view_names = []
 
         for n, df in self.dfs.items():
-            self.views[n], self.view_scalers[n], self.view_nans[n] = self.process_df(df,with_mean=self.stamdardize, with_std=self.stamdardize)
+            self.views[n], self.view_scalers[n], self.view_nans[n] = self.process_df(
+                df, with_mean=self.stamdardize, with_std=self.stamdardize
+            )
             self.view_feature_names[n] = list(df.columns)
             self.view_names.append(n)
 
