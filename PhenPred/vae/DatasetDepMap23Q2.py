@@ -46,9 +46,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         if "crisprcas9" in self.dfs:
             self.dfs["crisprcas9"] = scale(self.dfs["crisprcas9"].T).T
-            # self.dfs["crisprcas9"] = self.dfs["crisprcas9"].loc[
-            #     :, (self.dfs["crisprcas9"] < -0.5).sum() > 0
-            # ]
+            self.dfs["crisprcas9"] = self.dfs["crisprcas9"].loc[
+                :, (self.dfs["crisprcas9"] < -0.5).sum() > 0
+            ]
 
         # if "transcriptomics" in self.dfs:
         #     self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
