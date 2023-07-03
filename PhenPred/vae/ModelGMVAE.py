@@ -47,7 +47,8 @@ class CLinesGMVAE(nn.Module):
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
                 # layers.append(nn.BatchNorm1d(layer_sizes[i]))
-                layers.append(nn.Dropout(p=self.hypers["probability"]))
+                if i != len(layer_sizes) - 1:
+                    layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.hypers["activation_function"])
 
             self.encoders.append(nn.Sequential(*layers))
@@ -75,7 +76,7 @@ class CLinesGMVAE(nn.Module):
                 layers.append(self.hypers["activation_function"])
 
             layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
-            layers.append(nn.Sigmoid())
+            # layers.append(nn.Sigmoid())
 
             self.decoders.append(nn.Sequential(*layers))
 
