@@ -38,7 +38,7 @@ class MOVE(nn.Module):
         latent_views_sum = sum(self.views_latent_sizes.values())
         self.joint = Gaussian(
             latent_views_sum,
-            self.hypers["view_latent_dim"],
+            self.hypers["latent_dim"],
         )
 
         self._build_decoders()
@@ -67,7 +67,7 @@ class MOVE(nn.Module):
             self.encoders.append(nn.Sequential(*layers))
 
     def _build_decoders(self):
-        latent_views_sum = self.hypers["view_latent_dim"]
+        latent_views_sum = self.hypers["latent_dim"]
 
         self.decoders = nn.ModuleList()
         for n in self.views_sizes:
