@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import chi2
 from scipy.stats import spearmanr, pearsonr
+from sklearn.metrics import matthews_corrcoef
 from sklearn.linear_model import LinearRegression
 from statsmodels.stats.multitest import multipletests
 
@@ -27,6 +28,9 @@ def two_vars_correlation(
         r, p = spearmanr(
             var1.reindex(index=idx_set), var2.reindex(index=idx_set), nan_policy="omit"
         )
+    elif method == "mcc":
+        r = matthews_corrcoef(var1.reindex(index=idx_set), var2.reindex(index=idx_set))
+        p = chi2.sf(r**2, 1)
     else:
         r, p = pearsonr(var1.reindex(index=idx_set), var2.reindex(index=idx_set))
 
