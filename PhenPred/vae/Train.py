@@ -81,10 +81,7 @@ class CLinesTrain:
                     optimizer.step()
 
             if record_losses is not None:
-                self.register_loss(
-                    loss,
-                    record_losses,
-                )
+                self.register_loss(loss, record_losses)
             else:
                 self.print_single_loss(loss)
 

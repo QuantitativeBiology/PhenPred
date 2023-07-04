@@ -101,7 +101,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
                     self.dfs[n] = scale(self.dfs[n].T).T
                     self.dfs[n] = self.dfs[n].loc[:, (self.dfs[n] < -0.5).sum() > 0]
                 else:
-                    thres = self.gaussian_mixture_std(self.dfs[n], to_plot=True)
+                    thres = self.gaussian_mixture_std(self.dfs[n], to_plot=False)
                     self.dfs[n] = self.dfs[n].loc[:, self.dfs[n].std() > thres]
 
     def _build_labels(self, min_obs=15):
