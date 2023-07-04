@@ -38,7 +38,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
         # Read csv files
         self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
         self.dfs = {
-            n: df if n in ["crisprcas9"] else df.T for n, df in self.dfs.items()
+            n: df if n in ["crisprcas9", "copynumber"] else df.T
+            for n, df in self.dfs.items()
         }
 
         # Dataset specific preprocessing
@@ -53,18 +54,22 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 :, (self.dfs["crisprcas9"] < -0.5).sum() > 0
             ]
 
-        # if "transcriptomics" in self.dfs:
-        #     self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
-        #         :, self.dfs["transcriptomics"].std() > 1.2
-        #     ]
+        if "transcriptomics" in self.dfs:
+            self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
+                :, self.dfs["transcriptomics"].std() > 1.2
+            ]
 
-        # if "methylation" in self.dfs:
-        #     self.dfs["methylation"] = self.dfs["methylation"].loc[
-        #         :, self.dfs["methylation"].std() > 0.075
-        #     ]
+        if "methylation" in self.dfs:
+            self.dfs["methylation"] = self.dfs["methylation"].loc[
+                :, self.dfs["methylation"].std() > 0.075
+            ]
 
         if self.normalize_samples:
-            self.dfs = {n: self.normalize_dataset(df) for n, df in self.dfs.items()}
+            self.dfs = {
+                n: self.normalize_dataset(df)
+                for n, df in self.dfs.items()
+                if n not in ["copynumber"]
+            }
 
         self._build_samplesheet()
         self._samples_union()
@@ -72,7 +77,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._standardize_dfs()
 
         self._import_mutations()
-        self._import_cnv()
         self._import_fusions()
         self._import_growth()
 
@@ -119,11 +123,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
         # Mutations
         mutations = self.mutations.loc[:, self.mutations.sum() >= min_obs]
 
-        # Copy number variations
-        cnv_map = dict(Deletion=-2, Loss=-1, Neutral=0, Gain=1, Amplification=2)
-        cnv = self.cnv.replace(cnv_map).fillna(0)
-        cnv = cnv.loc[:, ((cnv == -2).sum() + (cnv == 2).sum()) > min_obs]
-
         # Fusions
         fusions = self.fusions.loc[:, self.fusions.sum() >= 10]
 
@@ -132,7 +131,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         # Concatenate
         self.labels = pd.concat(
-            [tissue, cancer, cancer, mutations, cnv, fusions, msi],
+            [tissue, cancer, mutations, fusions, msi],
             axis=1,
         )
         self.labels = self.labels.reindex(index=self.samples).fillna(0)
@@ -174,23 +173,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
             values="value",
             aggfunc="first",
             fill_value=0,
-        )
-
-    def _import_cnv(self):
-        self.cnv_df = pd.read_csv(f"{data_folder}/cnv_summary_20230303.csv")
-        self.cnv_df["cn_category"] = pd.Categorical(
-            self.cnv_df["cn_category"],
-            categories=["Neutral", "Deletion", "Loss", "Gain", "Amplification"],
-            ordered=True,
-        )
-        self.cnv_df = self.cnv_df.sort_values("cn_category")
-
-        self.cnv = pd.pivot_table(
-            self.cnv_df,
-            index="model_id",
-            columns="symbol",
-            values="cn_category",
-            aggfunc="first",
         )
 
     def _import_growth(self):
@@ -280,7 +262,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.view_names = []
 
         for n, df in self.dfs.items():
-            self.views[n], self.view_scalers[n], self.view_nans[n] = self.process_df(df)
+            self.views[n], self.view_scalers[n], self.view_nans[n] = self.process_df(
+                n, df
+            )
             self.view_feature_names[n] = list(df.columns)
             self.view_names.append(n)
 
@@ -289,15 +273,15 @@ class CLinesDatasetDepMap23Q2(Dataset):
         df_norm = df / l2_norms[:, np.newaxis]
         return df_norm
 
-    def process_df(self, df):
+    def process_df(self, df_name, df):
+        to_standardize = (
+            True if df_name not in ["copynumber"] and self.standardize else False
+        )
+
         if self.normalize_features:
-            scaler = PowerTransformer(
-                method="yeo-johnson", standardize=self.standardize
-            )
+            scaler = PowerTransformer(method="yeo-johnson", standardize=to_standardize)
         else:
-            scaler = StandardScaler(
-                with_mean=self.standardize, with_std=self.standardize
-            )
+            scaler = StandardScaler(with_mean=to_standardize, with_std=to_standardize)
 
         x = scaler.fit_transform(df).round(self.decimals)
 
@@ -331,6 +315,45 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 self.dfs[n] = self.dfs[n].loc[
                     :, self.dfs[n].isnull().mean() < self.feature_miss_rate_thres
                 ]
+
+    def cnv_convert_to_matrix(self):
+        """
+        Convert CNV data to matrix. This is done separately because CNV data is
+        not in the same format (discrete) as the other data types (continous).
+
+        For cell lines screened both by the Broad and Sanger with divergent annotations,
+        we sort the CNV categories in the following order: Neutral, Deletion, Loss, Gain, Amplification
+        and the first annotation is kept (i.e. preference is given to Neutral annotations)
+
+        Values are mapped to the following values:
+        Deletion: -2
+        Loss: -1
+        Neutral: 0
+        Gain: 1
+        Amplification: 2
+        """
+
+        cnv_df = pd.read_csv(f"{data_folder}/cnv_summary_20230303.csv")
+        cnv_df["cn_category"] = pd.Categorical(
+            cnv_df["cn_category"],
+            categories=["Neutral", "Deletion", "Loss", "Gain", "Amplification"],
+            ordered=True,
+        )
+        cnv_df = cnv_df.sort_values("cn_category")
+
+        cnv = pd.pivot_table(
+            cnv_df,
+            index="model_id",
+            columns="symbol",
+            values="cn_category",
+            aggfunc="first",
+        )
+
+        cnv_map = dict(Deletion=-2, Loss=-1, Neutral=0, Gain=1, Amplification=2)
+
+        cnv = self.cnv.replace(cnv_map)
+
+        cnv.to_csv(f"{data_folder}/cnv_summary_20230303_matrix.csv")
 
     def n_samples_views(self):
         counts = (
