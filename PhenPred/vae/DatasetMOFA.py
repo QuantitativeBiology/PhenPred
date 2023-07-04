@@ -66,7 +66,9 @@ class CLinesDatasetMOFA:
             factors=pd.read_csv(f"{ddir}_factors.csv", index_col=0),
             rsquare=pd.read_csv(f"{ddir}_rsquare.csv", index_col=0),
             weights={
-                n: pd.read_csv(f"{ddir}_weights_{n}.csv", index_col=0) for n in data.dfs
+                n: pd.read_csv(f"{ddir}_weights_{n}.csv", index_col=0)
+                for n in data.dfs
+                if n not in ["copynumber"]
             },
         )
 
