@@ -9,7 +9,7 @@
         "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
         "copynumber": "cnv_summary_20230303_matrix.csv"
     },
-    "model": "GMVAE",
+    "model": "MOVE",
     "standardize": true,
     "num_epochs": 500,
     "learning_rate": 4e-4,
