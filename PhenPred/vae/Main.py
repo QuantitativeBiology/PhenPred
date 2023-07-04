@@ -30,14 +30,16 @@ if __name__ == "__main__":
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
-        label=hyperparameters["label"],
+        labels_names=hyperparameters["labels"],
         datasets=hyperparameters["datasets"],
         feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
         standardize=hyperparameters["standardize"],
+        filter_features=hyperparameters["filter_features"],
     )
+    # clines_db.plot_samples_overlap()
+    # clines_db.plot_datasets_missing_values()
 
     # Train and predictions
-    # train.timestamp = "20230627_232942"
     if hyperparameters["model"] == "GMVAE":
         train = CLinesTrainGMVAE(
             clines_db,
@@ -52,13 +54,16 @@ if __name__ == "__main__":
             stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
         )
 
-    train.run()
+    # Run or load previous run
+    if hyperparameters["load_run"] is None or hyperparameters["load_run"] == "":
+        train.run()
+    else:
+        # train.timestamp = "20230704_095605"
+        train.timestamp = hyperparameters["load_run"]
 
     # Load imputed data
-    vae_imputed, vae_latent = train.load_vae_reconstructions(mode="nans_only")
-    mofa_imputed, mofa_latent = CLinesDatasetMOFA.load_reconstructions(
-        clines_db, mode="nans_only"
-    )
+    vae_imputed, vae_latent = train.load_vae_reconstructions()
+    mofa_imputed, mofa_latent = CLinesDatasetMOFA.load_reconstructions(clines_db)
 
     # Run Latent Spaces Benchmark
     latent_benchmark = LatentSpaceBenchmark(

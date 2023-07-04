@@ -1,4 +1,5 @@
 import re
+from matplotlib.cbook import ls_mapper
 import torch
 import PhenPred
 import numpy as np
@@ -7,8 +8,10 @@ import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from scipy.stats import zscore
+from scipy.stats import norm
 from PhenPred.Utils import scale
 from torch.utils.data import Dataset
+from sklearn.mixture import GaussianMixture
 from PhenPred.vae import data_folder, plot_folder
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.preprocessing import StandardScaler, PowerTransformer, normalize
@@ -18,22 +21,24 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def __init__(
         self,
         datasets,
-        label,
+        labels_names=["tissue"],
         decimals=4,
         feature_miss_rate_thres=0.9,
         standardize=False,
         normalize_features=False,
         normalize_samples=False,
+        filter_features=["crisprcas9"],
     ):
         super().__init__()
 
-        self.label = label
+        self.labels_names = labels_names
         self.datasets = datasets
         self.decimals = decimals
         self.feature_miss_rate_thres = feature_miss_rate_thres
         self.standardize = standardize
         self.normalize_features = normalize_features
         self.normalize_samples = normalize_samples
+        self.filter_features = filter_features
 
         # Read csv files
         self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
@@ -42,27 +47,16 @@ class CLinesDatasetDepMap23Q2(Dataset):
             for n, df in self.dfs.items()
         }
 
+        # Name dataframes
+        for n, df in self.dfs.items():
+            df.name = n
+
         # Dataset specific preprocessing
         for n in ["crisprcas9"]:
             if n in self.dfs:
                 self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
 
-        # Filter features
-        if "crisprcas9" in self.dfs:
-            self.dfs["crisprcas9"] = scale(self.dfs["crisprcas9"].T).T
-            self.dfs["crisprcas9"] = self.dfs["crisprcas9"].loc[
-                :, (self.dfs["crisprcas9"] < -0.5).sum() > 0
-            ]
-
-        if "transcriptomics" in self.dfs:
-            self.dfs["transcriptomics"] = self.dfs["transcriptomics"].loc[
-                :, self.dfs["transcriptomics"].std() > 1.2
-            ]
-
-        if "methylation" in self.dfs:
-            self.dfs["methylation"] = self.dfs["methylation"].loc[
-                :, self.dfs["methylation"].std() > 0.075
-            ]
+        self._filter_features()
 
         if self.normalize_samples:
             self.dfs = {
@@ -100,40 +94,57 @@ class CLinesDatasetDepMap23Q2(Dataset):
         y = self.labels[idx]
         return x, y, x_nans
 
+    def _filter_features(self):
+        for n in self.filter_features:
+            if n in self.dfs:
+                if n in ["crisprcas9"]:
+                    self.dfs[n] = scale(self.dfs[n].T).T
+                    self.dfs[n] = self.dfs[n].loc[:, (self.dfs[n] < -0.5).sum() > 0]
+                else:
+                    thres = self.gaussian_mixture_std(self.dfs[n], to_plot=True)
+                    self.dfs[n] = self.dfs[n].loc[:, self.dfs[n].std() > thres]
+
     def _build_labels(self, min_obs=15):
-        # Tissue and cancer type
-        tissue = pd.get_dummies(self.samplesheet["tissue"])
-        cancer = pd.get_dummies(self.samplesheet["cancer_type"])
+        self.labels = []
 
-        # Culture conditions
-        culture = pd.concat(
-            [
-                pd.get_dummies(self.samplesheet["growth_properties_broad"]),
-                pd.get_dummies(self.samplesheet["growth_properties_sanger"]),
-            ],
-            axis=1,
-        )
+        if "tissue" in self.labels_names:
+            self.labels.append(pd.get_dummies(self.samplesheet["tissue"]))
 
-        # Growth
-        growth = zscore(
-            self.growth[["day4_day1_ratio", "doubling_time_hours"]],
-            nan_policy="omit",
-        )
+        if "cancer_type" in self.labels_names:
+            self.labels.append(pd.get_dummies(self.samplesheet["cancer_type"]))
 
-        # Mutations
-        mutations = self.mutations.loc[:, self.mutations.sum() >= min_obs]
+        if "culture" in self.labels_names:
+            self.labels.append(
+                pd.concat(
+                    [
+                        pd.get_dummies(self.samplesheet["growth_properties_broad"]),
+                        pd.get_dummies(self.samplesheet["growth_properties_sanger"]),
+                    ],
+                    axis=1,
+                )
+            )
 
-        # Fusions
-        fusions = self.fusions.loc[:, self.fusions.sum() >= 10]
+        if "growth" in self.labels_names:
+            self.labels.append(
+                zscore(
+                    self.growth[["day4_day1_ratio", "doubling_time_hours"]],
+                    nan_policy="omit",
+                )
+            )
 
-        # MSI
-        msi = self.ss_cmp["msi_status"].replace({"MSS": 0, "MSI": 1}).astype(float)
+        if "mutations" in self.labels_names:
+            self.labels.append(self.mutations.loc[:, self.mutations.sum() >= min_obs])
+
+        if "fusions" in self.labels_names:
+            self.labels.append(self.fusions.loc[:, self.fusions.sum() >= 5])
+
+        if "msi" in self.labels_names:
+            self.labels.append(
+                self.ss_cmp["msi_status"].replace({"MSS": 0, "MSI": 1}).astype(float)
+            )
 
         # Concatenate
-        self.labels = pd.concat(
-            [tissue, cancer, mutations, fusions, msi],
-            axis=1,
-        )
+        self.labels = pd.concat(self.labels, axis=1)
         self.labels = self.labels.reindex(index=self.samples).fillna(0)
 
         # Props
@@ -316,6 +327,57 @@ class CLinesDatasetDepMap23Q2(Dataset):
                     :, self.dfs[n].isnull().mean() < self.feature_miss_rate_thres
                 ]
 
+    def gaussian_mixture_std(self, df, to_plot=False):
+        df_std = df.std(axis=0)
+
+        gm = GaussianMixture(n_components=2).fit(df_std.to_frame())
+
+        gm_means = gm.means_.reshape(-1)
+        gm_std = np.sqrt(gm.covariances_.reshape(-1))
+
+        def solve(m1, m2, std1, std2):
+            a = 1 / (2 * std1**2) - 1 / (2 * std2**2)
+            b = m2 / (std2**2) - m1 / (std1**2)
+            c = (
+                m1**2 / (2 * std1**2)
+                - m2**2 / (2 * std2**2)
+                - np.log(std2 / std1)
+            )
+            return np.roots([a, b, c])
+
+        intersections = solve(gm_means[0], gm_means[1], gm_std[0], gm_std[1])
+
+        if to_plot:
+            x = df_std.sort_values().values
+
+            _, ax = plt.subplots(1, 1, figsize=(2, 2), dpi=300)
+
+            ax.hist(x, bins=100, density=True, color="#7f7f7f", alpha=0.5)
+            ax.plot(x, norm.pdf(x, gm_means[0], gm_std[0]), lw=1, c="#1f77b4")
+            ax.plot(x, norm.pdf(x, gm_means[1], gm_std[1]), lw=1, c="#aec7e8")
+
+            for i in intersections:
+                ax.axvline(i, linestyle="--", lw=0.5, color="#000000")
+                ax.text(
+                    i + 0.01,
+                    ax.get_ylim()[1] * 0.9,
+                    f"{i:.3f}",
+                    rotation=90,
+                    ha="left",
+                    va="top",
+                    fontsize=6,
+                    color="#000000",
+                )
+
+            ax.set_xlabel(f"{df.name} standard deviation")
+            ax.set_ylabel("Density")
+
+            PhenPred.save_figure(
+                f"{plot_folder}/datasets_std_gaussian_mixture_{df.name}.png"
+            )
+
+        return max(intersections)
+
     def cnv_convert_to_matrix(self):
         """
         Convert CNV data to matrix. This is done separately because CNV data is
@@ -415,11 +477,13 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def plot_datasets_missing_values(
         self,
         datasets_names=[
+            "copynumber",
+            "methylation",
+            "transcriptomics",
             "proteomics",
             "metabolomics",
             "drugresponse",
             "crisprcas9",
-            "copynumber",
         ],
     ):
         for n in datasets_names:

@@ -21,7 +21,7 @@ class CLinesLosses:
         w_rec=1,
         w_gauss=0.01,
         w_cat=0.001,
-        num_cat=None
+        num_cat=None,
     ):
         """
         Sourced from: https://github.com/jariasf/GMVAE/tree/master/pytorch
@@ -49,7 +49,6 @@ class CLinesLosses:
             if views_mask is not None:
                 real, predicted = real[views_mask[i]], predicted[views_mask[i]]
 
-
             if type(rec_type) == str:
                 recon_xi = cls.reconstruction_loss(real, predicted, rec_type)
             else:
@@ -61,7 +60,7 @@ class CLinesLosses:
         loss_gauss = cls.gaussian_loss(z, mu, var, y_mu, y_var)
 
         # categorical loss
-        loss_cat = -cls.entropy(logits, prob_cat) - np.log(1/num_cat)
+        loss_cat = -cls.entropy(logits, prob_cat) - np.log(1 / num_cat)
 
         # total loss
         loss_total = w_rec * loss_rec + w_gauss * loss_gauss + w_cat * loss_cat
@@ -360,6 +359,8 @@ class CLinesLosses:
             return F.mse_loss
         elif name == "bce":
             return F.binary_cross_entropy
+        elif name == "ce":
+            return F.cross_entropy
         elif name == "gauss":
             return nn.GaussianNLLLoss
         else:

@@ -36,9 +36,11 @@ class CRISPRBenchmark:
 
         # Genomics
         self.mutations = self.data.mutations.add_suffix("_mut")
-        self.deletions = (self.data.cnv == "Deletion").astype(int).add_suffix("_del")
+        self.deletions = (
+            (self.data.dfs["copynumber"] == -2).astype(int).add_suffix("_del")
+        )
         self.amplitifications = (
-            (self.data.cnv == "Amplification").astype(int).add_suffix("_amp")
+            (self.data.dfs["copynumber"] == 2).astype(int).add_suffix("_amp")
         )
         self.fusions = self.data.fusions.add_suffix("_fusion")
         self.msi = (
@@ -173,7 +175,7 @@ class CRISPRBenchmark:
         samples = list(
             set(self.df_vae.dropna().index)
             .intersection(self.data.mutations.index)
-            .intersection(self.data.cnv.index)
+            .intersection(self.data.dfs["copynumber"].index)
             .intersection(covs.reindex(index=self.df_vae.index).dropna().index)
         )
 
@@ -194,7 +196,7 @@ class CRISPRBenchmark:
         samples = list(
             set(self.df_original.dropna().index)
             .intersection(self.data.mutations.index)
-            .intersection(self.data.cnv.index)
+            .intersection(self.data.dfs["copynumber"].index)
             .intersection(covs.reindex(index=self.df_vae.index).dropna().index)
         )
 

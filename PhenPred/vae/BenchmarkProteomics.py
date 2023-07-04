@@ -30,7 +30,7 @@ class ProteomicsBenchmark:
         self.df_mean = self.df_original.fillna(self.df_original.mean())
 
         # Other relevant datasets
-        self.df_cnv = self.data.cnv
+        self.df_cnv = self.data.dfs["copynumber"]
         self.df_gexp = self.data.dfs["transcriptomics"]
 
         # Independent proteomics dataset - CCLE
@@ -342,8 +342,17 @@ class ProteomicsBenchmark:
         palette["Neutral"] = "#d9d9d9"
 
         # Copy number loss events
-        loss_events = (self.df_cnv == "Deletion").sum().sort_values(ascending=False)
+        loss_events = (self.df_cnv == -2).sum().sort_values(ascending=False)
         loss_events = loss_events[loss_events.index.isin(self.df_vae.columns)]
+
+        # Copy number map
+        cnv_map = {
+            -2: "Deletion",
+            -1: "Loss",
+            0: "Neutral",
+            1: "Gain",
+            2: "Amplification",
+        }
 
         # Assemble dataframe
         if loss_events_list is None:
@@ -359,7 +368,7 @@ class ProteomicsBenchmark:
                         self.df_original[[protein]].add_suffix("_orig"),
                         self.df_vae[[protein]].add_suffix("_vae"),
                         self.df_gexp[[protein]].add_suffix("_trans"),
-                        self.df_cnv[[cnv]].add_suffix("_cnv"),
+                        self.df_cnv[[cnv]].add_suffix("_cnv").replace(cnv_map),
                     ],
                     axis=1,
                 )
