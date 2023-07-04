@@ -527,6 +527,7 @@ class CLinesTrainGMVAE(CLinesTrain):
                     w_rec=w_rec,
                     w_gauss=w_gauss,
                     w_cat=w_cat,
+                    num_cat=self.k,
                 )
 
                 if model.training:
