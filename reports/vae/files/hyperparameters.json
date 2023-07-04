@@ -12,7 +12,7 @@
     "standardize": true,
     "num_epochs": 500,
     "learning_rate": 4e-4,
-    "use_conditional_gmvae": true,
+    "use_conditional_gmvae": false,
     "batch_size": 100,
     "n_folds": 3,
     "view_latent_dim": 0.05,
