@@ -30,8 +30,8 @@ class MOFABencharmk:
 
         self.clines_db_mofa = CLinesDatasetMOFA()
         self.clines_db_original = CLinesDatasetDepMap23Q2(
-            datasets=hypers["datasets"],
-            feature_miss_rate_thres=hypers["feature_miss_rate_thres"],
+            datasets=self.hypers["datasets"],
+            feature_miss_rate_thres=self.hypers["feature_miss_rate_thres"],
         )
 
     def run(self):
@@ -115,7 +115,7 @@ class MOFABencharmk:
         self.mofa_db = pd.concat(mofa_db)
 
     @staticmethod
-    def get_factors(cls, mofa_hdf5):
+    def get_factors(mofa_hdf5):
         z = mofa_hdf5["expectations"]["Z"]
         factors = pd.concat(
             [
@@ -130,7 +130,7 @@ class MOFABencharmk:
         return factors
 
     @staticmethod
-    def get_weights(cls, mofa_hdf5):
+    def get_weights(mofa_hdf5):
         w = mofa_hdf5["expectations"]["W"]
         weights = {
             n: pd.DataFrame(

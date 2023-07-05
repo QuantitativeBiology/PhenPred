@@ -1,5 +1,3 @@
-import re
-from matplotlib.cbook import ls_mapper
 import torch
 import PhenPred
 import numpy as np
@@ -46,10 +44,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
             n: df if n in ["crisprcas9", "copynumber"] else df.T
             for n, df in self.dfs.items()
         }
-
-        # Name dataframes
-        for n, df in self.dfs.items():
-            df.name = n
 
         # Dataset specific preprocessing
         for n in ["crisprcas9"]:
@@ -327,7 +321,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
                     :, self.dfs[n].isnull().mean() < self.feature_miss_rate_thres
                 ]
 
-    def gaussian_mixture_std(self, df, to_plot=False):
+    def gaussian_mixture_std(self, df, plot_name=None):
         df_std = df.std(axis=0)
 
         gm = GaussianMixture(n_components=2).fit(df_std.to_frame())
@@ -347,7 +341,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         intersections = solve(gm_means[0], gm_means[1], gm_std[0], gm_std[1])
 
-        if to_plot:
+        if plot_name is not None:
             x = df_std.sort_values().values
 
             _, ax = plt.subplots(1, 1, figsize=(2, 2), dpi=300)
@@ -369,11 +363,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
                     color="#000000",
                 )
 
-            ax.set_xlabel(f"{df.name} standard deviation")
+            ax.set_xlabel(f"{plot_name} standard deviation")
             ax.set_ylabel("Density")
 
             PhenPred.save_figure(
-                f"{plot_folder}/datasets_std_gaussian_mixture_{df.name}.png"
+                f"{plot_folder}/datasets_std_gaussian_mixture_{plot_name}"
             )
 
         return max(intersections)

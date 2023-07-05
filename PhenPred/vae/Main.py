@@ -15,10 +15,10 @@ import argparse
 import pandas as pd
 from PhenPred.vae import plot_folder
 from PhenPred.vae.Hypers import Hypers
-from PhenPred.vae.Train import CLinesTrain, CLinesTrainGMVAE
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
+from PhenPred.vae.Train import CLinesTrain, CLinesTrainGMVAE
 from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
 from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
