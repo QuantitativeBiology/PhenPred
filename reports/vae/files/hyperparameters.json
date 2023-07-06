@@ -10,9 +10,9 @@
         "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
         "copynumber": "cnv_summary_20230303_matrix.csv"
     },
-    "model": "MOVE",
+    "model": "GMVAE",
     "standardize": true,
-    "use_conditional_gmvae": false,
+    "use_conditional_gmvae": true,
     "labels": ["tissue", "cancer", "mutations", "fussions", "msi", "growth"],
     "filter_features": ["crisprcas9", "transcriptomics", "methylation"],
     "filtered_encoder_only": false,
