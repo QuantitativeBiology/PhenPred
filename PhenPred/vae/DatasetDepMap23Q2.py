@@ -47,6 +47,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
             for n, df in self.dfs.items()
         }
 
+        # Import drug targets
+        self.drug_targets = pd.read_csv(
+            f"{data_folder}/drugresponse_drug_targets.csv", index_col=0
+        )["putative_gene_target"]
+
         # Dataset specific preprocessing
         for n in ["crisprcas9"]:
             if n in self.dfs:
