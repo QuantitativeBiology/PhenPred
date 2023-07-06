@@ -14,12 +14,14 @@ class CLinesGMVAE(nn.Module):
         views_logits=256,
         hidden_size=512,
         conditional_size=0,
+        views_sizes_full=None
     ) -> None:
         super().__init__()
 
         self.k = k
         self.hypers = hypers
         self.views_sizes = views_sizes
+        self.views_sizes_full = views_sizes_full
         self.views_logits = views_logits
         self.hidden_size = hidden_size
         self.conditional_size = conditional_size
@@ -75,7 +77,10 @@ class CLinesGMVAE(nn.Module):
                 layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.hypers["activation_function"])
 
-            layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
+            if self.views_sizes_full is None:
+                layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
+            else:
+                layers.append(nn.Linear(layer_sizes[-1], self.views_sizes_full[n]))
             # layers.append(nn.Sigmoid())
 
             self.decoders.append(nn.Sequential(*layers))
