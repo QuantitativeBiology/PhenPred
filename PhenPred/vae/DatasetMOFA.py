@@ -6,7 +6,7 @@ from PhenPred.vae.Hypers import Hypers
 
 class CLinesDatasetMOFA:
     @staticmethod
-    def load_reconstructions(data, mode="nans_only", hypers=None):
+    def load_reconstructions(data, mode="nans_only", hypers=None, dfs=None):
         """
         Load imputed data and latent space from files. "nans_only" mode, original
         measurements are mantained and only NaNs are imputed. "all" mode all
@@ -45,9 +45,11 @@ class CLinesDatasetMOFA:
 
         ddir = f"{data_folder}/mofa/{dataset_name}"
 
-        # Load imputed data
+        if dfs is None:
+            dfs = data.dfs
+
         dfs_imputed = {}
-        for n in data.dfs:
+        for n in dfs:
             df_file = f"{ddir}_predicted_{n}.csv"
 
             if not os.path.isfile(df_file):
