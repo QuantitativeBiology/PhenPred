@@ -6,22 +6,19 @@ from PhenPred.vae.Layers import BottleNeck, Gaussian
 
 
 class MOVE(nn.Module):
-    def __init__(
-        self,
-        hypers,
-        views_sizes,
-        conditional_size,
-        views_sizes_full=None
-    ):
+    def __init__(self, hypers, views_sizes, conditional_size, views_sizes_full=None):
         super().__init__()
 
         self.hypers = hypers
+
         self.views_sizes = views_sizes
         self.views_sizes_full = views_sizes_full
+
         self.views_latent_sizes = {
             k: int(v * self.hypers["view_latent_dim"])
             for k, v in self.views_sizes.items()
         }
+
         self.conditional_size = conditional_size
 
         self.recon_criterion = self.hypers["reconstruction_loss"]
@@ -75,11 +72,13 @@ class MOVE(nn.Module):
         for n in self.views_sizes:
             if self.views_sizes_full is None:
                 layer_sizes = [latent_views_sum + self.conditional_size] + [
-                    int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
+                    int(v * self.views_sizes[n])
+                    for v in self.hypers["hidden_dims"][::-1]
                 ]
             else:
                 layer_sizes = [latent_views_sum + self.conditional_size] + [
-                    int(v * self.views_sizes_full[n]) for v in self.hypers["hidden_dims"][::-1]
+                    int(v * self.views_sizes_full[n])
+                    for v in self.hypers["hidden_dims"][::-1]
                 ]
 
             layers = nn.ModuleList()

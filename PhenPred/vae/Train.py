@@ -1,5 +1,6 @@
 from operator import index
 import os
+from sympy import hyper
 import torch
 import PhenPred
 import warnings
@@ -49,16 +50,22 @@ class CLinesTrain:
         self.predictions()
 
     def initialize_model(self):
+        views_sizes_full = (
+            {n: v.shape[1] for n, v in self.data.views_full.items()}
+            if self.hypers["filtered_encoder_only"]
+            else None
+        )
+
         model = MOVE(
             hypers=self.hypers,
             views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
             conditional_size=self.data.labels.shape[1],
-            views_sizes_full={n: v.shape[1] for n, v in self.data.views_full.items()}
-            if self.hypers["filtered_encoder_only"]
-            else None,
+            views_sizes_full=views_sizes_full,
         )
+
         model = nn.DataParallel(model)
         model.to(self.device)
+
         return model
 
     def epoch(
@@ -245,11 +252,13 @@ class CLinesTrain:
                 if self.hypers["filtered_encoder_only"]:
                     for name, df in zip(self.data.view_names_full, x_hat):
                         imputed_datasets[name] = pd.DataFrame(
-                            self.data.view_scalers_full[name].inverse_transform(df.tolist()),
+                            self.data.view_scalers_full[name].inverse_transform(
+                                df.tolist()
+                            ),
                             index=self.data.samples,
                             columns=self.data.view_feature_names_full[name],
                         )
-                else: 
+                else:
                     for name, df in zip(self.data.view_names, x_hat):
                         imputed_datasets[name] = pd.DataFrame(
                             self.data.view_scalers[name].inverse_transform(df.tolist()),
@@ -613,11 +622,13 @@ class CLinesTrainGMVAE(CLinesTrain):
                 if self.hypers["filtered_encoder_only"]:
                     for name, df in zip(self.data.view_names_full, x_hat):
                         imputed_datasets[name] = pd.DataFrame(
-                            self.data.view_scalers_full[name].inverse_transform(df.tolist()),
+                            self.data.view_scalers_full[name].inverse_transform(
+                                df.tolist()
+                            ),
                             index=self.data.samples,
                             columns=self.data.view_feature_names_full[name],
                         )
-                else: 
+                else:
                     for name, df in zip(self.data.view_names, x_hat):
                         imputed_datasets[name] = pd.DataFrame(
                             self.data.view_scalers[name].inverse_transform(df.tolist()),
