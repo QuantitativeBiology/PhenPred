@@ -59,7 +59,7 @@ if __name__ == "__main__":
     if hyperparameters["load_run"] is None or hyperparameters["load_run"] == "":
         train.run()
     else:
-        # train.timestamp = "20230704_095605"
+        # train.timestamp = "20230706_101116"
         train.timestamp = hyperparameters["load_run"]
 
     # Load imputed data

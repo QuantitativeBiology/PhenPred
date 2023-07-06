@@ -437,7 +437,7 @@ class GIPlot(CrispyPlot):
 
         ax.grid(axis="both", lw=0.1, color="#e1e1e1", zorder=0)
 
-        cor, pval = spearmanr(plot_df[x_gene], plot_df[y_gene])
+        cor, pval = stats.spearmanr(plot_df[x_gene], plot_df[y_gene])
         rmse = sqrt(mean_squared_error(plot_df[x_gene], plot_df[y_gene]))
         annot_text = f"Spearman's R={cor:.2g}, p-value={pval:.1e}; RMSE={rmse:.2f}"
         ax.text(0.95, 0.05, annot_text, fontsize=4, transform=ax.transAxes, ha="right")
@@ -589,7 +589,7 @@ class GIPlot(CrispyPlot):
         grid.ax_joint.grid(axis="both", lw=0.1, color="#e1e1e1", zorder=0)
 
         if plot_annot:
-            cor, pval = spearmanr(plot_df[x_gene], plot_df[y_gene])
+            cor, pval = stats.spearmanr(plot_df[x_gene], plot_df[y_gene])
             rmse = sqrt(mean_squared_error(plot_df[x_gene], plot_df[y_gene]))
             annot_text = f"Spearman's R={cor:.2g}, p-value={pval:.1e}; RMSE={rmse:.2f}"
             grid.ax_joint.text(
@@ -942,7 +942,7 @@ class GIPlot(CrispyPlot):
             )
 
         if annot:
-            cor, pval = spearmanr(plot_df[x], plot_df[y])
+            cor, pval = stats.spearmanr(plot_df[x], plot_df[y])
             annot_text = f"Spearman's R={cor:.2g}, p-value={pval:.1e}"
             ax.text(
                 0.95, 0.05, annot_text, fontsize=4, transform=ax.transAxes, ha="right"
@@ -1014,7 +1014,7 @@ class GIPlot(CrispyPlot):
             )
 
         if corr_annotation:
-            cor, pval = spearmanr(df[x], df[y])
+            cor, pval = stats.spearmanr(df[x], df[y])
             annot_text = f"R={cor:.2g}, p={pval:.1e}"
             ax.text(
                 0.95, 0.05, annot_text, fontsize=4, transform=ax.transAxes, ha="right"
