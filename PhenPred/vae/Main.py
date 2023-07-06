@@ -15,13 +15,14 @@ import argparse
 import pandas as pd
 from PhenPred.vae import plot_folder
 from PhenPred.vae.Hypers import Hypers
+from PhenPred.vae.Train import CLinesTrain, CLinesTrainGMVAE
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
+from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
-from PhenPred.vae.Train import CLinesTrain, CLinesTrainGMVAE
+from PhenPred.vae.BenchmarkMismatch import MismatchBenchmark
 from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
 from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
-from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
 
 if __name__ == "__main__":
@@ -37,8 +38,6 @@ if __name__ == "__main__":
         filter_features=hyperparameters["filter_features"],
         filtered_encoder_only=hyperparameters["filtered_encoder_only"],
     )
-    # clines_db.plot_samples_overlap()
-    # clines_db.plot_datasets_missing_values()
 
     # Train and predictions
     if hyperparameters["model"] == "GMVAE":
@@ -58,12 +57,18 @@ if __name__ == "__main__":
     # Run or load previous run
     if hyperparameters["load_run"] is None or hyperparameters["load_run"] == "":
         train.run()
+
     else:
         # train.timestamp = "20230706_101116"
         train.timestamp = hyperparameters["load_run"]
 
+        clines_db.plot_samples_overlap()
+        clines_db.plot_datasets_missing_values()
+
     # Load imputed data
     vae_imputed, vae_latent = train.load_vae_reconstructions()
+    vae_predicted, _ = train.load_vae_reconstructions(mode="all")
+
     mofa_imputed, mofa_latent = CLinesDatasetMOFA.load_reconstructions(clines_db)
 
     # Run Latent Spaces Benchmark
@@ -102,6 +107,10 @@ if __name__ == "__main__":
             ("NRAS", "SHOC2", "NRAS_mut"),
         ]
     )
+
+    # Run mismatch benchmark
+    mismatch_benchmark = MismatchBenchmark(train.timestamp, clines_db, vae_predicted)
+    mismatch_benchmark.run()
 
     # Write the hyperparameters to json file
     json.dump(

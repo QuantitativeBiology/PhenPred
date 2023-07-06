@@ -64,7 +64,6 @@ class CLinesTrain:
         )
 
         model = nn.DataParallel(model)
-        model.to(self.device)
 
         return model
 
@@ -149,6 +148,8 @@ class CLinesTrain:
             model = self.initialize_model()
             optimizer = CLinesLosses.get_optimizer(model, self.hypers)
             scheduler = CLinesLosses.get_scheduler(optimizer, self.hypers)
+
+            model.to(self.device)
 
             # Train and Test Model
             loss_previous, loss_counter = None, 0

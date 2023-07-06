@@ -13,13 +13,13 @@ from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 
 
 class LatentSpaceBenchmark:
-    def __init__(self, timestamp, data, latent_space, mofa=None):
+    def __init__(self, timestamp, data, latent_space, mofa_latent):
         self.data = data
         self.timestamp = timestamp
 
         self.latent_space = latent_space
 
-        self.mofa = mofa
+        self.mofa_latent = mofa_latent
 
         self.ss = data.samplesheet.copy()
 
@@ -117,8 +117,8 @@ class LatentSpaceBenchmark:
         )
 
     def correlate_mofa_factors(self, latents_corr):
-        factors = self.mofa["factors"]
-        variance = self.mofa["rsquare"]
+        factors = self.mofa_latent["factors"]
+        variance = self.mofa_latent["rsquare"]
 
         latents = self.latent_space
         covs = latents_corr.copy()
@@ -363,60 +363,60 @@ class LatentSpaceBenchmark:
     ):
         samplesheet = self.data.samplesheet["tissue"].fillna("Other tissue")
 
-        z_joint = pd.read_csv(
-            f"{plot_folder}/files/{self.timestamp}_latent_joint.csv.gz", index_col=0
-        )
+        for n, z_joint in [
+            ("vae", self.latent_space),
+            ("mofa", self.mofa_latent["factors"]),
+        ]:
+            # Get UMAP projections
+            z_joint_umap = pd.DataFrame(
+                umap.UMAP(
+                    n_neighbors=umap_neighbors,
+                    min_dist=umap_min_dist,
+                    metric=umap_metric,
+                    n_components=umap_n_components,
+                ).fit_transform(z_joint),
+                columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
+                index=z_joint.index,
+            )
 
-        # Get UMAP projections
-        z_joint_umap = pd.DataFrame(
-            umap.UMAP(
-                n_neighbors=umap_neighbors,
-                min_dist=umap_min_dist,
-                metric=umap_metric,
-                n_components=umap_n_components,
-            ).fit_transform(z_joint),
-            columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
-            index=z_joint.index,
-        )
+            # Plot projections by tissue type
+            plot_df = pd.concat([z_joint_umap, samplesheet], axis=1)
 
-        # Plot projections by tissue type
-        plot_df = pd.concat([z_joint_umap, samplesheet], axis=1)
+            _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
+            sns.scatterplot(
+                data=plot_df,
+                x="UMAP_1",
+                y="UMAP_2",
+                hue="tissue",
+                palette=PALETTE_TTYPE,
+                alpha=0.75,
+                ax=ax,
+            )
+            ax.set(
+                xlabel="UMAP_1",
+                ylabel="UMAP_2",
+                xticklabels=[],
+                yticklabels=[],
+            )
+            sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+            ax.get_legend().get_title().set_fontsize("6")
 
-        _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
-        sns.scatterplot(
-            data=plot_df,
-            x="UMAP_1",
-            y="UMAP_2",
-            hue="tissue",
-            palette=PALETTE_TTYPE,
-            alpha=0.75,
-            ax=ax,
-        )
-        ax.set(
-            xlabel="UMAP_1",
-            ylabel="UMAP_2",
-            xticklabels=[],
-            yticklabels=[],
-        )
-        sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
-        ax.get_legend().get_title().set_fontsize("6")
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
+            sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
 
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-        sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
+            PhenPred.save_figure(
+                f"{plot_folder}/latent/{self.timestamp}_umap_joint{'' if n == 'vae' else '_mofa'}"
+            )
 
-        ax.get_legend().get_title().set_fontsize("6")
-
-        PhenPred.save_figure(f"{plot_folder}/latent/{self.timestamp}_umap_joint")
-
-        # Plot projections by marker
-        if markers is not None:
-            for m in markers:
-                self.plot_latent_continuous(
-                    pd.concat([z_joint_umap, markers[m]], axis=1).dropna(),
-                    "joint",
-                    m,
-                )
+            # Plot projections by marker
+            if markers is not None and n == "vae":
+                for m in markers:
+                    self.plot_latent_continuous(
+                        pd.concat([z_joint_umap, markers[m]], axis=1).dropna(),
+                        "joint",
+                        m,
+                    )
 
     def plot_latent_continuous(self, plot_df, name, m):
         ax = GIPlot.gi_continuous_plot(
