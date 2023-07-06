@@ -68,12 +68,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 if n not in ["copynumber"]
             }
 
-        if self.filtered_encoder_only:
-            self.full_dfs = {
-                n: self.normalize_dataset(df)
-                for n, df in self.full_dfs.items()
-                if n not in ["copynumber"]
-            }
+            if self.filtered_encoder_only:
+                self.full_dfs = {
+                    n: df if n in ["copynumber"] else self.normalize_dataset(df)
+                    for n, df in self.full_dfs.items()
+                }
 
         self._standardize_dfs()
 
