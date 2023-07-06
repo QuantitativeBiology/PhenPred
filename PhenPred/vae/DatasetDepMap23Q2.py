@@ -26,6 +26,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         normalize_features=False,
         normalize_samples=False,
         filter_features=["crisprcas9"],
+        filtered_encoder_only=False,
     ):
         super().__init__()
 
@@ -37,6 +38,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.normalize_features = normalize_features
         self.normalize_samples = normalize_samples
         self.filter_features = filter_features
+        self.filtered_encoder_only = filtered_encoder_only
 
         # Read csv files
         self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
@@ -50,6 +52,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
             if n in self.dfs:
                 self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
 
+        self._build_samplesheet()
+        self._samples_union()
+        self._remove_features_missing_values()
+
+        self.full_dfs = {k: v.copy() for k, v in self.dfs.items()}
         self._filter_features()
 
         if self.normalize_samples:
@@ -58,10 +65,12 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 for n, df in self.dfs.items()
                 if n not in ["copynumber"]
             }
-
-        self._build_samplesheet()
-        self._samples_union()
-        self._remove_features_missing_values()
+            if self.filtered_encoder_only:
+                self.full_dfs = {
+                    n: self.normalize_dataset(df)
+                    for n, df in self.full_dfs.items()
+                    if n not in ["copynumber"]
+                }
         self._standardize_dfs()
 
         self._import_mutations()
@@ -86,17 +95,20 @@ class CLinesDatasetDepMap23Q2(Dataset):
         x = [df[idx] for df in self.views.values()]
         x_nans = [df[idx] for df in self.view_nans.values()]
         y = self.labels[idx]
+        if self.filtered_encoder_only:
+            x_full = [df[idx] for df in self.views_full.values()]
+            x_full_nans = [df[idx] for df in self.view_nans_full.values()]
+            return x, y, x_nans, x_full, x_full_nans
         return x, y, x_nans
 
     def _filter_features(self):
         for n in self.filter_features:
-            if n in self.dfs:
-                if n in ["crisprcas9"]:
+            if n in ["crisprcas9"]:
                     self.dfs[n] = scale(self.dfs[n].T).T
                     self.dfs[n] = self.dfs[n].loc[:, (self.dfs[n] < -0.5).sum() > 0]
-                else:
-                    thres = self.gaussian_mixture_std(self.dfs[n], to_plot=False)
-                    self.dfs[n] = self.dfs[n].loc[:, self.dfs[n].std() > thres]
+            else:
+                thres = self.gaussian_mixture_std(self.dfs[n], plot_name=None)
+                self.dfs[n] = self.dfs[n].loc[:, self.dfs[n].std() > thres]
 
     def _build_labels(self, min_obs=15):
         self.labels = []
@@ -273,6 +285,19 @@ class CLinesDatasetDepMap23Q2(Dataset):
             self.view_feature_names[n] = list(df.columns)
             self.view_names.append(n)
 
+        if self.filtered_encoder_only:
+            self.views_full = dict()
+            self.view_scalers_full = dict()
+            self.view_feature_names_full = dict()
+            self.view_nans_full = dict()
+            self.view_names_full = []
+            for n, df in self.full_dfs.items():
+                self.views_full[n], self.view_scalers_full[n], self.view_nans_full[n] = self.process_df(
+                    n, df
+                )
+                self.view_feature_names_full[n] = list(df.columns)
+                self.view_names_full.append(n)
+
     def normalize_dataset(self, df):
         l2_norms = np.sqrt(np.nansum(df**2, axis=1))
         df_norm = df / l2_norms[:, np.newaxis]
@@ -293,6 +318,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         x_nan = ~np.isnan(x)
 
         x[~x_nan] = np.nanmean(x)
+        # x[~x_nan] = 0
 
         x = torch.tensor(x, dtype=torch.float)
 
@@ -431,6 +457,15 @@ class CLinesDatasetDepMap23Q2(Dataset):
         )
 
     def get_features(self, view_features_dict):
+        if self.filtered_encoder_only:
+            return pd.concat(
+                [
+                    self.full_dfs[v].reindex(columns=f).add_suffix(f"_{v}")
+                    for v, f in view_features_dict.items()
+                ],
+                axis=1,
+            )
+        
         return pd.concat(
             [
                 self.dfs[v].reindex(columns=f).add_suffix(f"_{v}")

@@ -38,15 +38,15 @@ def get_non_essential_genes(dfile="data/NonessentialGenes.csv", return_series=Tr
     return geneset
 
 
-def scale(df, essential=None, non_essential=None, metric=np.median):
+def scale(df, essential=None, non_essential=None, metric=np.nanmedian):
     if essential is None:
         essential = get_essential_genes(return_series=False)
 
     if non_essential is None:
         non_essential = get_non_essential_genes(return_series=False)
 
-    essential_metric = metric(df.reindex(essential).dropna(), axis=0)
-    non_essential_metric = metric(df.reindex(non_essential).dropna(), axis=0)
+    essential_metric = metric(df.reindex(essential), axis=0)
+    non_essential_metric = metric(df.reindex(non_essential), axis=0)
 
     df = df.subtract(non_essential_metric).divide(
         non_essential_metric - essential_metric

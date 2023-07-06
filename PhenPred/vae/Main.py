@@ -35,6 +35,7 @@ if __name__ == "__main__":
         feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
         standardize=hyperparameters["standardize"],
         filter_features=hyperparameters["filter_features"],
+        filtered_encoder_only=hyperparameters["filtered_encoder_only"],
     )
     # clines_db.plot_samples_overlap()
     # clines_db.plot_datasets_missing_values()
