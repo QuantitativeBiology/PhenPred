@@ -52,11 +52,13 @@ class CLinesDatasetDepMap23Q2(Dataset):
             if n in self.dfs:
                 self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
 
+        self._remove_features_missing_values()
         self._build_samplesheet()
         self._samples_union()
-        self._remove_features_missing_values()
 
-        self.full_dfs = {k: v.copy() for k, v in self.dfs.items()}
+        if self.filtered_encoder_only:
+            self.full_dfs = {k: v.copy() for k, v in self.dfs.items()}
+
         self._filter_features()
 
         if self.normalize_samples:
@@ -65,12 +67,14 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 for n, df in self.dfs.items()
                 if n not in ["copynumber"]
             }
-            if self.filtered_encoder_only:
-                self.full_dfs = {
-                    n: self.normalize_dataset(df)
-                    for n, df in self.full_dfs.items()
-                    if n not in ["copynumber"]
-                }
+
+        if self.filtered_encoder_only:
+            self.full_dfs = {
+                n: self.normalize_dataset(df)
+                for n, df in self.full_dfs.items()
+                if n not in ["copynumber"]
+            }
+
         self._standardize_dfs()
 
         self._import_mutations()
@@ -104,8 +108,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def _filter_features(self):
         for n in self.filter_features:
             if n in ["crisprcas9"]:
-                    self.dfs[n] = scale(self.dfs[n].T).T
-                    self.dfs[n] = self.dfs[n].loc[:, (self.dfs[n] < -0.5).sum() > 0]
+                self.dfs[n] = scale(self.dfs[n].T).T
+                self.dfs[n] = self.dfs[n].loc[:, (self.dfs[n] < -0.5).sum() > 0]
             else:
                 thres = self.gaussian_mixture_std(self.dfs[n], plot_name=None)
                 self.dfs[n] = self.dfs[n].loc[:, self.dfs[n].std() > thres]
@@ -291,10 +295,13 @@ class CLinesDatasetDepMap23Q2(Dataset):
             self.view_feature_names_full = dict()
             self.view_nans_full = dict()
             self.view_names_full = []
+
             for n, df in self.full_dfs.items():
-                self.views_full[n], self.view_scalers_full[n], self.view_nans_full[n] = self.process_df(
-                    n, df
-                )
+                (
+                    self.views_full[n],
+                    self.view_scalers_full[n],
+                    self.view_nans_full[n],
+                ) = self.process_df(n, df)
                 self.view_feature_names_full[n] = list(df.columns)
                 self.view_names_full.append(n)
 
@@ -465,7 +472,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 ],
                 axis=1,
             )
-        
+
         return pd.concat(
             [
                 self.dfs[v].reindex(columns=f).add_suffix(f"_{v}")
