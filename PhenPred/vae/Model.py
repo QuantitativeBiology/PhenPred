@@ -11,11 +11,13 @@ class MOVE(nn.Module):
         hypers,
         views_sizes,
         conditional_size,
+        views_sizes_full=None
     ):
         super().__init__()
 
         self.hypers = hypers
         self.views_sizes = views_sizes
+        self.views_sizes_full = views_sizes_full
         self.views_latent_sizes = {
             k: int(v * self.hypers["view_latent_dim"])
             for k, v in self.views_sizes.items()
@@ -71,9 +73,14 @@ class MOVE(nn.Module):
 
         self.decoders = nn.ModuleList()
         for n in self.views_sizes:
-            layer_sizes = [latent_views_sum + self.conditional_size] + [
-                int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
-            ]
+            if self.views_sizes_full is None:
+                layer_sizes = [latent_views_sum + self.conditional_size] + [
+                    int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
+                ]
+            else:
+                layer_sizes = [latent_views_sum + self.conditional_size] + [
+                    int(v * self.views_sizes_full[n]) for v in self.hypers["hidden_dims"][::-1]
+                ]
 
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
@@ -81,7 +88,10 @@ class MOVE(nn.Module):
                 layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.activation_function)
 
-            layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
+            if self.views_sizes_full is None:
+                layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
+            else:
+                layers.append(nn.Linear(layer_sizes[-1], self.views_sizes_full[n]))
 
             self.decoders.append(nn.Sequential(*layers))
 

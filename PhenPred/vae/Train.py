@@ -53,6 +53,9 @@ class CLinesTrain:
             hypers=self.hypers,
             views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
             conditional_size=self.data.labels.shape[1],
+            views_sizes_full={n: v.shape[1] for n, v in self.data.views_full.items()}
+            if self.hypers["filtered_encoder_only"]
+            else None,
         )
         model = nn.DataParallel(model)
         model.to(self.device)
@@ -65,16 +68,24 @@ class CLinesTrain:
         dataloader,
         record_losses=None,
     ):
-        for x, y, x_nans in dataloader:
+        for data in dataloader:
+            x, y, x_nans = data[:3]
             x = [i.to(self.device) for i in x]
             x_nans = [i.to(self.device) for i in x_nans]
             y = y.to(self.device)
+            if self.hypers["filtered_encoder_only"]:
+                x_full, x_full_nans = data[3:]
+                x_full = [i.to(self.device) for i in x_full]
+                x_full_nans = [i.to(self.device) for i in x_full_nans]
 
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(model.training):
                 x_hat, _, mu, log_var = model(x, y)
-                loss = model.module.loss(x, x_hat, x_nans, mu, log_var)
+                if self.hypers["filtered_encoder_only"]:
+                    loss = model.module.loss(x_full, x_hat, x_full_nans, mu, log_var)
+                else:
+                    loss = model.module.loss(x, x_hat, x_nans, mu, log_var)
 
                 if model.training:
                     loss["total"].backward()
@@ -227,15 +238,24 @@ class CLinesTrain:
         # Make predictions and latent spaces
         self.model.eval()
         with torch.no_grad():
-            for x, y, _ in data_all:
+            for data in data_all:
+                x, y, x_nans = data[:3]
                 x_hat, z, _, _ = self.model(x, y)
 
-                for name, df in zip(self.data.view_names, x_hat):
-                    imputed_datasets[name] = pd.DataFrame(
-                        self.data.view_scalers[name].inverse_transform(df.tolist()),
-                        index=self.data.samples,
-                        columns=self.data.view_feature_names[name],
-                    )
+                if self.hypers["filtered_encoder_only"]:
+                    for name, df in zip(self.data.view_names_full, x_hat):
+                        imputed_datasets[name] = pd.DataFrame(
+                            self.data.view_scalers_full[name].inverse_transform(df.tolist()),
+                            index=self.data.samples,
+                            columns=self.data.view_feature_names_full[name],
+                        )
+                else: 
+                    for name, df in zip(self.data.view_names, x_hat):
+                        imputed_datasets[name] = pd.DataFrame(
+                            self.data.view_scalers[name].inverse_transform(df.tolist()),
+                            index=self.data.samples,
+                            columns=self.data.view_feature_names[name],
+                        )
 
                 z = pd.DataFrame(z.tolist(), index=self.data.samples)
                 z.columns = [f"Latent_{i+1}" for i in range(z.shape[1])]
@@ -291,7 +311,10 @@ class CLinesTrain:
             df_imputed = pd.read_csv(df_file, index_col=0)
 
             if mode == "nans_only":
-                df_imputed = self.data.dfs[n].combine_first(df_imputed)
+                if self.hypers["filtered_encoder_only"]:
+                    df_imputed = self.data.full_dfs[n].combine_first(df_imputed)
+                else:
+                    df_imputed = self.data.dfs[n].combine_first(df_imputed)
 
             dfs_imputed[n] = df_imputed
 
@@ -491,6 +514,9 @@ class CLinesTrainGMVAE(CLinesTrain):
             conditional_size=self.data.labels.shape[1]
             if self.hypers["use_conditional_gmvae"]
             else 0,
+            views_sizes_full={n: v.shape[1] for n, v in self.data.views_full.items()}
+            if self.hypers["filtered_encoder_only"]
+            else None,
         )
         model = nn.DataParallel(model)
         model.to(self.device)
@@ -503,10 +529,15 @@ class CLinesTrainGMVAE(CLinesTrain):
         dataloader,
         record_losses=None,
     ):
-        for x, y, x_nans in dataloader:
+        for data in dataloader:
+            x, y, x_nans = data[:3]
             x = [i.to(self.device) for i in x]
             x_nans = [i.to(self.device) for i in x_nans]
             y = y.to(self.device)
+            if self.hypers["filtered_encoder_only"]:
+                x_full, x_full_nans = data[3:]
+                x_full = [i.to(self.device) for i in x_full]
+                x_full_nans = [i.to(self.device) for i in x_full_nans]
 
             optimizer.zero_grad()
 
@@ -516,16 +547,28 @@ class CLinesTrainGMVAE(CLinesTrain):
                 w_gauss = self.hypers["w_gaussian"]
                 w_cat = self.hypers["w_cat"]
 
-                loss = CLinesLosses.unlabeled_loss(
-                    views=x,
-                    out_net=out_net,
-                    views_mask=x_nans,
-                    rec_type=self.hypers["reconstruction_loss"],
-                    w_rec=w_rec,
-                    w_gauss=w_gauss,
-                    w_cat=w_cat,
-                    num_cat=self.k,
-                )
+                if self.hypers["filtered_encoder_only"]:
+                    loss = CLinesLosses.unlabeled_loss(
+                        views=x_full,
+                        out_net=out_net,
+                        views_mask=x_full_nans,
+                        rec_type=self.hypers["reconstruction_loss"],
+                        w_rec=w_rec,
+                        w_gauss=w_gauss,
+                        w_cat=w_cat,
+                        num_cat=self.k,
+                    )
+                else:
+                    loss = CLinesLosses.unlabeled_loss(
+                        views=x,
+                        out_net=out_net,
+                        views_mask=x_nans,
+                        rec_type=self.hypers["reconstruction_loss"],
+                        w_rec=w_rec,
+                        w_gauss=w_gauss,
+                        w_cat=w_cat,
+                        num_cat=self.k,
+                    )
 
                 if model.training:
                     loss["total"].backward()
@@ -562,16 +605,25 @@ class CLinesTrainGMVAE(CLinesTrain):
         # Make predictions and latent spaces
         self.model.eval()
         with torch.no_grad():
-            for x, y, _ in data_all:
+            for data in data_all:
+                x, y, x_nans = data[:3]
                 out_net = self.model(x, self.gumbel_temp, self.hard_gumbel, y)
                 x_hat = out_net["views_hat"]
                 z = out_net["z"]
-                for name, df in zip(self.data.view_names, x_hat):
-                    imputed_datasets[name] = pd.DataFrame(
-                        self.data.view_scalers[name].inverse_transform(df.tolist()),
-                        index=self.data.samples,
-                        columns=self.data.view_feature_names[name],
-                    )
+                if self.hypers["filtered_encoder_only"]:
+                    for name, df in zip(self.data.view_names_full, x_hat):
+                        imputed_datasets[name] = pd.DataFrame(
+                            self.data.view_scalers_full[name].inverse_transform(df.tolist()),
+                            index=self.data.samples,
+                            columns=self.data.view_feature_names_full[name],
+                        )
+                else: 
+                    for name, df in zip(self.data.view_names, x_hat):
+                        imputed_datasets[name] = pd.DataFrame(
+                            self.data.view_scalers[name].inverse_transform(df.tolist()),
+                            index=self.data.samples,
+                            columns=self.data.view_feature_names[name],
+                        )
 
                 z = pd.DataFrame(z.tolist(), index=self.data.samples)
                 z.columns = [f"Latent_{i+1}" for i in range(z.shape[1])]
