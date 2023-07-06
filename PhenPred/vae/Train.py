@@ -77,9 +77,11 @@ class CLinesTrain:
     ):
         for data in dataloader:
             x, y, x_nans = data[:3]
+
             x = [i.to(self.device) for i in x]
             x_nans = [i.to(self.device) for i in x_nans]
             y = y.to(self.device)
+
             if self.hypers["filtered_encoder_only"]:
                 x_full, x_full_nans = data[3:]
                 x_full = [i.to(self.device) for i in x_full]
@@ -89,6 +91,7 @@ class CLinesTrain:
 
             with torch.set_grad_enabled(model.training):
                 x_hat, _, mu, log_var = model(x, y)
+
                 if self.hypers["filtered_encoder_only"]:
                     loss = model.module.loss(x_full, x_hat, x_full_nans, mu, log_var)
                 else:
@@ -246,7 +249,7 @@ class CLinesTrain:
         self.model.eval()
         with torch.no_grad():
             for data in data_all:
-                x, y, x_nans = data[:3]
+                x, y, _ = data[:3]
                 x_hat, z, _, _ = self.model(x, y)
 
                 if self.hypers["filtered_encoder_only"]:
@@ -567,6 +570,7 @@ class CLinesTrainGMVAE(CLinesTrain):
                         w_cat=w_cat,
                         num_cat=self.k,
                     )
+
                 else:
                     loss = CLinesLosses.unlabeled_loss(
                         views=x,
