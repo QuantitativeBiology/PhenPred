@@ -284,7 +284,7 @@ class CLinesTrain:
                     compression="gzip",
                 )
 
-    def load_vae_reconstructions(self, mode="nans_only"):
+    def load_vae_reconstructions(self, mode="nans_only", dfs=None):
         """
         Load imputed data and latent space from files. "nans_only" mode, original
         measurements are mantained and only NaNs are imputed. "all" mode all
@@ -312,9 +312,11 @@ class CLinesTrain:
         if mode not in ["nans_only", "all"]:
             raise ValueError(f"Invalid mode {mode}")
 
-        # Load imputed data
+        if dfs is None:
+            dfs = self.data.dfs
+
         dfs_imputed = {}
-        for n in self.data.dfs:
+        for n in dfs:
             df_file = f"{plot_folder}/files/{self.timestamp}_imputed_{n}.csv.gz"
 
             if not os.path.isfile(df_file):
