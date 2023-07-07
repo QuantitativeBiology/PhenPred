@@ -39,7 +39,11 @@ class CLinesTrain:
         self.lrs = [(1, hypers["learning_rate"])]
         self.early_stop_patience = early_stop_patience
 
-    def run(self):
+    def run(self, run_timestamp=None):
+        if run_timestamp is not None:
+            self.timestamp = run_timestamp
+            return
+
         self.training()
 
         losses_df = self.save_losses()
