@@ -24,7 +24,7 @@ class MOFABencharmk:
                 convergence_mode="slow",
                 startELBO=1,
                 freqELBO=1,
-                dropR2=1e-4,
+                dropR2=False,
                 verbose=False,
             )
 
@@ -32,6 +32,7 @@ class MOFABencharmk:
         self.clines_db_original = CLinesDatasetDepMap23Q2(
             datasets=self.hypers["datasets"],
             feature_miss_rate_thres=self.hypers["feature_miss_rate_thres"],
+            standardize=self.hypers["standardize"],
         )
 
     def run(self):
@@ -84,7 +85,9 @@ class MOFABencharmk:
             scale_views=self.hypers_mofa["scale_views"],
         )
 
-        self.ent.set_data_df(self.mofa_db)
+        self.ent.set_data_df(
+            self.mofa_db, likelihoods=["gaussian"] * len(self.hypers["datasets"])
+        )
 
         self.ent.set_model_options(
             factors=self.hypers_mofa["factors"],
@@ -105,7 +108,7 @@ class MOFABencharmk:
     def parse_data_for_mofa(self):
         mofa_db, mofa_db_cols = [], ["sample", "group", "feature", "value", "view"]
 
-        for n, df in self.clines_db.dfs.items():
+        for n, df in self.clines_db_original.dfs.items():
             df_melt = df.stack().reset_index()
             df_melt.columns = ["sample", "feature", "value"]
             df_melt["group"] = "groupA"
@@ -154,3 +157,8 @@ class MOFABencharmk:
             for k, df in r2.items()
         }
         return rsquare
+
+
+if __name__ == "__main__":
+    pass
+    MOFABencharmk().run_mofa()
