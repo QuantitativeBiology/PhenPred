@@ -1,3 +1,4 @@
+from curses import meta
 import torch
 import PhenPred
 import numpy as np
@@ -11,6 +12,7 @@ from PhenPred.Utils import scale
 from torch.utils.data import Dataset
 from sklearn.mixture import GaussianMixture
 from PhenPred.vae import data_folder, plot_folder
+from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.preprocessing import StandardScaler, PowerTransformer, normalize
 
@@ -25,7 +27,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         standardize=False,
         normalize_features=False,
         normalize_samples=False,
-        filter_features=["crisprcas9"],
+        filter_features=[],
         filtered_encoder_only=False,
     ):
         super().__init__()
@@ -80,12 +82,25 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 }
 
         self._standardize_dfs()
-
         self._import_mutations()
         self._import_fusions()
         self._import_growth()
-
         self._build_labels()
+
+        # View names
+        self.view_name_map = dict(
+            copynumber="Copy number",
+            mutations="Mutations",
+            fusions="Fusions",
+            methylation="Methylation",
+            transcriptomics="Transcriptomics",
+            proteomics="Proteomics",
+            phosphoproteomics="Phosphoproteomics",
+            metabolomics="Metabolomics",
+            drugresponse="Drug response",
+            crisprcas9="CRISPR-Cas9",
+            growth="Growth",
+        )
 
         print(self)
 
@@ -156,6 +171,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
             self.labels.append(
                 self.ss_cmp["msi_status"].replace({"MSS": 0, "MSI": 1}).astype(float)
             )
+
+        if "mofa" in self.labels_names:
+            self.labels.append(CLinesDatasetMOFA.load_factors())
 
         # Concatenate
         self.labels = pd.concat(self.labels, axis=1)
@@ -487,6 +505,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
     def plot_samples_overlap(self):
         plot_df = self.n_samples_views()
+        plot_df.index = [self.view_name_map[i] for i in plot_df.index]
         plot_df.T.to_csv(f"{plot_folder}/datasets_overlap.csv")
 
         nsamples = plot_df.sum(1)
@@ -507,12 +526,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 20, i + 0.5, f"N={nsamples[c]:,}", ha="left", va="center", fontsize=6
             )
 
-        ax.set_title(f"Cancer cell lines multi-omics dataset (N={plot_df.shape[1]:,})")
+        ax.set_title(f"Cancer cell lines multi-omics dataset\n(n={plot_df.shape[1]:,})")
 
-        plt.savefig(
-            f"{plot_folder}/datasets_overlap_DepMap23Q2.pdf", bbox_inches="tight"
+        PhenPred.save_figure(
+            f"{plot_folder}/datasets_overlap_DepMap23Q2", extensions=["png"]
         )
-        plt.close("all")
 
     def plot_datasets_missing_values(
         self,
@@ -569,10 +587,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 transform=ax.transAxes,
             )
 
-            ax.set_title(f"{n} dataset")
+            ax.set_title(f"{self.view_name_map[n]} dataset")
 
-            plt.savefig(
-                f"{plot_folder}/datasets_missing_values_DepMap23Q2_{n}.png",
-                bbox_inches="tight",
+            PhenPred.save_figure(
+                f"{plot_folder}/datasets_missing_values_DepMap23Q2_{n}",
+                extensions=["png"],
             )
-            plt.close("all")

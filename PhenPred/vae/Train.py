@@ -93,6 +93,7 @@ class CLinesTrain:
 
                 if self.hypers["filtered_encoder_only"]:
                     loss = model.module.loss(x_full, x_hat, x_full_nans, mu, log_var)
+
                 else:
                     loss = model.module.loss(x, x_hat, x_nans, mu, log_var)
 

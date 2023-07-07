@@ -75,3 +75,19 @@ class CLinesDatasetMOFA:
         )
 
         return dfs_imputed, joint_latent
+
+    @staticmethod
+    def load_factors(hypers=None):
+        if hypers is None:
+            hypers = Hypers.read_hyperparameters()
+        elif isinstance(hypers, str):
+            hypers = Hypers.read_hyperparameters(hypers)
+
+        dataset_name = f"MOFA_{hypers['dataname']}"
+        dataset_name += f"_Factors50"
+
+        ddir = f"{data_folder}/mofa/{dataset_name}"
+
+        factors = pd.read_csv(f"{ddir}_factors.csv", index_col=0)
+
+        return factors

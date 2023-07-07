@@ -16,6 +16,7 @@ write.csv(data_imputed@imputed_data$metabolomics$groupA, "data/clines/mofa/MOFA_
 write.csv(data_imputed@imputed_data$methylation$groupA, "data/clines/mofa/MOFA_depmap23Q2_Factors50_imputed_methylation.csv", row.names=TRUE)
 write.csv(data_imputed@imputed_data$proteomics$groupA, "data/clines/mofa/MOFA_depmap23Q2_Factors50_imputed_proteomics.csv", row.names=TRUE)
 write.csv(data_imputed@imputed_data$transcriptomics$groupA, "data/clines/mofa/MOFA_depmap23Q2_Factors50_imputed_transcriptomics.csv", row.names=TRUE)
+write.csv(data_imputed@imputed_data$copynumber$groupA, "data/clines/mofa/MOFA_depmap23Q2_Factors50_imputed_copynumber.csv", row.names=TRUE)
 
 write.csv(data_predicted$crisprcas9$groupA, "data/clines/mofa/MOFA_depmap23Q2_Factors50_predicted_crisprcas9.csv", row.names=TRUE)
 write.csv(data_predicted$drugresponse$groupA, "data/clines/mofa/MOFA_depmap23Q2_Factors50_predicted_drugresponse.csv", row.names=TRUE)
@@ -23,3 +24,4 @@ write.csv(data_predicted$metabolomics$groupA, "data/clines/mofa/MOFA_depmap23Q2_
 write.csv(data_predicted$methylation$groupA, "data/clines/mofa/MOFA_depmap23Q2_Factors50_predicted_methylation.csv", row.names=TRUE)
 write.csv(data_predicted$proteomics$groupA, "data/clines/mofa/MOFA_depmap23Q2_Factors50_predicted_proteomics.csv", row.names=TRUE)
 write.csv(data_predicted$transcriptomics$groupA, "data/clines/mofa/MOFA_depmap23Q2_Factors50_predicted_transcriptomics.csv", row.names=TRUE)
+write.csv(data_predicted$copynumber$groupA, "data/clines/mofa/MOFA_depmap23Q2_Factors50_predicted_copynumber.csv", row.names=TRUE)
