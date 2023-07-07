@@ -1,4 +1,3 @@
-from curses import meta
 import torch
 import PhenPred
 import numpy as np
@@ -6,10 +5,9 @@ import pandas as pd
 import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from scipy.stats import zscore
-from scipy.stats import norm
 from PhenPred.Utils import scale
 from torch.utils.data import Dataset
+from scipy.stats import zscore, norm
 from sklearn.mixture import GaussianMixture
 from PhenPred.vae import data_folder, plot_folder
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
@@ -49,11 +47,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
             for n, df in self.dfs.items()
         }
 
-        # Import drug targets
-        self.drug_targets = pd.read_csv(
-            f"{data_folder}/drugresponse_drug_targets.csv", index_col=0
-        )["putative_gene_target"]
-
         # Dataset specific preprocessing
         for n in ["crisprcas9"]:
             if n in self.dfs:
@@ -62,29 +55,19 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._remove_features_missing_values()
         self._build_samplesheet()
         self._samples_union()
-
-        if self.filtered_encoder_only:
-            self.full_dfs = {k: v.copy() for k, v in self.dfs.items()}
-
-        self._filter_features()
+        self._features_mask()
 
         if self.normalize_samples:
             self.dfs = {
-                n: self.normalize_dataset(df)
+                n: df if n in ["copynumber"] else self.normalize_dataset(df)
                 for n, df in self.dfs.items()
-                if n not in ["copynumber"]
             }
-
-            if self.filtered_encoder_only:
-                self.full_dfs = {
-                    n: df if n in ["copynumber"] else self.normalize_dataset(df)
-                    for n, df in self.full_dfs.items()
-                }
 
         self._standardize_dfs()
         self._import_mutations()
         self._import_fusions()
         self._import_growth()
+        self._import_drug_targets()
         self._build_labels()
 
         # View names
@@ -106,8 +89,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
     def __str__(self) -> str:
         str = f"DepMap23Q2 | Samples = {len(self.samples):,}"
+
         for n, df in self.dfs.items():
-            str += f" | {n} = {df.shape[1]:,}"
+            f_masked = df.shape[1] - self.features_mask[n].sum()
+            str += f" | {self.view_name_map[n]} = {df.shape[1]:,} ({f_masked:,} masked)"
+
         str += f" | Labels = {self.labels_size:,}"
         return str
 
@@ -117,21 +103,31 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def __getitem__(self, idx):
         x = [df[idx] for df in self.views.values()]
         x_nans = [df[idx] for df in self.view_nans.values()]
-        y = self.labels[idx]
-        if self.filtered_encoder_only:
-            x_full = [df[idx] for df in self.views_full.values()]
-            x_full_nans = [df[idx] for df in self.view_nans_full.values()]
-            return x, y, x_nans, x_full, x_full_nans
-        return x, y, x_nans
+        x_mask = [
+            torch.tensor(self.features_mask[n], dtype=torch.bool) for n in self.views
+        ]
 
-    def _filter_features(self):
-        for n in self.filter_features:
-            if n in ["crisprcas9"]:
-                self.dfs[n] = scale(self.dfs[n].T).T
-                self.dfs[n] = self.dfs[n].loc[:, (self.dfs[n] < -0.5).sum() > 0]
-            else:
-                thres = self.gaussian_mixture_std(self.dfs[n], plot_name=None)
-                self.dfs[n] = self.dfs[n].loc[:, self.dfs[n].std() > thres]
+        y = self.labels[idx]
+
+        return x, y, x_nans, x_mask
+
+    def _features_mask(self):
+        self.features_mask = {}
+
+        for n in self.dfs:
+            self.features_mask[n] = pd.Series(
+                np.ones(self.dfs[n].shape[1], dtype=bool),
+                index=self.dfs[n].columns,
+            )
+
+            if n in self.filter_features:
+                if n in ["crisprcas9"]:
+                    self.dfs[n] = scale(self.dfs[n].T).T
+                    self.features_mask[n] = (self.dfs[n] < -0.5).sum() > 0
+
+                else:
+                    thres = self.gaussian_mixture_std(self.dfs[n], plot_name=n)
+                    self.features_mask[n] = self.dfs[n].std() > thres
 
     def _build_labels(self, min_obs=15):
         self.labels = []
@@ -184,6 +180,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.labels_size = self.labels.shape[1]
 
         self.labels = torch.tensor(self.labels.values.astype(float), dtype=torch.float)
+
+    def _import_drug_targets(self):
+        self.drug_targets = pd.read_csv(
+            f"{data_folder}/drugresponse_drug_targets.csv", index_col=0
+        )["putative_gene_target"]
 
     def _import_fusions(self):
         self.fusions = pd.read_csv(f"{data_folder}/Fusions_20221214.txt").assign(
@@ -311,22 +312,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
             self.view_feature_names[n] = list(df.columns)
             self.view_names.append(n)
 
-        if self.filtered_encoder_only:
-            self.views_full = dict()
-            self.view_scalers_full = dict()
-            self.view_feature_names_full = dict()
-            self.view_nans_full = dict()
-            self.view_names_full = []
-
-            for n, df in self.full_dfs.items():
-                (
-                    self.views_full[n],
-                    self.view_scalers_full[n],
-                    self.view_nans_full[n],
-                ) = self.process_df(n, df)
-                self.view_feature_names_full[n] = list(df.columns)
-                self.view_names_full.append(n)
-
     def normalize_dataset(self, df):
         l2_norms = np.sqrt(np.nansum(df**2, axis=1))
         df_norm = df / l2_norms[:, np.newaxis]
@@ -347,7 +332,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
         x_nan = ~np.isnan(x)
 
         x[~x_nan] = np.nanmean(x)
-        # x[~x_nan] = 0
 
         x = torch.tensor(x, dtype=torch.float)
 
@@ -486,15 +470,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
         )
 
     def get_features(self, view_features_dict):
-        if self.filtered_encoder_only:
-            return pd.concat(
-                [
-                    self.full_dfs[v].reindex(columns=f).add_suffix(f"_{v}")
-                    for v, f in view_features_dict.items()
-                ],
-                axis=1,
-            )
-
         return pd.concat(
             [
                 self.dfs[v].reindex(columns=f).add_suffix(f"_{v}")
