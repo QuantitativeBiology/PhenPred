@@ -38,6 +38,8 @@ if __name__ == "__main__":
         filter_features=hyperparameters["filter_features"],
         filtered_encoder_only=hyperparameters["filtered_encoder_only"],
     )
+    # clines_db.plot_samples_overlap()
+    # clines_db.plot_datasets_missing_values()
 
     # Train and predictions
     if hyperparameters["model"] == "GMVAE":
@@ -54,16 +56,7 @@ if __name__ == "__main__":
             stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
         )
 
-    # Run or load previous run
-    if hyperparameters["load_run"] is None or hyperparameters["load_run"] == "":
-        train.run()
-
-    else:
-        # train.timestamp = "20230706_101116"
-        train.timestamp = hyperparameters["load_run"]
-
-        clines_db.plot_samples_overlap()
-        clines_db.plot_datasets_missing_values()
+    train.run(run_timestamp=hyperparameters["load_run"])
 
     # Load imputed data
     vae_imputed, vae_latent = train.load_vae_reconstructions()
