@@ -1,6 +1,4 @@
-from operator import index
 import os
-from sympy import hyper
 import torch
 import PhenPred
 import warnings
@@ -50,15 +48,15 @@ class CLinesTrain:
         self.predictions()
 
     def initialize_model(self):
-        views_sizes_full = (
-            {n: v.shape[1] for n, v in self.data.views_full.items()}
-            if self.hypers["filtered_encoder_only"]
-            else None
-        )
+        views_sizes = {n: v.sum() for n, v in self.data.features_mask.items()}
+        views_sizes_full = None
+
+        if self.hypers["filtered_encoder_only"]:
+            views_sizes_full = {n: v.shape[1] for n, v in self.data.views.items()}
 
         model = MOVE(
             hypers=self.hypers,
-            views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
+            views_sizes=views_sizes,
             conditional_size=self.data.labels.shape[1],
             views_sizes_full=views_sizes_full,
         )
@@ -75,27 +73,31 @@ class CLinesTrain:
         record_losses=None,
     ):
         for data in dataloader:
-            x, y, x_nans = data[:3]
+            x, y, x_nans, x_mask = data
 
-            x = [i.to(self.device) for i in x]
-            x_nans = [i.to(self.device) for i in x_nans]
+            x = [m.to(self.device) for m in x]
+            x_nans = [m.to(self.device) for m in x_nans]
+
+            x_masked = [m[:, x_mask[i][0]].to(self.device) for i, m in enumerate(x)]
+            x_nans_masked = [
+                m[:, x_mask[i][0]].to(self.device) for i, m in enumerate(x_nans)
+            ]
+
             y = y.to(self.device)
-
-            if self.hypers["filtered_encoder_only"]:
-                x_full, x_full_nans = data[3:]
-                x_full = [i.to(self.device) for i in x_full]
-                x_full_nans = [i.to(self.device) for i in x_full_nans]
 
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(model.training):
-                x_hat, _, mu, log_var = model(x, y)
+                x_hat, _, mu, log_var = model(x_masked, y)
 
                 if self.hypers["filtered_encoder_only"]:
-                    loss = model.module.loss(x_full, x_hat, x_full_nans, mu, log_var)
-
-                else:
+                    # if filtered_encoder_only, use all data for loss
                     loss = model.module.loss(x, x_hat, x_nans, mu, log_var)
+                else:
+                    # otherwise, use only filtered data for loss
+                    loss = model.module.loss(
+                        x_masked, x_hat, x_nans_masked, mu, log_var
+                    )
 
                 if model.training:
                     loss["total"].backward()
@@ -251,25 +253,18 @@ class CLinesTrain:
         self.model.eval()
         with torch.no_grad():
             for data in data_all:
-                x, y, _ = data[:3]
-                x_hat, z, _, _ = self.model(x, y)
+                x, y, _, x_mask = data
 
-                if self.hypers["filtered_encoder_only"]:
-                    for name, df in zip(self.data.view_names_full, x_hat):
-                        imputed_datasets[name] = pd.DataFrame(
-                            self.data.view_scalers_full[name].inverse_transform(
-                                df.tolist()
-                            ),
-                            index=self.data.samples,
-                            columns=self.data.view_feature_names_full[name],
-                        )
-                else:
-                    for name, df in zip(self.data.view_names, x_hat):
-                        imputed_datasets[name] = pd.DataFrame(
-                            self.data.view_scalers[name].inverse_transform(df.tolist()),
-                            index=self.data.samples,
-                            columns=self.data.view_feature_names[name],
-                        )
+                x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
+
+                x_hat, z, _, _ = self.model(x_masked, y)
+
+                for name, df in zip(self.data.view_names, x_hat):
+                    imputed_datasets[name] = pd.DataFrame(
+                        self.data.view_scalers[name].inverse_transform(df.tolist()),
+                        index=self.data.samples,
+                        columns=self.data.view_feature_names[name],
+                    )
 
                 z = pd.DataFrame(z.tolist(), index=self.data.samples)
                 z.columns = [f"Latent_{i+1}" for i in range(z.shape[1])]
@@ -327,10 +322,7 @@ class CLinesTrain:
             df_imputed = pd.read_csv(df_file, index_col=0)
 
             if mode == "nans_only":
-                if self.hypers["filtered_encoder_only"]:
-                    df_imputed = self.data.full_dfs[n].combine_first(df_imputed)
-                else:
-                    df_imputed = self.data.dfs[n].combine_first(df_imputed)
+                df_imputed = self.data.dfs[n].combine_first(df_imputed)
 
             dfs_imputed[n] = df_imputed
 
