@@ -11,7 +11,7 @@ from tqdm import tqdm
 from datetime import datetime
 from PhenPred.vae import plot_folder
 from PhenPred.vae.Model import MOVE
-from PhenPred.vae.ModelGMVAE import CLinesGMVAE
+from PhenPred.vae.ModelGMVAE import GMVAE
 from torch.utils.data import DataLoader
 from PhenPred.vae.Losses import CLinesLosses
 from sklearn.model_selection import (
@@ -29,6 +29,7 @@ class CLinesTrain:
         hypers,
         stratify_cv_by=None,
         early_stop_patience=20,
+        gmvae_args_dict = None
     ):
         self.data = data
         self.losses = []
@@ -38,6 +39,8 @@ class CLinesTrain:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.lrs = [(1, hypers["learning_rate"])]
         self.early_stop_patience = early_stop_patience
+        self.gmvae_args_dict = gmvae_args_dict
+        self.gmvae_args_dict['gumbel_temp'] = self.gmvae_args_dict['init_temp']
 
     def run(self, run_timestamp=None):
         if run_timestamp is not None:
@@ -57,13 +60,26 @@ class CLinesTrain:
 
         if self.hypers["filtered_encoder_only"]:
             views_sizes_full = {n: v.shape[1] for n, v in self.data.views.items()}
-
-        model = MOVE(
-            hypers=self.hypers,
-            views_sizes=views_sizes,
-            conditional_size=self.data.labels.shape[1],
-            views_sizes_full=views_sizes_full,
-        )
+        
+        assert self.hypers["model"] in ["MOVE", "GMVAE"], "Invalid model"
+        if self.hypers["model"] == "MOVE":
+            model = MOVE(
+                hypers=self.hypers,
+                views_sizes=views_sizes,
+                conditional_size=self.data.labels.shape[1],
+                views_sizes_full=views_sizes_full,
+            )
+        else:
+            model = GMVAE(
+                views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
+                hypers=self.hypers,
+                k=self.gmvae_args_dict['k'],
+                views_logits=self.hypers["views_logits"],
+                conditional_size=self.data.labels.shape[1]
+                if self.hypers["use_conditional_gmvae"]
+                else 0,
+                views_sizes_full=views_sizes_full,
+            )
 
         model = nn.DataParallel(model)
 
@@ -92,15 +108,18 @@ class CLinesTrain:
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(model.training):
-                x_hat, _, mu, log_var = model(x_masked, y)
+                if self.hypers["model"] == "MOVE":
+                    out_net = model(x_masked, y)
+                else:
+                    out_net = model(x, self.gmvae_args_dict['gumbel_temp'], self.gmvae_args_dict['hard_gumbel'], y)
 
                 if self.hypers["filtered_encoder_only"]:
                     # if filtered_encoder_only, use all data for loss
-                    loss = model.module.loss(x, x_hat, x_nans, mu, log_var)
+                    loss = model.module.loss(x, x_nans, out_net)
                 else:
                     # otherwise, use only filtered data for loss
                     loss = model.module.loss(
-                        x_masked, x_hat, x_nans_masked, mu, log_var
+                        x_masked, x_nans_masked, out_net
                     )
 
                 if model.training:
@@ -261,7 +280,13 @@ class CLinesTrain:
 
                 x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
 
-                x_hat, z, _, _ = self.model(x_masked, y)
+                if self.hypers["model"] == "MOVE":
+                    out_net = self.model(x_masked, y)
+                else:
+                    out_net = self.model(x, self.gmvae_args_dict['gumbel_temp'], self.gmvae_args_dict['hard_gumbel'], y)
+
+                x_hat = out_net['x_hat']
+                z = out_net['z']
 
                 for name, df in zip(self.data.view_names, x_hat):
                     imputed_datasets[name] = pd.DataFrame(
@@ -484,173 +509,3 @@ class CLinesTrain:
             PhenPred.save_figure(
                 f"{plot_folder}/losses/{self.timestamp}_{prefix}_losses"
             )
-
-
-class CLinesTrainGMVAE(CLinesTrain):
-    def __init__(
-        self,
-        data,
-        hypers,
-        stratify_cv_by=None,
-        early_stop_patience=80,
-        k=50,
-        init_temp=1.0,
-        decay_temp=1.0,
-        hard_gumbel=0,
-        min_temp=0.5,
-        decay_temp_rate=0.013862944,
-    ):
-        super().__init__(
-            data,
-            hypers,
-            stratify_cv_by,
-            early_stop_patience,
-        )
-
-        self.k = k
-
-        # gumbel
-        self.init_temp = init_temp
-        self.decay_temp = decay_temp
-        self.hard_gumbel = hard_gumbel
-        self.min_temp = min_temp
-        self.decay_temp_rate = decay_temp_rate
-        self.gumbel_temp = self.init_temp
-
-    def initialize_model(self):
-        model = CLinesGMVAE(
-            views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
-            hypers=self.hypers,
-            k=self.k,
-            views_logits=self.hypers["views_logits"],
-            conditional_size=self.data.labels.shape[1]
-            if self.hypers["use_conditional_gmvae"]
-            else 0,
-            views_sizes_full={n: v.shape[1] for n, v in self.data.views_full.items()}
-            if self.hypers["filtered_encoder_only"]
-            else None,
-        )
-        model = nn.DataParallel(model)
-        model.to(self.device)
-        return model
-
-    def epoch(
-        self,
-        model,
-        optimizer,
-        dataloader,
-        record_losses=None,
-    ):
-        for data in dataloader:
-            x, y, x_nans = data[:3]
-            x = [i.to(self.device) for i in x]
-            x_nans = [i.to(self.device) for i in x_nans]
-            y = y.to(self.device)
-            if self.hypers["filtered_encoder_only"]:
-                x_full, x_full_nans = data[3:]
-                x_full = [i.to(self.device) for i in x_full]
-                x_full_nans = [i.to(self.device) for i in x_full_nans]
-
-            optimizer.zero_grad()
-
-            with torch.set_grad_enabled(model.training):
-                out_net = model(x, self.gumbel_temp, self.hard_gumbel, y)
-                w_rec = 1
-                w_gauss = self.hypers["w_gaussian"]
-                w_cat = self.hypers["w_cat"]
-
-                if self.hypers["filtered_encoder_only"]:
-                    loss = CLinesLosses.unlabeled_loss(
-                        views=x_full,
-                        out_net=out_net,
-                        views_mask=x_full_nans,
-                        rec_type=self.hypers["reconstruction_loss"],
-                        w_rec=w_rec,
-                        w_gauss=w_gauss,
-                        w_cat=w_cat,
-                        num_cat=self.k,
-                    )
-
-                else:
-                    loss = CLinesLosses.unlabeled_loss(
-                        views=x,
-                        out_net=out_net,
-                        views_mask=x_nans,
-                        rec_type=self.hypers["reconstruction_loss"],
-                        w_rec=w_rec,
-                        w_gauss=w_gauss,
-                        w_cat=w_cat,
-                        num_cat=self.k,
-                    )
-
-                if model.training:
-                    loss["total"].backward()
-                    optimizer.step()
-
-            if record_losses is not None:
-                self.register_loss(
-                    loss,
-                    record_losses,
-                )
-
-    def predictions(self, n_epochs=None):
-        imputed_datasets = dict()
-
-        n_epochs = self.hypers["num_epochs"] if n_epochs is None else n_epochs
-
-        # Data Loader
-        data_all = DataLoader(
-            self.data, batch_size=len(self.data.samples), shuffle=False
-        )
-
-        self.model = self.initialize_model()
-        optimizer = CLinesLosses.get_optimizer(self.model, self.hypers)
-
-        for e in range(1, n_epochs + 1):
-            self.model.train()
-            print(f"Epoch {e:03}")
-            self.epoch(
-                self.model,
-                optimizer,
-                data_all,
-            )
-
-        # Make predictions and latent spaces
-        self.model.eval()
-        with torch.no_grad():
-            for data in data_all:
-                x, y, x_nans = data[:3]
-                out_net = self.model(x, self.gumbel_temp, self.hard_gumbel, y)
-                x_hat = out_net["views_hat"]
-                z = out_net["z"]
-                if self.hypers["filtered_encoder_only"]:
-                    for name, df in zip(self.data.view_names_full, x_hat):
-                        imputed_datasets[name] = pd.DataFrame(
-                            self.data.view_scalers_full[name].inverse_transform(
-                                df.tolist()
-                            ),
-                            index=self.data.samples,
-                            columns=self.data.view_feature_names_full[name],
-                        )
-                else:
-                    for name, df in zip(self.data.view_names, x_hat):
-                        imputed_datasets[name] = pd.DataFrame(
-                            self.data.view_scalers[name].inverse_transform(df.tolist()),
-                            index=self.data.samples,
-                            columns=self.data.view_feature_names[name],
-                        )
-
-                z = pd.DataFrame(z.tolist(), index=self.data.samples)
-                z.columns = [f"Latent_{i+1}" for i in range(z.shape[1])]
-
-                # Write to file
-                for name, df in imputed_datasets.items():
-                    df.round(5).to_csv(
-                        f"{plot_folder}/files/{self.timestamp}_imputed_{name}.csv.gz",
-                        compression="gzip",
-                    )
-
-                z.round(5).to_csv(
-                    f"{plot_folder}/files/{self.timestamp}_latent_joint.csv.gz",
-                    compression="gzip",
-                )

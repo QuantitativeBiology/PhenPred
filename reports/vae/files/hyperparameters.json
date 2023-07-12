@@ -10,7 +10,7 @@
         "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
         "copynumber": "cnv_summary_20230303_matrix.csv"
     },
-    "model": "MOVE",
+    "model": "GMVAE",
     "standardize": true,
     "use_conditional_gmvae": true,
     "labels": ["tissue", "cancer", "culture", "mutations", "fussions", "msi", "growth"],
@@ -26,7 +26,8 @@
     "hidden_dims": [0.7],
     "probability": 0.4,
     "w_kl": 0.001,
-    "w_gaussian": 0.01,
+    "w_rec": 1,
+    "w_gauss": 0.01,
     "w_cat": 0.01,
     "views_logits": 256,
     "optimizer_type": "adam",
