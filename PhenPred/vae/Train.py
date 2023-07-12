@@ -39,8 +39,9 @@ class CLinesTrain:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.lrs = [(1, hypers["learning_rate"])]
         self.early_stop_patience = early_stop_patience
-        self.gmvae_args_dict = gmvae_args_dict
-        self.gmvae_args_dict['gumbel_temp'] = self.gmvae_args_dict['init_temp']
+        if gmvae_args_dict is not None:
+            self.gmvae_args_dict = gmvae_args_dict
+            self.gmvae_args_dict['gumbel_temp'] = self.gmvae_args_dict['init_temp']
 
     def run(self, run_timestamp=None):
         if run_timestamp is not None:
