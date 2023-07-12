@@ -2,10 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
+from PhenPred.vae.Losses import CLinesLosses
 from PhenPred.vae.Layers import BottleNeck, Gaussian, JointInference
 
 
-class CLinesGMVAE(nn.Module):
+class GMVAE(nn.Module):
     def __init__(
         self,
         hypers,
@@ -28,10 +29,13 @@ class CLinesGMVAE(nn.Module):
 
         self.y_mu = nn.Linear(self.k, self.hypers["latent_dim"])
         self.y_var = nn.Linear(self.k, self.hypers["latent_dim"])
+        self.w_rec = self.hypers["w_rec"]
+        self.w_gauss = self.hypers["w_gauss"]
+        self.w_cat = self.hypers["w_cat"]
 
         self._build()
 
-        print(f"# ---- CLinesGMVAE: k={self.k}")
+        print(f"# ---- GMVAE: k={self.k}")
         self.total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         print(f"Total parameters: {self.total_params:,d}")
         print(self)
@@ -90,7 +94,7 @@ class CLinesGMVAE(nn.Module):
         y_var = F.softplus(self.y_var(y))
         return y_mu, y_var
 
-    def forward(self, views, temperature=1.0, hard=0, conditionals=None):
+    def forward(self, views, temperature=1.0, hard=0, conditionals=None, **gmvae_kwargs):
         # Encoders
         if self.conditional_size == 0:
             views_logits = [
@@ -111,16 +115,16 @@ class CLinesGMVAE(nn.Module):
         y_mu, y_var = self.pzy(y)
 
         # Decoders
-        views_hat = []
+        x_hat = []
         if self.conditional_size == 0:
             for i, n in enumerate(self.views_sizes):
-                views_hat.append(self.decoders[i](z))
+                x_hat.append(self.decoders[i](z))
         else:
             for i, n in enumerate(self.views_sizes):
-                views_hat.append(self.decoders[i](torch.cat((z, conditionals), dim=1)))
+                x_hat.append(self.decoders[i](torch.cat((z, conditionals), dim=1)))
 
         return dict(
-            views_hat=views_hat,
+            x_hat=x_hat,
             z_mu=z_mu,
             z_var=z_var,
             z=z,
@@ -130,3 +134,16 @@ class CLinesGMVAE(nn.Module):
             y_mu=y_mu,
             y_var=y_var,
         )
+
+    def loss(self, x, x_nans, out_net):
+
+        return CLinesLosses.unlabeled_loss(
+                        views=x,
+                        out_net=out_net,
+                        views_mask=x_nans,
+                        rec_type=self.hypers["reconstruction_loss"],
+                        w_rec=self.w_rec,
+                        w_gauss=self.w_gauss,
+                        w_cat=self.w_cat,
+                        num_cat=self.k,
+                    )

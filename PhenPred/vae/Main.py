@@ -15,7 +15,7 @@ import argparse
 import pandas as pd
 from PhenPred.vae import plot_folder
 from PhenPred.vae.Hypers import Hypers
-from PhenPred.vae.Train import CLinesTrain, CLinesTrainGMVAE
+from PhenPred.vae.Train import CLinesTrain
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
@@ -43,11 +43,21 @@ if __name__ == "__main__":
 
     # Train and predictions
     if hyperparameters["model"] == "GMVAE":
-        train = CLinesTrainGMVAE(
+        
+        gmvae_args_dict = dict(
+            k=100,
+            init_temp=1.0,
+            decay_temp=1.0,
+            hard_gumbel=0,
+            min_temp=0.5,
+            decay_temp_rate=0.013862944
+        )
+
+        train = CLinesTrain(
             clines_db,
             hyperparameters,
             stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
-            k=100,
+            gmvae_args_dict=gmvae_args_dict
         )
     else:
         train = CLinesTrain(
