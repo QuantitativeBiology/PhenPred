@@ -70,6 +70,10 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._import_drug_targets()
         self._build_labels()
 
+        self.x_mask = [
+            torch.tensor(self.features_mask[n], dtype=torch.bool) for n in self.views
+        ]
+
         # View names
         self.view_name_map = dict(
             copynumber="Copy number",
@@ -103,13 +107,10 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def __getitem__(self, idx):
         x = [df[idx] for df in self.views.values()]
         x_nans = [df[idx] for df in self.view_nans.values()]
-        x_mask = [
-            torch.tensor(self.features_mask[n], dtype=torch.bool) for n in self.views
-        ]
 
         y = self.labels[idx]
 
-        return x, y, x_nans, x_mask
+        return x, y, x_nans, self.x_mask
 
     def _features_mask(self):
         self.features_mask = {}
