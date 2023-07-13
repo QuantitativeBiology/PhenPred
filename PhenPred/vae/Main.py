@@ -42,7 +42,7 @@ if __name__ == "__main__":
     # Train and predictions
     gmvae_args_dict = (
         dict(
-            k=30,
+            k=100,
             init_temp=1.0,
             decay_temp=1.0,
             hard_gumbel=0,
