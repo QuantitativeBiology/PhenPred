@@ -4,7 +4,7 @@
     "save_model": true,
     "skip_cv": true,
     "datasets": {
-	    "proteomics": "proteomics.csv",
+	"proteomics": "proteomics.csv",
         "metabolomics": "metabolomics.csv",
         "drugresponse": "drugresponse.csv",
         "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv",
@@ -12,7 +12,7 @@
         "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
         "copynumber": "cnv_summary_20230303_matrix.csv"
     },
-    "model": "MOVE",
+    "model": "GMVAE",
     "standardize": true,
     "use_conditional_gmvae": true,
     "labels": ["tissue", "mutations", "fussions", "msi", "growth"],
