@@ -1,0 +1,49 @@
+{
+    "dataname": "depmap23Q2",
+    "load_run": null,
+    "datasets": {
+        "proteomics": "/data/benchmarks/clines//proteomics.csv",
+        "metabolomics": "/data/benchmarks/clines//metabolomics.csv",
+        "drugresponse": "/data/benchmarks/clines//drugresponse.csv",
+        "crisprcas9": "/data/benchmarks/clines//depmap23Q2/CRISPRGeneEffect.csv",
+        "methylation": "/data/benchmarks/clines//methylation.csv",
+        "transcriptomics": "/data/benchmarks/clines//depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
+        "copynumber": "/data/benchmarks/clines//cnv_summary_20230303_matrix.csv"
+    },
+    "model": "MOVE",
+    "standardize": true,
+    "use_conditional_gmvae": true,
+    "labels": [
+        "tissue"
+    ],
+    "filter_features": [
+        "crisprcas9",
+        "transcriptomics",
+        "methylation"
+    ],
+    "filtered_encoder_only": true,
+    "feature_miss_rate_thres": 0.85,
+    "num_epochs": 500,
+    "learning_rate": 0.0004,
+    "batch_size": 100,
+    "n_folds": 3,
+    "view_latent_dim": 0.05,
+    "latent_dim": 50,
+    "hidden_dims": [
+        0.7
+    ],
+    "probability": 0.4,
+    "w_kl": 0.001,
+    "w_gaussian": 0.01,
+    "w_cat": 0.01,
+    "views_logits": 256,
+    "optimizer_type": "adam",
+    "w_decay": 0.0005,
+    "reconstruction_loss": "<not serializable>",
+    "activation_function": "<not serializable>",
+    "scheduler": "plateau",
+    "scheduler_threshold": 0.0001,
+    "scheduler_factor": 0.65,
+    "scheduler_patience": 7,
+    "scheduler_min_lr": 5e-06
+}
