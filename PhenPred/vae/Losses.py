@@ -1,5 +1,3 @@
-import sched
-from sklearn.covariance import log_likelihood
 import torch
 import PhenPred
 import numpy as np
