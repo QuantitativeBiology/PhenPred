@@ -1,6 +1,7 @@
 {
     "dataname": "depmap23Q2",
     "load_run": null,
+    "save_model": false,
     "datasets": {
 	    "proteomics": "proteomics.csv",
         "metabolomics": "metabolomics.csv",
@@ -10,7 +11,7 @@
         "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
         "copynumber": "cnv_summary_20230303_matrix.csv"
     },
-    "model": "MOVE",
+    "model": "GMVAE",
     "standardize": true,
     "use_conditional_gmvae": true,
     "labels": ["tissue", "mutations", "fussions", "msi", "growth"],
