@@ -48,10 +48,11 @@ class CLinesTrain:
             self.timestamp = run_timestamp
             return
 
-        self.training()
+        if not self.hypers["skip_cv"]:
+            self.training()
 
-        losses_df = self.save_losses()
-        self.plot_losses(losses_df)
+            losses_df = self.save_losses()
+            self.plot_losses(losses_df)
 
         self.predictions()
 

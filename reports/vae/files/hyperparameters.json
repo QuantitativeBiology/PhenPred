@@ -2,6 +2,7 @@
     "dataname": "depmap23Q2",
     "load_run": null,
     "save_model": false,
+    "skip_cv": false,
     "datasets": {
 	    "proteomics": "proteomics.csv",
         "metabolomics": "metabolomics.csv",
