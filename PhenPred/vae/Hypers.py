@@ -23,8 +23,11 @@ class Hypers:
         if "standardize" not in hypers:
             hypers["standardize"] = False
 
-        if "w_gaussian" not in hypers:
-            hypers["w_gaussian"] = 0.01
+        if "w_rec" not in hypers:
+            hypers["w_rec"] = 1
+
+        if "w_gauss" not in hypers:
+            hypers["w_gauss"] = 0.01
 
         if "w_cat" not in hypers:
             hypers["w_cat"] = 0.01
