@@ -13,7 +13,7 @@
     "model": "MOVE",
     "standardize": true,
     "use_conditional_gmvae": true,
-    "labels": ["tissue", "cancer", "culture", "mutations", "fussions", "msi", "growth"],
+    "labels": ["tissue", "mutations", "fussions", "msi", "growth"],
     "filter_features": ["crisprcas9", "transcriptomics", "methylation"],
     "filtered_encoder_only": true,
     "feature_miss_rate_thres": 0.85,
