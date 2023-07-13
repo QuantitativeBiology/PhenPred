@@ -99,10 +99,19 @@ class MOVE(nn.Module):
         # Decoder
         x_hat = [self.decoders[i](torch.cat([z, y], dim=1)) for i in range(len(x))]
 
-        return x_hat, z, mu, log_var
+        return dict(
+            x_hat=x_hat,
+            z=z,
+            mu=mu,
+            log_var=log_var,
+        )
 
-    def loss(self, x, x_hat, x_nans, mu, logvar):
+    def loss(self, x, x_nans, out_net):
         # Reconstruction loss
+        x_hat = out_net["x_hat"]
+        mu = out_net["mu"]
+        logvar = out_net["log_var"]
+        
         recon_loss, recon_loss_views = 0, []
         for i in range(len(x)):
             recon_xi = self.recon_criterion(x_hat[i][x_nans[i]], x[i][x_nans[i]])
@@ -121,3 +130,5 @@ class MOVE(nn.Module):
             reconstruction_views=recon_loss_views,
             kl=kl_loss,
         )
+    
+

@@ -33,7 +33,7 @@ class CLinesLosses:
             loss_dic: (dict) contains the values of each loss function and predictions
         """
         # obtain network variables
-        z, views_hat = out_net["z"], out_net["views_hat"]
+        z, x_hat = out_net["z"], out_net["x_hat"]
         logits, prob_cat = out_net["y_logits"], out_net["y_prob"]
         y_mu, y_var = out_net["y_mu"], out_net["y_var"]
         mu, var = out_net["z_mu"], out_net["z_var"]
@@ -42,7 +42,7 @@ class CLinesLosses:
         loss_rec = 0
         recon_loss_views = []
         for i, k in enumerate(views):
-            real, predicted = k, views_hat[i]
+            real, predicted = k, x_hat[i]
 
             if views_mask is not None:
                 real, predicted = real[views_mask[i]], predicted[views_mask[i]]
@@ -165,7 +165,7 @@ class CLinesLosses:
         cls,
         hypers,
         views,
-        views_hat,
+        x_hat,
         means,
         log_variances,
         z_joint,
@@ -178,7 +178,7 @@ class CLinesLosses:
         # Compute reconstruction loss across views
         mse_loss, view_mse_loss = 0, {}
         for i, k in enumerate(hypers["datasets"]):
-            X, X_ = views[i], views_hat[i]
+            X, X_ = views[i], x_hat[i]
 
             if views_nans is not None:
                 X, X_ = X[views_nans[i]], X_[views_nans[i]]
