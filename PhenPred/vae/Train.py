@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from datetime import datetime
 from PhenPred.vae import plot_folder
+from torch.utils.data import DataLoader
 from PhenPred.vae.Model import MOVE
 from PhenPred.vae.ModelGMVAE import GMVAE
-from torch.utils.data import DataLoader
 from PhenPred.vae.Losses import CLinesLosses
 from sklearn.model_selection import (
     KFold,
@@ -46,6 +46,7 @@ class CLinesTrain:
     def run(self, run_timestamp=None):
         if run_timestamp is not None:
             self.timestamp = run_timestamp
+            # self.load_model()
             return
 
         if not self.hypers["skip_cv"]:

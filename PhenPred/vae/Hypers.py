@@ -11,11 +11,18 @@ class Hypers:
         return hypers
 
     @classmethod
-    def read_hyperparameters(cls, hypers_json=None, parse_torch_functions=True):
+    def read_hyperparameters(
+        cls, hypers_json=None, parse_torch_functions=True, timestamp=None
+    ):
         if hypers_json is None:
             hypers_json = f"{plot_folder}/files/hyperparameters.json"
+        elif timestamp is not None:
+            hypers_json = f"{plot_folder}/files/{timestamp}_hyperparameters.json"
 
         hypers = cls.read_json(hypers_json)
+
+        if timestamp is not None:
+            hypers["load_run"] = timestamp
 
         if "model" not in hypers:
             hypers["model"] = "MOVE"
