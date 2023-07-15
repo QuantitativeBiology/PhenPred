@@ -41,7 +41,24 @@ class OptunaOptimization:
         hypers = self.sample_params(trial)
 
         # Train
-        loss_val = CLinesTrain(self.data, hypers).training(cv)
+        gmvae_args_dict = (
+            dict(
+                k=100,
+                init_temp=1.0,
+                decay_temp=1.0,
+                hard_gumbel=0,
+                min_temp=0.5,
+                decay_temp_rate=0.013862944,
+            )
+            if hyperparameters["model"] == "GMVAE"
+            else None
+        )
+
+        loss_val = CLinesTrain(
+            self.data,
+            hypers,
+            gmvae_args_dict=gmvae_args_dict,
+        ).training(cv)
 
         return loss_val
 
@@ -75,18 +92,14 @@ if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
 
-    # For testing purposes only - remove methylation and transcriptomics
-    hyperparameters["datasets"] = {
-        k: v
-        for k, v in hyperparameters["datasets"].items()
-        if k not in ["methylation", "transcriptomics"]
-    }
-
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(
-        label=hyperparameters["label"],
+        labels_names=hyperparameters["labels"],
         datasets=hyperparameters["datasets"],
         feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
+        standardize=hyperparameters["standardize"],
+        filter_features=hyperparameters["filter_features"],
+        filtered_encoder_only=hyperparameters["filtered_encoder_only"],
     )
 
     # Optuna optimization
