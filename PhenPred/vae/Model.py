@@ -52,9 +52,7 @@ class MOVE(nn.Module):
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-                layers.append(
-                    nn.Dropout(p=self.hypers["probability"], training=self.training)
-                )
+                layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.activation_function)
 
             layers.append(
@@ -84,9 +82,7 @@ class MOVE(nn.Module):
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-                layers.append(
-                    nn.Dropout(p=self.hypers["probability"], training=self.training)
-                )
+                layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.activation_function)
 
             layers.append(nn.Linear(layer_sizes[-1], input_sizes[n]))
