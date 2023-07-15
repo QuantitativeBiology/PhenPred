@@ -67,7 +67,6 @@ class OptunaOptimization:
         hypers = self.hypers.copy()
 
         hypers["model"] = trial.suggest_categorical("model", ["MOVE", "GMVAE"])
-        hypers["num_epochs"] = trial.suggest_int("num_epochs", 150, 500)
         hypers["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-5, 1e-2, log=True
         )
@@ -92,6 +91,7 @@ class OptunaOptimization:
 if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
+    hyperparameters["num_epochs"] = 150
 
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(
