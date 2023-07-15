@@ -57,6 +57,7 @@ class OptunaOptimization:
         loss_val = CLinesTrain(
             self.data,
             hypers,
+            early_stop_patience=10,
             gmvae_args_dict=gmvae_args_dict,
         ).training(cv)
 
