@@ -22,7 +22,7 @@ from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
 
 class OptunaOptimization:
-    def __init__(self, data, hypers, n_splits=1, test_size=0.10, random_state=42):
+    def __init__(self, data, hypers, n_splits=1, test_size=0.20, random_state=42):
         self.data = data
         self.hypers = hypers
         self.n_splits = n_splits
@@ -41,31 +41,48 @@ class OptunaOptimization:
         hypers = self.sample_params(trial)
 
         # Train
-        loss_val = CLinesTrain(self.data, hypers).training(cv)
+        gmvae_args_dict = (
+            dict(
+                k=100,
+                init_temp=1.0,
+                decay_temp=1.0,
+                hard_gumbel=0,
+                min_temp=0.5,
+                decay_temp_rate=0.013862944,
+            )
+            if hyperparameters["model"] == "GMVAE"
+            else None
+        )
+
+        loss_val = CLinesTrain(
+            self.data,
+            hypers,
+            early_stop_patience=10,
+            gmvae_args_dict=gmvae_args_dict,
+        ).training(cv)
 
         return loss_val
 
     def sample_params(self, trial):
         hypers = self.hypers.copy()
 
-        hypers["activation_function"] = trial.suggest_categorical(
-            "activation_function", ["relu", "leaky_relu", "sigmoid"]
-        )
-        hypers["hidden_dims"] = trial.suggest_categorical(
-            "hidden_dims", ["0.4", "0.5", "0.7", "0.7,0.4", "0.4,0.4"]
-        )
-
-        hypers["probability"] = trial.suggest_float("probability", 0.0, 0.5)
+        hypers["model"] = trial.suggest_categorical("model", ["MOVE", "GMVAE"])
         hypers["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-5, 1e-2, log=True
         )
-        hypers["latent_dim"] = trial.suggest_float("latent_dim", 0.02, 0.2)
-        hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.3, 0.85)
-
-        hypers["num_epochs"] = trial.suggest_int("num_epochs", 150, 500)
         hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
-        hypers["scheduler_patience"] = trial.suggest_int("scheduler_patience", 5, 15)
-
+        hypers["view_latent_dim"] = trial.suggest_float("view_latent_dim", 0.01, 0.1)
+        hypers["latent_dim"] = trial.suggest_int("latent_dim", 10, 100)
+        hypers["hidden_dims"] = trial.suggest_categorical(
+            "hidden_dims", ["0.4", "0.5", "0.6", "0.7", "0.7,0.4"]
+        )
+        hypers["optimizer_type"] = trial.suggest_categorical(
+            "optimizer_type", ["adam", "sgd"]
+        )
+        hypers["activation_function"] = trial.suggest_categorical(
+            "activation_function", ["relu", "leaky_relu", "prelu", "sigmoid"]
+        )
+        hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.5, 0.85)
         hypers = Hypers.parse_torch_functions(hypers)
 
         return hypers
@@ -74,19 +91,16 @@ class OptunaOptimization:
 if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
-
-    # For testing purposes only - remove methylation and transcriptomics
-    hyperparameters["datasets"] = {
-        k: v
-        for k, v in hyperparameters["datasets"].items()
-        if k not in ["methylation", "transcriptomics"]
-    }
+    hyperparameters["num_epochs"] = 150
 
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(
-        label=hyperparameters["label"],
+        labels_names=hyperparameters["labels"],
         datasets=hyperparameters["datasets"],
         feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
+        standardize=hyperparameters["standardize"],
+        filter_features=hyperparameters["filter_features"],
+        filtered_encoder_only=hyperparameters["filtered_encoder_only"],
     )
 
     # Optuna optimization
@@ -99,9 +113,9 @@ if __name__ == "__main__":
 
     opt.optimize(
         OptunaOptimization(clines_db, hyperparameters),
-        n_trials=100,
+        n_trials=1000,
         show_progress_bar=True,
-        n_jobs=5,
+        n_jobs=1,
     )
 
     # Print results

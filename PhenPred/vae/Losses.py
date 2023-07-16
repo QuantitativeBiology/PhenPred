@@ -1,5 +1,3 @@
-import sched
-from sklearn.covariance import log_likelihood
 import torch
 import PhenPred
 import numpy as np
@@ -350,6 +348,8 @@ class CLinesLosses:
             return nn.SELU()
         elif name == "softplus":
             return nn.Softplus()
+        elif name == "prelu":
+            return nn.PReLU()
         else:
             return nn.Identity()
 
