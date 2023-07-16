@@ -537,9 +537,3 @@ class CLinesTrain:
             PhenPred.save_figure(
                 f"{plot_folder}/losses/{self.timestamp}_{prefix}_losses"
             )
-
-    def save_model(self):
-        torch.save(
-                self.model.state_dict(),
-                f"{model_folder}/{self.timestamp}_model.pt",
-            )
