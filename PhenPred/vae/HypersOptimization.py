@@ -80,7 +80,7 @@ class OptunaOptimization:
             "optimizer_type", ["adam", "sgd"]
         )
         hypers["activation_function"] = trial.suggest_categorical(
-            "activation_function", ["relu", "leaky_relu", "prelu", "sigmoid"]
+            "activation_function", ["relu", "leaky_relu", "prelu"]
         )
         hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.5, 0.85)
         hypers = Hypers.parse_torch_functions(hypers)
