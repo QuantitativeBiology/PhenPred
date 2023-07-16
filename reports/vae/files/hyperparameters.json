@@ -40,6 +40,5 @@
     "scheduler_threshold": 1e-4,
     "scheduler_factor": 0.65,
     "scheduler_patience": 7,
-    "scheduler_min_lr": 5e-6,
-    "save_model": true
+    "scheduler_min_lr": 5e-6
 }
