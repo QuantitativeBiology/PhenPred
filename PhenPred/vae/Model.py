@@ -111,7 +111,7 @@ class MOVE(nn.Module):
         x_hat = out_net["x_hat"]
         mu = out_net["mu"]
         logvar = out_net["log_var"]
-        
+
         recon_loss, recon_loss_views = 0, []
         for i in range(len(x)):
             recon_xi = self.recon_criterion(x_hat[i][x_nans[i]], x[i][x_nans[i]])
@@ -130,5 +130,3 @@ class MOVE(nn.Module):
             reconstruction_views=recon_loss_views,
             kl=kl_loss,
         )
-    
-

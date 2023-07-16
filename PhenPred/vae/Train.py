@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from datetime import datetime
 from PhenPred.vae import plot_folder, model_folder
+from torch.utils.data import DataLoader
 from PhenPred.vae.Model import MOVE
 from PhenPred.vae.ModelGMVAE import GMVAE
-from torch.utils.data import DataLoader
 from PhenPred.vae.Losses import CLinesLosses
 from sklearn.model_selection import (
     KFold,
@@ -29,7 +29,7 @@ class CLinesTrain:
         hypers,
         stratify_cv_by=None,
         early_stop_patience=20,
-        gmvae_args_dict = None
+        gmvae_args_dict=None,
     ):
         self.data = data
         self.losses = []
@@ -41,17 +41,19 @@ class CLinesTrain:
         self.early_stop_patience = early_stop_patience
         if gmvae_args_dict is not None:
             self.gmvae_args_dict = gmvae_args_dict
-            self.gmvae_args_dict['gumbel_temp'] = self.gmvae_args_dict['init_temp']
+            self.gmvae_args_dict["gumbel_temp"] = self.gmvae_args_dict["init_temp"]
 
     def run(self, run_timestamp=None):
         if run_timestamp is not None:
             self.timestamp = run_timestamp
+            # self.load_model()
             return
 
-        self.training()
+        if not self.hypers["skip_cv"]:
+            self.training()
 
-        losses_df = self.save_losses()
-        self.plot_losses(losses_df)
+            losses_df = self.save_losses()
+            self.plot_losses(losses_df)
 
         self.predictions()
 
@@ -64,7 +66,7 @@ class CLinesTrain:
 
         if self.hypers["filtered_encoder_only"]:
             views_sizes_full = {n: v.shape[1] for n, v in self.data.views.items()}
-        
+
         assert self.hypers["model"] in ["MOVE", "GMVAE"], "Invalid model"
         if self.hypers["model"] == "MOVE":
             model = MOVE(
@@ -77,7 +79,7 @@ class CLinesTrain:
             model = GMVAE(
                 views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
                 hypers=self.hypers,
-                k=self.gmvae_args_dict['k'],
+                k=self.gmvae_args_dict["k"],
                 views_logits=self.hypers["views_logits"],
                 conditional_size=self.data.labels.shape[1]
                 if self.hypers["use_conditional_gmvae"]
@@ -115,16 +117,19 @@ class CLinesTrain:
                 if self.hypers["model"] == "MOVE":
                     out_net = model(x_masked, y)
                 else:
-                    out_net = model(x, self.gmvae_args_dict['gumbel_temp'], self.gmvae_args_dict['hard_gumbel'], y)
+                    out_net = model(
+                        x,
+                        self.gmvae_args_dict["gumbel_temp"],
+                        self.gmvae_args_dict["hard_gumbel"],
+                        y,
+                    )
 
                 if self.hypers["filtered_encoder_only"]:
                     # if filtered_encoder_only, use all data for loss
                     loss = model.module.loss(x, x_nans, out_net)
                 else:
                     # otherwise, use only filtered data for loss
-                    loss = model.module.loss(
-                        x_masked, x_nans_masked, out_net
-                    )
+                    loss = model.module.loss(x_masked, x_nans_masked, out_net)
 
                 if model.training:
                     loss["total"].backward()
@@ -287,10 +292,15 @@ class CLinesTrain:
                 if self.hypers["model"] == "MOVE":
                     out_net = self.model(x_masked, y)
                 else:
-                    out_net = self.model(x, self.gmvae_args_dict['gumbel_temp'], self.gmvae_args_dict['hard_gumbel'], y)
+                    out_net = self.model(
+                        x,
+                        self.gmvae_args_dict["gumbel_temp"],
+                        self.gmvae_args_dict["hard_gumbel"],
+                        y,
+                    )
 
-                x_hat = out_net['x_hat']
-                z = out_net['z']
+                x_hat = out_net["x_hat"]
+                z = out_net["z"]
 
                 for name, df in zip(self.data.view_names, x_hat):
                     imputed_datasets[name] = pd.DataFrame(
@@ -429,6 +439,20 @@ class CLinesTrain:
                 self.model.state_dict(),
                 f"{plot_folder}/files/{self.timestamp}_model.pt",
             )
+
+    def load_model(self):
+        model_path = f"{plot_folder}/files/{self.timestamp}_model.pt"
+
+        if not os.path.isfile(model_path):
+            warnings.warn("No model to load.")
+            return
+
+        self.model = self.initialize_model()
+        self.model.load_state_dict(
+            torch.load(
+                f"{plot_folder}/files/{self.timestamp}_model.pt",
+            )
+        )
 
     def _plot_lr_rates(self, ax):
         for e, lr in self.lrs:
