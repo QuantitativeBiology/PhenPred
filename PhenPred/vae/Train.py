@@ -9,7 +9,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from datetime import datetime
-from PhenPred.vae import plot_folder
+from PhenPred.vae import plot_folder, model_folder
 from PhenPred.vae.Model import MOVE
 from PhenPred.vae.ModelGMVAE import GMVAE
 from torch.utils.data import DataLoader
@@ -54,6 +54,9 @@ class CLinesTrain:
         self.plot_losses(losses_df)
 
         self.predictions()
+
+        if self.hypers["save_model"]:
+            self.save_model()
 
     def initialize_model(self):
         views_sizes = {n: v.sum() for n, v in self.data.features_mask.items()}
@@ -509,4 +512,10 @@ class CLinesTrain:
             )
             PhenPred.save_figure(
                 f"{plot_folder}/losses/{self.timestamp}_{prefix}_losses"
+            )
+
+    def save_model(self):
+        torch.save(
+                self.model.state_dict(),
+                f"{model_folder}/{self.timestamp}_model.pt",
             )
