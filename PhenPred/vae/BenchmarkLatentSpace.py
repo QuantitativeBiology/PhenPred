@@ -9,7 +9,6 @@ from PhenPred import PALETTE_TTYPE
 from PhenPred.vae.PlotUtils import GIPlot
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
-from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 
 
 class LatentSpaceBenchmark:

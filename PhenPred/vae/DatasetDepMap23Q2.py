@@ -127,7 +127,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
                     self.features_mask[n] = (self.dfs[n] < -0.5).sum() > 0
 
                 else:
-                    thres = self.gaussian_mixture_std(self.dfs[n], plot_name=n)
+                    thres = self.gaussian_mixture_std(self.dfs[n], plot_name=None)
                     self.features_mask[n] = self.dfs[n].std() > thres
 
     def _build_labels(self, min_obs=15):

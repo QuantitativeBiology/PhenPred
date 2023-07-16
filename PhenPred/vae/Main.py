@@ -38,33 +38,27 @@ if __name__ == "__main__":
         filter_features=hyperparameters["filter_features"],
         filtered_encoder_only=hyperparameters["filtered_encoder_only"],
     )
-    # clines_db.plot_samples_overlap()
-    # clines_db.plot_datasets_missing_values()
 
     # Train and predictions
-    if hyperparameters["model"] == "GMVAE":
-        
-        gmvae_args_dict = dict(
+    gmvae_args_dict = (
+        dict(
             k=100,
             init_temp=1.0,
             decay_temp=1.0,
             hard_gumbel=0,
             min_temp=0.5,
-            decay_temp_rate=0.013862944
+            decay_temp_rate=0.013862944,
         )
+        if hyperparameters["model"] == "GMVAE"
+        else None
+    )
 
-        train = CLinesTrain(
-            clines_db,
-            hyperparameters,
-            stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
-            gmvae_args_dict=gmvae_args_dict
-        )
-    else:
-        train = CLinesTrain(
-            clines_db,
-            hyperparameters,
-            stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
-        )
+    train = CLinesTrain(
+        clines_db,
+        hyperparameters,
+        stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
+        gmvae_args_dict=gmvae_args_dict,
+    )
 
     train.run(run_timestamp=hyperparameters["load_run"])
 
