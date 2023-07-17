@@ -1,7 +1,7 @@
 {
     "dataname": "depmap23Q2",
     "load_run": null,
-    "save_model": false,
+    "save_model": true,
     "skip_cv": true,
     "datasets": {
 	"proteomics": "proteomics.csv",
@@ -12,9 +12,9 @@
         "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
         "copynumber": "cnv_summary_20230303_matrix.csv"
     },
-    "model": "MOVE",
+    "model": "GMVAE",
     "standardize": true,
-    "use_conditional_gmvae": true,
+    "use_conditional_gmvae": false,
     "labels": ["tissue", "mutations", "fussions", "msi", "growth"],
     "filter_features": ["crisprcas9", "transcriptomics", "methylation"],
     "filtered_encoder_only": true,

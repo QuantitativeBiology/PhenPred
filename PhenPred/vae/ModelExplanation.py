@@ -16,7 +16,7 @@ from PhenPred.vae.Train import CLinesTrain
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 import shap
 
-TIMESTAMP = "20230716_231922"
+TIMESTAMP = "20230717_160108"
 if __name__ == "__main__":
     hyperparameters = Hypers.read_hyperparameters()
 
