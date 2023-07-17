@@ -94,7 +94,7 @@ class GMVAE(nn.Module):
         y_var = F.softplus(self.y_var(y))
         return y_mu, y_var
 
-    def forward(self, views, temperature=1.0, hard=0, conditionals=None, **gmvae_kwargs):
+    def forward(self, views, temperature=1.0, hard=0, conditionals=None, only_return_mu=False):
         # Encoders
         if self.conditional_size == 0:
             views_logits = [
@@ -123,17 +123,20 @@ class GMVAE(nn.Module):
             for i, n in enumerate(self.views_sizes):
                 x_hat.append(self.decoders[i](torch.cat((z, conditionals), dim=1)))
 
-        return dict(
-            x_hat=x_hat,
-            z_mu=z_mu,
-            z_var=z_var,
-            z=z,
-            y_logits=y_logits,
-            y_prob=y_prob,
-            y=y,
-            y_mu=y_mu,
-            y_var=y_var,
-        )
+        if only_return_mu:
+            return z_mu
+        else:
+            return dict(
+                x_hat=x_hat,
+                z_mu=z_mu,
+                z_var=z_var,
+                z=z,
+                y_logits=y_logits,
+                y_prob=y_prob,
+                y=y,
+                y_mu=y_mu,
+                y_var=y_var,
+            )
 
     def loss(self, x, x_nans, out_net):
 
