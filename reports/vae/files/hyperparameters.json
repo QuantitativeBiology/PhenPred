@@ -16,7 +16,7 @@
     "standardize": true,
     "use_conditional_gmvae": false,
     "labels": ["tissue", "mutations", "fussions", "msi", "growth"],
-    "filter_features": ["crisprcas9", "transcriptomics", "methylation"],
+    "filter_features": [],
     "filtered_encoder_only": true,
     "feature_miss_rate_thres": 0.85,
     "num_epochs": 200,
@@ -42,3 +42,5 @@
     "scheduler_patience": 7,
     "scheduler_min_lr": 5e-6
 }
+
+
