@@ -81,7 +81,7 @@ class CLinesTrain:
             )
         else:
             model = GMVAE(
-                views_sizes={n: v.shape[1] for n, v in self.data.views.items()},
+                views_sizes=views_sizes,
                 hypers=self.hypers,
                 k=self.gmvae_args_dict["k"],
                 views_logits=self.hypers["views_logits"],
@@ -460,7 +460,7 @@ class CLinesTrain:
 
     def run_shap(self, num_explained=100, n_samples=50, seed=42):
         torch.manual_seed(seed)
-
+        self.model.module.only_return_mu = True
         self.model.eval()
         with torch.no_grad():
             data_all = DataLoader(
@@ -471,18 +471,12 @@ class CLinesTrain:
             data = next(iter(data_all))
             x, y, _, x_mask = data
             x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
-            input_list = [x_masked, y] if self.hypers["model"] == "MOVE" else [
-                    x,
-                    self.gmvae_args_dict["gumbel_temp"],
-                    self.gmvae_args_dict["hard_gumbel"],
-                    y,
-                    True
-                ]
+
             explainer = shap.explainers._gradient._PyTorchGradient(
                 self.model,
-                input_list,
+                [x_masked],
             )
-            shap_values = explainer.shap_values(input_list, nsamples=n_samples)
+            shap_values = explainer.shap_values([x_masked], nsamples=n_samples)
 
     def _plot_lr_rates(self, ax):
         for e, lr in self.lrs:
