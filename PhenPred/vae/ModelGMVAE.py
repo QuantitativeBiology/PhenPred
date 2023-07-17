@@ -15,7 +15,8 @@ class GMVAE(nn.Module):
         views_logits=256,
         hidden_size=512,
         conditional_size=0,
-        views_sizes_full=None
+        views_sizes_full=None,
+        only_return_mu=False
     ) -> None:
         super().__init__()
 
@@ -26,6 +27,7 @@ class GMVAE(nn.Module):
         self.views_logits = views_logits
         self.hidden_size = hidden_size
         self.conditional_size = conditional_size
+        self.only_return_mu = only_return_mu
 
         self.y_mu = nn.Linear(self.k, self.hypers["latent_dim"])
         self.y_var = nn.Linear(self.k, self.hypers["latent_dim"])
@@ -94,9 +96,9 @@ class GMVAE(nn.Module):
         y_var = F.softplus(self.y_var(y))
         return y_mu, y_var
 
-    def forward(self, views, temperature=1.0, hard=0, conditionals=None, only_return_mu=False):
+    def forward(self, views, temperature=1.0, hard=0, conditionals=None):
         # Encoders
-        if self.conditional_size == 0:
+        if self.conditional_size == 0 or conditionals is None:
             views_logits = [
                 self.encoders[i](views[i]) for i, _ in enumerate(self.views_sizes)
             ]
@@ -123,7 +125,7 @@ class GMVAE(nn.Module):
             for i, n in enumerate(self.views_sizes):
                 x_hat.append(self.decoders[i](torch.cat((z, conditionals), dim=1)))
 
-        if only_return_mu:
+        if self.only_return_mu:
             return z_mu
         else:
             return dict(

@@ -364,7 +364,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
     def gaussian_mixture_std(self, df, plot_name=None):
         df_std = df.std(axis=0)
 
-        gm = GaussianMixture(n_components=2).fit(df_std.to_frame())
+        gm = GaussianMixture(n_components=2, random_state=0).fit(df_std.to_frame())
 
         gm_means = gm.means_.reshape(-1)
         gm_std = np.sqrt(gm.covariances_.reshape(-1))
