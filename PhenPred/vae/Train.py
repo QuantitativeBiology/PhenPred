@@ -9,7 +9,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from datetime import datetime
-from PhenPred.vae import plot_folder, model_folder
+from PhenPred.vae import plot_folder
 from torch.utils.data import DataLoader
 from PhenPred.vae.Model import MOVE
 from PhenPred.vae.ModelGMVAE import GMVAE
@@ -20,6 +20,7 @@ from sklearn.model_selection import (
     StratifiedShuffleSplit,
     ShuffleSplit,
 )
+import shap
 
 
 class CLinesTrain:
@@ -30,12 +31,15 @@ class CLinesTrain:
         stratify_cv_by=None,
         early_stop_patience=20,
         gmvae_args_dict=None,
+        timestamp=None,
     ):
         self.data = data
         self.losses = []
         self.hypers = hypers
         self.stratify_cv_by = stratify_cv_by
-        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.timestamp = (
+            datetime.now().strftime("%Y%m%d_%H%M%S") if timestamp is None else timestamp
+        )
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.lrs = [(1, hypers["learning_rate"])]
         self.early_stop_patience = early_stop_patience
@@ -118,7 +122,7 @@ class CLinesTrain:
                     out_net = model(x_masked, y)
                 else:
                     out_net = model(
-                        x,
+                        x_masked,
                         self.gmvae_args_dict["gumbel_temp"],
                         self.gmvae_args_dict["hard_gumbel"],
                         y,
@@ -293,7 +297,7 @@ class CLinesTrain:
                     out_net = self.model(x_masked, y)
                 else:
                     out_net = self.model(
-                        x,
+                        x_masked,
                         self.gmvae_args_dict["gumbel_temp"],
                         self.gmvae_args_dict["hard_gumbel"],
                         y,
@@ -453,6 +457,32 @@ class CLinesTrain:
                 f"{plot_folder}/files/{self.timestamp}_model.pt",
             )
         )
+
+    def run_shap(self, num_explained=100, n_samples=50, seed=42):
+        torch.manual_seed(seed)
+
+        self.model.eval()
+        with torch.no_grad():
+            data_all = DataLoader(
+                self.data,
+                batch_size=num_explained,
+                shuffle=True,
+            )
+            data = next(iter(data_all))
+            x, y, _, x_mask = data
+            x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
+            input_list = [x_masked, y] if self.hypers["model"] == "MOVE" else [
+                    x,
+                    self.gmvae_args_dict["gumbel_temp"],
+                    self.gmvae_args_dict["hard_gumbel"],
+                    y,
+                    True
+                ]
+            explainer = shap.explainers._gradient._PyTorchGradient(
+                self.model,
+                input_list,
+            )
+            shap_values = explainer.shap_values(input_list, nsamples=n_samples)
 
     def _plot_lr_rates(self, ax):
         for e, lr in self.lrs:
