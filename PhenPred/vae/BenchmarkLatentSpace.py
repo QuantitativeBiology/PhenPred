@@ -402,7 +402,7 @@ class LatentSpaceBenchmark:
 
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
-            sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
+            sns.despine(ax=ax, left=True, bottom=True, right=True, top=True)
 
             PhenPred.save_figure(
                 f"{plot_folder}/latent/{self.timestamp}_umap_joint{'' if n == 'vae' else '_mofa'}"

@@ -209,6 +209,8 @@ class ProteomicsBenchmark:
         )
         g.map_dataframe(annotate)
 
+        g.set_axis_labels("Original correlation (r)", "Imputed correlation (r)")
+
         PhenPred.save_figure(
             f"{plot_folder}/proteomics/{self.timestamp}_imputed_facetgrid",
         )
@@ -331,7 +333,7 @@ class ProteomicsBenchmark:
             f"{plot_folder}/proteomics/{self.timestamp}_imputed_corr_with_vae_hist",
         )
 
-    def copy_number(self, loss_events_list=None):
+    def copy_number(self, loss_events_list=None, proteomics_only=False):
         # Color palette
         palette = dict(
             zip(
@@ -358,10 +360,13 @@ class ProteomicsBenchmark:
         if loss_events_list is None:
             loss_events_list = [
                 ("SMAD4", "SMAD4"),
+                ("TP53", "TP53"),
+                ("CDKN2A", "CDKN2A"),
+                ("ZMYM2", "ZMYM2"),
             ]
 
         for protein, cnv in loss_events_list:
-            # protein, cnv = ("SMAD4", "SMAD4")
+            # protein, cnv = ("ZMYM2", "ZMYM2")
             df = (
                 pd.concat(
                     [
@@ -385,6 +390,12 @@ class ProteomicsBenchmark:
                 inplace=True,
             )
 
+            if proteomics_only:
+                samples_with_proteomics = (
+                    self.data.dfs["proteomics"].dropna(how="all").index.tolist()
+                )
+                df = df.loc[df.index.isin(samples_with_proteomics)]
+
             # Plot
             g = GIPlot.gi_regression_marginal(
                 x=f"{protein}_vae",
@@ -393,9 +404,9 @@ class ProteomicsBenchmark:
                 style="predicted",
                 plot_df=df.sort_values("predicted"),
                 discrete_pal=palette,
-                hue_order=palette.keys(),
+                hue_order=list(palette.keys())[::-1],
                 legend_title=f"{protein}",
-                scatter_kws=dict(edgecolor="w", lw=0.1, s=16),
+                scatter_kws=dict(edgecolor="w", lw=0.1, s=8, alpha=0.7),
             )
 
             g.ax_joint.set_xlabel(f"{protein} Proteomics (VAE)")

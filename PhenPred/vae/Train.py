@@ -21,6 +21,7 @@ from sklearn.model_selection import (
     ShuffleSplit,
 )
 import shap
+import pickle
 
 
 class CLinesTrain:
@@ -458,25 +459,26 @@ class CLinesTrain:
             )
         )
 
-    def run_shap(self, num_explained=100, n_samples=50, seed=42):
+    def run_shap(self, n_samples=50, seed=42):
         torch.manual_seed(seed)
         self.model.module.only_return_mu = True
         self.model.eval()
-        with torch.no_grad():
-            data_all = DataLoader(
+        data_all = DataLoader(
                 self.data,
-                batch_size=num_explained,
-                shuffle=True,
+                batch_size=len(self.data.samples),
+                shuffle=False,
             )
-            data = next(iter(data_all))
-            x, y, _, x_mask = data
-            x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
+        data = next(iter(data_all))
+        x, y, _, x_mask = data
+        x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
 
-            explainer = shap.explainers._gradient._PyTorchGradient(
-                self.model,
-                [x_masked],
-            )
-            shap_values = explainer.shap_values([x_masked], nsamples=n_samples)
+        explainer = shap.explainers._gradient._PyTorchGradient(
+            self.model,
+            x_masked,
+        )
+        shap_values = explainer.shap_values(x_masked, nsamples=n_samples)
+        pickle.dump(shap_values, open(f"{plot_folder}/files/{self.timestamp}_shap_values.pkl", "wb"))
+
 
     def _plot_lr_rates(self, ax):
         for e, lr in self.lrs:
