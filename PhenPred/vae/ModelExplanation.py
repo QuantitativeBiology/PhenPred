@@ -1,3 +1,6 @@
+# This file does not work with the existing SHAP implementation
+# Custom changes are required to accept our input data format
+
 import os
 import sys
 
