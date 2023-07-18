@@ -6,7 +6,9 @@ from PhenPred.vae.Hypers import Hypers
 
 class CLinesDatasetMOFA:
     @staticmethod
-    def load_reconstructions(data, mode="nans_only", hypers=None, dfs=None):
+    def load_reconstructions(
+        data, mode="nans_only", hypers=None, dfs=None, n_factors=73
+    ):
         """
         Load imputed data and latent space from files. "nans_only" mode, original
         measurements are mantained and only NaNs are imputed. "all" mode all
@@ -41,7 +43,7 @@ class CLinesDatasetMOFA:
 
         # Dataset details
         dataset_name = f"MOFA_{hypers['dataname']}"
-        dataset_name += f"_Factors50"
+        dataset_name += f"_Factors{n_factors}"
 
         ddir = f"{data_folder}/mofa/{dataset_name}"
 
@@ -77,14 +79,14 @@ class CLinesDatasetMOFA:
         return dfs_imputed, joint_latent
 
     @staticmethod
-    def load_factors(hypers=None):
+    def load_factors(hypers=None, n_factors=73):
         if hypers is None:
             hypers = Hypers.read_hyperparameters()
         elif isinstance(hypers, str):
             hypers = Hypers.read_hyperparameters(hypers)
 
         dataset_name = f"MOFA_{hypers['dataname']}"
-        dataset_name += f"_Factors50"
+        dataset_name += f"_Factors{n_factors}"
 
         ddir = f"{data_folder}/mofa/{dataset_name}"
 
