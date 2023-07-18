@@ -135,3 +135,4 @@ data/*
 *.csv.gz
 .DS_Store
 *_model.pt
+*.pkl

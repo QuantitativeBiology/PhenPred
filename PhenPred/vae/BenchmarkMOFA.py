@@ -1,11 +1,19 @@
+import os
+import sys
+
+proj_dir = "/home/scai/PhenPred"
+if not os.path.exists(proj_dir):
+    proj_dir = "/Users/emanuel/Projects/PhenPred"
+sys.path.extend([proj_dir])
+
 import h5py
 import numpy as np
 import pandas as pd
 from mofapy2.run.entry_point import entry_point
-from PhenPred.vae import data_folder, plot_folder
 from PhenPred.vae.Hypers import Hypers
-from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
+from PhenPred.vae import data_folder, plot_folder
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
+from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
 
 class MOFABencharmk:
@@ -30,9 +38,12 @@ class MOFABencharmk:
 
         self.clines_db_mofa = CLinesDatasetMOFA()
         self.clines_db_original = CLinesDatasetDepMap23Q2(
+            labels_names=self.hypers["labels"],
             datasets=self.hypers["datasets"],
             feature_miss_rate_thres=self.hypers["feature_miss_rate_thres"],
             standardize=self.hypers["standardize"],
+            filter_features=self.hypers["filter_features"],
+            filtered_encoder_only=self.hypers["filtered_encoder_only"],
         )
 
     def run(self):
@@ -85,8 +96,20 @@ class MOFABencharmk:
             scale_views=self.hypers_mofa["scale_views"],
         )
 
+        # MOFA view order
+        # 'copynumber', 'crisprcas9', 'drugresponse', 'labels', 'metabolomics', 'methylation', 'proteomics', 'transcriptomics'
         self.ent.set_data_df(
-            self.mofa_db, likelihoods=["gaussian"] * len(self.hypers["datasets"])
+            self.mofa_db,
+            likelihoods=[
+                "gaussian",
+                "gaussian",
+                "gaussian",
+                "bernoulli",
+                "gaussian",
+                "gaussian",
+                "gaussian",
+                "gaussian",
+            ],
         )
 
         self.ent.set_model_options(
@@ -108,12 +131,28 @@ class MOFABencharmk:
     def parse_data_for_mofa(self):
         mofa_db, mofa_db_cols = [], ["sample", "group", "feature", "value", "view"]
 
+        # Append dataset
         for n, df in self.clines_db_original.dfs.items():
             df_melt = df.stack().reset_index()
             df_melt.columns = ["sample", "feature", "value"]
             df_melt["group"] = "groupA"
             df_melt["view"] = n
             mofa_db.append(df_melt[mofa_db_cols])
+
+        # Append labels
+        df_melt = pd.DataFrame(
+            self.clines_db_original.labels,
+            index=self.clines_db_original.samples,
+            columns=self.clines_db_original.labels_name,
+        )
+        df_melt = df_melt.drop(
+            columns=["day4_day1_ratio", "doubling_time_hours"], errors="ignore"
+        )
+        df_melt = df_melt.astype(int).stack().reset_index()
+        df_melt.columns = ["sample", "feature", "value"]
+        df_melt["group"] = "groupA"
+        df_melt["view"] = "labels"
+        mofa_db.append(df_melt[mofa_db_cols])
 
         self.mofa_db = pd.concat(mofa_db)
 
@@ -160,5 +199,5 @@ class MOFABencharmk:
 
 
 if __name__ == "__main__":
-    pass
-    MOFABencharmk().run_mofa()
+    mofa = MOFABencharmk()
+    mofa.run_mofa()

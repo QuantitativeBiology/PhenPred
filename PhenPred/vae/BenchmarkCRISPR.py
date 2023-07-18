@@ -82,13 +82,17 @@ class CRISPRBenchmark:
         self.gene_skew_correlation()
 
     def gene_skew_correlation(self):
-        plot_df = pd.concat(
-            [
-                self.df_original.apply(skew).astype(float).rename("orig"),
-                self.df_vae.apply(skew).astype(float).rename("vae"),
-            ],
-            axis=1,
-        ).dropna()
+        original_skew = self.df_original.apply(skew).astype(float).rename("orig")
+
+        # index not in self.df_original
+        vae_only_skew = (
+            self.df_vae.loc[self.df_vae.index.difference(self.df_original.index)]
+            .apply(skew)
+            .astype(float)
+            .rename("vae")
+        )
+
+        plot_df = pd.concat([original_skew, vae_only_skew], axis=1).dropna()
 
         _, ax = plt.subplots(1, 1, figsize=(2, 2), dpi=600)
 
