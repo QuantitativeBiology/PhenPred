@@ -28,6 +28,7 @@ from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
 if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
+    # hyperparameters = Hypers.read_hyperparameters(timestamp="20230716_211314")
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -38,6 +39,8 @@ if __name__ == "__main__":
         filter_features=hyperparameters["filter_features"],
         filtered_encoder_only=hyperparameters["filtered_encoder_only"],
     )
+
+    # clines_db.plot_samples_overlap()
 
     # Train and predictions
     gmvae_args_dict = (
@@ -72,9 +75,10 @@ if __name__ == "__main__":
     latent_benchmark = LatentSpaceBenchmark(
         train.timestamp, clines_db, vae_latent, mofa_latent
     )
+    latent_benchmark.run()
     latent_benchmark.plot_latent_spaces(
         markers=clines_db.get_features(
-            dict(metabolomics=["1-methylnicotinamide"], proteomics=["VIM", "CDH1"])
+            dict(metabolomics=["1-methylnicotinamide"], transcriptomics=["VIM", "CDH1"])
         ),
     )
 
@@ -89,7 +93,9 @@ if __name__ == "__main__":
         train.timestamp, clines_db, vae_imputed, mofa_imputed
     )
     proteomics_benchmark.run()
-    proteomics_benchmark.copy_number([("SMAD4", "SMAD4")])
+    proteomics_benchmark.copy_number(
+        proteomics_only=True,
+    )
 
     # Run CRISPR benchmark
     crispr_benchmark = CRISPRBenchmark(
