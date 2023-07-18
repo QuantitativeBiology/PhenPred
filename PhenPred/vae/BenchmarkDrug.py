@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from math import sqrt
 from datetime import datetime
 from scipy.special import stdtr
+from PhenPred.vae.PlotUtils import GIPlot
 from sklearn.metrics import mean_squared_error
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
@@ -250,13 +251,9 @@ class DrugResponseBenchmark:
         # Samples without drug response
         samples_without_drug = set(drespo_gdsc.index[drespo_gdsc.isna().all(axis=1)])
 
-        # Correlation dataframe
-        for name, df in [
-            ("VAE", drespo_vae),
-            ("mofa", drespo_mofa),
-            ("mean", drespo_mean),
-        ]:
-            df_corrs = pd.DataFrame(
+        # Correlation dfs
+        df_corrs_methods = {
+            n: pd.DataFrame(
                 [
                     two_vars_correlation(
                         df.loc[s, drugs],
@@ -272,6 +269,16 @@ class DrugResponseBenchmark:
                     for s in samples
                 ]
             )
+            for n, df in [
+                ("VAE", drespo_vae),
+                ("mofa", drespo_mofa),
+                ("mean", drespo_mean),
+            ]
+        }
+
+        # Correlation dataframe
+        for name in ["VAE"]:
+            df_corrs = df_corrs_methods[name]
 
             ttest_stat = stats.ttest_ind(
                 df_corrs.query("outofsample == 'In-sample'")["corr"],
@@ -293,14 +300,117 @@ class DrugResponseBenchmark:
             )
 
             g.set(
-                title=f"Comparison {name} with CTD2 (T-test p={ttest_stat[1]:.2e})",
-                xlabel="Sample correlation (Pearson's r)",
+                title=f"Comparison {name} with CTD2\n(T-test p={ttest_stat[1]:.2e})",
+                xlabel=f"Cell line correlation (Pearson's r) across {len(drugs)} drugs\nReconstructed (IC50s) vs CTD2 (AUCs)",
                 ylabel=f"Number of cell lines",
             )
 
             PhenPred.save_figure(
                 f"{plot_folder}/drugresponse/{self.timestamp}_predicted_ctd2_corr_with_vae_hist_{name}",
             )
+
+        # Comparison of correlations with methods
+        plot_df = pd.concat(
+            [
+                df_corrs_methods[n].set_index("sample").add_prefix(f"{n}_")
+                for n in df_corrs_methods
+            ],
+            axis=1,
+        ).dropna()
+
+        # Regression
+        pal = dict(zip(["In-sample", "Out-of-sample"], ["#80b1d3", "#fc8d62"]))
+
+        g = GIPlot.gi_regression_marginal(
+            x=f"mofa_corr",
+            y=f"VAE_corr",
+            z="VAE_outofsample",
+            plot_reg=False,
+            plot_df=plot_df,
+            discrete_pal=pal,
+            scatter_kws=dict(edgecolor="w", lw=0.1, s=10, alpha=0.75),
+        )
+
+        g.ax_joint.axline((1, 1), slope=1, color="black", lw=0.5, ls="-", zorder=-1)
+
+        g.ax_joint.legend_.remove()
+
+        plt.gcf().set_size_inches(2, 2)
+
+        PhenPred.save_figure(
+            f"{plot_folder}/drugresponse/{self.timestamp}_predicted_ctd2_corr_methods_regression",
+        )
+
+        # Boxplot
+        plot_df = plot_df.melt(
+            value_vars=[c for c in plot_df if c.endswith("_corr")],
+            id_vars=["VAE_outofsample"],
+            var_name="method",
+            value_name="corr",
+        )
+
+        _, ax = plt.subplots(1, 1, figsize=(1, 2.5), dpi=600)
+
+        sns.boxplot(
+            data=plot_df,
+            x="VAE_outofsample",
+            y="corr",
+            hue="method",
+            orient="v",
+            palette="tab20c",
+            linewidth=0.3,
+            fliersize=1,
+            notch=True,
+            saturation=1.0,
+            showcaps=False,
+            boxprops=dict(linewidth=0.5, edgecolor="black"),
+            whiskerprops=dict(linewidth=0.5, color="black"),
+            flierprops=dict(
+                marker="o",
+                markerfacecolor="black",
+                markersize=1.0,
+                linestyle="none",
+                markeredgecolor="none",
+                alpha=0.6,
+            ),
+            medianprops=dict(linestyle="-", linewidth=0.5),
+            ax=ax,
+        )
+
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(45)
+            tick.set_ha("right")
+
+        ax.set(
+            xlabel="",
+            ylabel="Cell line correlation (Pearson's r)\nReconstructed (IC50s) vs CTD2 (AUCs)",
+        )
+
+        PhenPred.save_figure(
+            f"{plot_folder}/drugresponse/{self.timestamp}_predicted_ctd2_corr_methods_boxplot",
+        )
+
+        ttest_stat = stats.ttest_ind(
+            plot_df.query("(VAE_outofsample == 'In-sample') & (method == 'VAE_corr')")[
+                "corr"
+            ],
+            plot_df.query("(VAE_outofsample == 'In-sample') & (method == 'mofa_corr')")[
+                "corr"
+            ],
+            equal_var=False,
+        )
+        print(f"VAE vs mofa (in-sample): {ttest_stat}")
+
+        ttest_stat = stats.ttest_ind(
+            plot_df.query(
+                "(VAE_outofsample == 'Out-of-sample') & (method == 'VAE_corr')"
+            )["corr"],
+            plot_df.query(
+                "(VAE_outofsample == 'Out-of-sample') & (method == 'mofa_corr')"
+            )["corr"],
+            equal_var=False,
+        )
+        print(f"VAE vs mofa (Out-of-sample): {ttest_stat}")
 
     def compare_drug_predictions(self):
         (
