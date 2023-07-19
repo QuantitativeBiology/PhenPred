@@ -33,17 +33,21 @@ class CLinesTrain:
         early_stop_patience=20,
         gmvae_args_dict=None,
         timestamp=None,
+        verbose=0,
     ):
         self.data = data
         self.losses = []
         self.hypers = hypers
         self.stratify_cv_by = stratify_cv_by
+        self.verbose = verbose
+
         self.timestamp = (
             datetime.now().strftime("%Y%m%d_%H%M%S") if timestamp is None else timestamp
         )
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.lrs = [(1, hypers["learning_rate"])]
         self.early_stop_patience = early_stop_patience
+
         if gmvae_args_dict is not None:
             self.gmvae_args_dict = gmvae_args_dict
             self.gmvae_args_dict["gumbel_temp"] = self.gmvae_args_dict["init_temp"]
@@ -121,6 +125,7 @@ class CLinesTrain:
             with torch.set_grad_enabled(model.training):
                 if self.hypers["model"] == "MOVE":
                     out_net = model(x_masked, y)
+
                 else:
                     out_net = model(
                         x_masked,
@@ -140,11 +145,41 @@ class CLinesTrain:
                     loss["total"].backward()
                     optimizer.step()
 
+                if self.verbose > 1:
+                    self.benchmarks(x, y, out_net["x_hat"], record_losses)
+
             if record_losses is not None:
                 self.register_loss(loss, record_losses)
 
             else:
                 self.print_single_loss(loss)
+
+    def benchmarks(self, x, labels, x_hat, record_losses=None):
+        print_str = ""
+
+        run_type = "NA" if record_losses is None else record_losses["type"]
+
+        if "proteomics" in self.data.view_names:
+            features = ["CDKN2A"]
+
+            for f in features:
+                prot_idx = self.data.get_view_feature_index(f, "proteomics")
+                prot_view_index = self.data.view_names.index("proteomics")
+                prot_pred = x_hat[prot_view_index][:, prot_idx]
+
+                cnvs_idx = self.data.get_view_feature_index(f, "copynumber")
+                cnvs_view_index = self.data.view_names.index("copynumber")
+                cnvs_true = x[cnvs_view_index][:, cnvs_idx]
+
+                print_str += f"[{run_type}] Proteomics {f} (CNV, prot median): "
+                for i, cnvs_class in enumerate(np.unique(cnvs_true)):
+                    m = np.median(prot_pred[cnvs_true == cnvs_class].detach().numpy())
+                    if i:
+                        print_str += "; "
+                    print_str += f" ({cnvs_class:0.0f}, {m:.2f})"
+                print_str += "\n"
+
+        print(print_str, end="")
 
     def cv_strategy(self, shuffle_split=False):
         if shuffle_split and self.stratify_cv_by is not None:
