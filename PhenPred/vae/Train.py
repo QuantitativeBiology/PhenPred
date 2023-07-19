@@ -1,5 +1,7 @@
 import os
+import shap
 import torch
+import pickle
 import PhenPred
 import warnings
 import numpy as np
@@ -20,8 +22,6 @@ from sklearn.model_selection import (
     StratifiedShuffleSplit,
     ShuffleSplit,
 )
-import shap
-import pickle
 
 
 class CLinesTrain:
@@ -138,10 +138,10 @@ class CLinesTrain:
 
                 if self.hypers["filtered_encoder_only"]:
                     # if filtered_encoder_only, use all data for loss
-                    loss = model.module.loss(x, x_nans, out_net)
+                    loss = model.module.loss(x, x_nans, out_net, y)
                 else:
                     # otherwise, use only filtered data for loss
-                    loss = model.module.loss(x_masked, x_nans_masked, out_net)
+                    loss = model.module.loss(x_masked, x_nans_masked, out_net, y)
 
                 if model.training:
                     loss["total"].backward()

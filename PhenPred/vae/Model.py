@@ -1,8 +1,12 @@
 import torch
 import PhenPred
+import numpy as np
 import torch.nn as nn
+from pytorch_metric_learning import losses
 from PhenPred.vae.Losses import CLinesLosses
 from PhenPred.vae.Layers import BottleNeck, Gaussian
+from pytorch_metric_learning.distances import CosineSimilarity
+from pytorch_metric_learning.reducers import DoNothingReducer
 
 
 class MOVE(nn.Module):
@@ -106,7 +110,7 @@ class MOVE(nn.Module):
             log_var=log_var,
         )
 
-    def loss(self, x, x_nans, out_net):
+    def loss(self, x, x_nans, out_net, y):
         # Reconstruction loss
         x_hat = out_net["x_hat"]
         mu = out_net["mu"]
@@ -114,19 +118,30 @@ class MOVE(nn.Module):
 
         recon_loss, recon_loss_views = 0, []
         for i in range(len(x)):
-            recon_xi = self.recon_criterion(x_hat[i][x_nans[i]], x[i][x_nans[i]])
+            recon_xi = self.recon_criterion(
+                x_hat[i][x_nans[i]], x[i][x_nans[i]], reduction="mean"
+            )
             recon_loss_views.append(recon_xi)
             recon_loss += recon_xi
 
         # KL divergence loss
         kl_loss = self.hypers["w_kl"] * CLinesLosses.kl_divergence(mu, logvar)
 
+        # Contrastive loss of joint embeddings
+        loss_func = losses.ContrastiveLoss(
+            distance=CosineSimilarity(), pos_margin=1, neg_margin=0
+        )
+
+        c_loss = [loss_func(out_net["mu"], y[:, i]) for i in range(32)]
+        c_loss = torch.stack(c_loss).sum() * self.hypers["w_contrastive"]
+
         # Total loss
-        loss = recon_loss + kl_loss
+        loss = recon_loss + kl_loss + c_loss
 
         return dict(
             total=loss,
             reconstruction=recon_loss,
             reconstruction_views=recon_loss_views,
             kl=kl_loss,
+            contrastive=c_loss,
         )
