@@ -32,6 +32,7 @@
     "w_rec": 1,
     "w_gauss": 0.01,
     "w_cat": 0.01,
+    "w_contrastive": 0.1,
     "views_logits": 256,
     "optimizer_type": "adam",
     "w_decay": 5e-4,
