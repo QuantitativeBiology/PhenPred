@@ -52,6 +52,8 @@ class CLinesTrain:
             self.gmvae_args_dict = gmvae_args_dict
             self.gmvae_args_dict["gumbel_temp"] = self.gmvae_args_dict["init_temp"]
 
+        self.benchmark_scores = []
+
     def run(self, run_timestamp=None):
         if run_timestamp is not None:
             self.timestamp = run_timestamp
@@ -145,41 +147,53 @@ class CLinesTrain:
                     loss["total"].backward()
                     optimizer.step()
 
-                if self.verbose > 1:
-                    self.benchmarks(x, y, out_net["x_hat"], record_losses)
-
             if record_losses is not None:
                 self.register_loss(loss, record_losses)
+
+                if self.verbose > 1:
+                    self.benchmarks(x, y, out_net["x_hat"], record_losses)
 
             else:
                 self.print_single_loss(loss)
 
-    def benchmarks(self, x, labels, x_hat, record_losses=None):
-        print_str = ""
+    def benchmarks(self, x, labels, x_hat, record_losses):
+        # CDKN2A proteomics benchmark
+        f = "CDKN2A"
 
-        run_type = "NA" if record_losses is None else record_losses["type"]
+        prot_idx = self.data.get_view_feature_index(f, "proteomics")
+        prot_view_index = self.data.view_names.index("proteomics")
+        prot_pred = x_hat[prot_view_index][:, prot_idx]
 
-        if "proteomics" in self.data.view_names:
-            features = ["CDKN2A"]
+        cnvs_idx = self.data.get_view_feature_index(f, "copynumber")
+        cnvs_view_index = self.data.view_names.index("copynumber")
+        cnvs_true = x[cnvs_view_index][:, cnvs_idx]
 
-            for f in features:
-                prot_idx = self.data.get_view_feature_index(f, "proteomics")
-                prot_view_index = self.data.view_names.index("proteomics")
-                prot_pred = x_hat[prot_view_index][:, prot_idx]
+        # check if there are any CNVs with -2 value
+        f_score = np.nanmedian(
+            prot_pred[cnvs_true != -2].detach().numpy()
+        ) - np.nanmedian(prot_pred[cnvs_true == -2].detach().numpy())
 
-                cnvs_idx = self.data.get_view_feature_index(f, "copynumber")
-                cnvs_view_index = self.data.view_names.index("copynumber")
-                cnvs_true = x[cnvs_view_index][:, cnvs_idx]
+        f_res = dict(benchmark=f, score=f_score)
+        f_res.update(record_losses)
+        self.benchmark_scores.append(f_res)
 
-                print_str += f"[{run_type}] Proteomics {f} (CNV, prot median): "
-                for i, cnvs_class in enumerate(np.unique(cnvs_true)):
-                    m = np.median(prot_pred[cnvs_true == cnvs_class].detach().numpy())
-                    if i:
-                        print_str += "; "
-                    print_str += f" ({cnvs_class:0.0f}, {m:.2f})"
-                print_str += "\n"
+        # KRAS CRISPR-Cas9 benchmark
+        f = "KRAS"
 
-        print(print_str, end="")
+        crispr_idx = self.data.get_view_feature_index(f, "crisprcas9")
+        crispr_view_index = self.data.view_names.index("crisprcas9")
+        crispr_pred = x_hat[crispr_view_index][:, crispr_idx]
+
+        label_idx = self.data.labels_name.index(f)
+        label_true = labels[:, label_idx]
+
+        f_score = np.nanmedian(
+            crispr_pred[label_true != 0].detach().numpy()
+        ) - np.nanmedian(crispr_pred[label_true == 1].detach().numpy())
+
+        f_res = dict(benchmark=f, score=f_score)
+        f_res.update(record_losses)
+        self.benchmark_scores.append(f_res)
 
     def cv_strategy(self, shuffle_split=False):
         if shuffle_split and self.stratify_cv_by is not None:
@@ -439,6 +453,19 @@ class CLinesTrain:
             l = l.groupby(groupby).mean()
         return l
 
+    def get_benchmark(self, cv_idx, epoch_idx, groupby=None, benchmark=None):
+        l = pd.DataFrame(self.benchmark_scores).query(
+            f"cv == {cv_idx} & epoch == {epoch_idx}"
+        )
+
+        if benchmark is not None:
+            l = l.query(f"benchmark == '{benchmark}'")
+
+        if groupby is not None:
+            l = l.groupby(groupby).mean()
+
+        return l
+
     def print_single_loss(self, loss_dict, pbar=None):
         ptxt = f"[{datetime.now().strftime('%H:%M:%S')}] Loss "
         ptxt += f" | Total={loss_dict['total']:.2f}"
@@ -461,6 +488,17 @@ class CLinesTrain:
         for k in l.columns:
             if k not in ["cv", "epoch", "type", "total", "lr"] and "_" not in k:
                 ptxt += f" | {k}={l.loc['train', k]:.2f}/{l.loc['val', k]:.2f}"
+
+        if self.verbose > 1:
+            ptxt += f"\n[Benchmark scores (train/val)] "
+
+            bench_df = self.get_benchmark(
+                cv_idx, epoch_idx, groupby=["benchmark", "type"]
+            ).reset_index()
+
+            for b_name, b_df in bench_df.groupby("benchmark"):
+                b_df = b_df.set_index("type")
+                ptxt += f"{b_name}: {b_df.loc['train', 'score']:.2f}/{b_df.loc['val', 'score']:.2f} | "
 
         if pbar is not None:
             pbar.set_description(ptxt)
