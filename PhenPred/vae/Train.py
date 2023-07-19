@@ -142,6 +142,7 @@ class CLinesTrain:
 
             if record_losses is not None:
                 self.register_loss(loss, record_losses)
+
             else:
                 self.print_single_loss(loss)
 
@@ -464,10 +465,10 @@ class CLinesTrain:
         self.model.module.only_return_mu = True
         self.model.eval()
         data_all = DataLoader(
-                self.data,
-                batch_size=len(self.data.samples),
-                shuffle=False,
-            )
+            self.data,
+            batch_size=len(self.data.samples),
+            shuffle=False,
+        )
         data = next(iter(data_all))
         x, y, _, x_mask = data
         x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
@@ -477,8 +478,10 @@ class CLinesTrain:
             x_masked,
         )
         shap_values = explainer.shap_values(x_masked, nsamples=n_samples)
-        pickle.dump(shap_values, open(f"{plot_folder}/files/{self.timestamp}_shap_values.pkl", "wb"))
-
+        pickle.dump(
+            shap_values,
+            open(f"{plot_folder}/files/{self.timestamp}_shap_values.pkl", "wb"),
+        )
 
     def _plot_lr_rates(self, ax):
         for e, lr in self.lrs:
