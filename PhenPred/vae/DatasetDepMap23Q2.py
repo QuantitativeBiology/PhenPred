@@ -40,17 +40,16 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.filter_features = filter_features
         self.filtered_encoder_only = filtered_encoder_only
 
-        # Read csv files
         self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
         self.dfs = {
             n: df if n in ["crisprcas9", "copynumber"] else df.T
             for n, df in self.dfs.items()
         }
 
-        # Dataset specific preprocessing
-        for n in ["crisprcas9"]:
-            if n in self.dfs:
-                self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
+        if "crisprcas9" in self.dfs:
+            n = "crisprcas9"
+            self.dfs[n].columns = self.dfs[n].columns.str.split(" ").str[0]
+            self.dfs[n] = scale(self.dfs[n].T).T
 
         self._remove_features_missing_values()
         self._build_samplesheet()
@@ -123,7 +122,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
             if n in self.filter_features:
                 if n in ["crisprcas9"]:
-                    self.dfs[n] = scale(self.dfs[n].T).T
                     self.features_mask[n] = (self.dfs[n] < -0.5).sum() > 0
 
                     # barplot
@@ -366,11 +364,22 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         x_nan = ~np.isnan(x)
 
-        x[~x_nan] = np.nanmean(x)
+        if df_name in ["copynumber"]:
+            x[~x_nan] = 0
+        else:
+            x[~x_nan] = np.nanmean(x)
 
         x = torch.tensor(x, dtype=torch.float)
 
         return x, scaler, x_nan
+
+    def get_view_feature_index(self, feature_name, view_name):
+        return self.view_feature_names[view_name].index(feature_name)
+
+    def get_view_feature_by_name(self, feature_name, view_name):
+        return self.views[view_name][
+            :, self.get_view_feature_index(feature_name, view_name)
+        ]
 
     def _samples_union(self):
         # Union samples
