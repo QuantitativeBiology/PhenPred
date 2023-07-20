@@ -1,5 +1,7 @@
 import os
+import shap
 import torch
+import pickle
 import PhenPred
 import warnings
 import numpy as np
@@ -20,8 +22,6 @@ from sklearn.model_selection import (
     StratifiedShuffleSplit,
     ShuffleSplit,
 )
-import shap
-import pickle
 
 
 class CLinesTrain:
@@ -33,20 +33,26 @@ class CLinesTrain:
         early_stop_patience=20,
         gmvae_args_dict=None,
         timestamp=None,
+        verbose=0,
     ):
         self.data = data
         self.losses = []
         self.hypers = hypers
         self.stratify_cv_by = stratify_cv_by
+        self.verbose = verbose
+
         self.timestamp = (
             datetime.now().strftime("%Y%m%d_%H%M%S") if timestamp is None else timestamp
         )
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.lrs = [(1, hypers["learning_rate"])]
         self.early_stop_patience = early_stop_patience
+
         if gmvae_args_dict is not None:
             self.gmvae_args_dict = gmvae_args_dict
             self.gmvae_args_dict["gumbel_temp"] = self.gmvae_args_dict["init_temp"]
+
+        self.benchmark_scores = []
 
     def run(self, run_timestamp=None):
         if run_timestamp is not None:
@@ -121,6 +127,7 @@ class CLinesTrain:
             with torch.set_grad_enabled(model.training):
                 if self.hypers["model"] == "MOVE":
                     out_net = model(x_masked, y)
+
                 else:
                     out_net = model(
                         x_masked,
@@ -131,10 +138,10 @@ class CLinesTrain:
 
                 if self.hypers["filtered_encoder_only"]:
                     # if filtered_encoder_only, use all data for loss
-                    loss = model.module.loss(x, x_nans, out_net)
+                    loss = model.module.loss(x, x_nans, out_net, y)
                 else:
                     # otherwise, use only filtered data for loss
-                    loss = model.module.loss(x_masked, x_nans_masked, out_net)
+                    loss = model.module.loss(x_masked, x_nans_masked, out_net, y)
 
                 if model.training:
                     loss["total"].backward()
@@ -142,8 +149,51 @@ class CLinesTrain:
 
             if record_losses is not None:
                 self.register_loss(loss, record_losses)
+
+                if self.verbose > 1:
+                    self.benchmarks(x, y, out_net["x_hat"], record_losses)
+
             else:
                 self.print_single_loss(loss)
+
+    def benchmarks(self, x, labels, x_hat, record_losses):
+        # CDKN2A proteomics benchmark
+        f = "CDKN2A"
+
+        prot_idx = self.data.get_view_feature_index(f, "proteomics")
+        prot_view_index = self.data.view_names.index("proteomics")
+        prot_pred = x_hat[prot_view_index][:, prot_idx]
+
+        cnvs_idx = self.data.get_view_feature_index(f, "copynumber")
+        cnvs_view_index = self.data.view_names.index("copynumber")
+        cnvs_true = x[cnvs_view_index][:, cnvs_idx]
+
+        # check if there are any CNVs with -2 value
+        f_score = np.nanmedian(
+            prot_pred[cnvs_true != -2].detach().numpy()
+        ) - np.nanmedian(prot_pred[cnvs_true == -2].detach().numpy())
+
+        f_res = dict(benchmark=f, score=f_score)
+        f_res.update(record_losses)
+        self.benchmark_scores.append(f_res)
+
+        # # KRAS CRISPR-Cas9 benchmark
+        # f = "KRAS"
+
+        # crispr_idx = self.data.get_view_feature_index(f, "crisprcas9")
+        # crispr_view_index = self.data.view_names.index("crisprcas9")
+        # crispr_pred = x_hat[crispr_view_index][:, crispr_idx]
+
+        # label_idx = self.data.labels_name.index(f)
+        # label_true = labels[:, label_idx]
+
+        # f_score = np.nanmedian(
+        #     crispr_pred[label_true != 0].detach().numpy()
+        # ) - np.nanmedian(crispr_pred[label_true == 1].detach().numpy())
+
+        # f_res = dict(benchmark=f, score=f_score)
+        # f_res.update(record_losses)
+        # self.benchmark_scores.append(f_res)
 
     def cv_strategy(self, shuffle_split=False):
         if shuffle_split and self.stratify_cv_by is not None:
@@ -403,6 +453,19 @@ class CLinesTrain:
             l = l.groupby(groupby).mean()
         return l
 
+    def get_benchmark(self, cv_idx, epoch_idx, groupby=None, benchmark=None):
+        l = pd.DataFrame(self.benchmark_scores).query(
+            f"cv == {cv_idx} & epoch == {epoch_idx}"
+        )
+
+        if benchmark is not None:
+            l = l.query(f"benchmark == '{benchmark}'")
+
+        if groupby is not None:
+            l = l.groupby(groupby).mean()
+
+        return l
+
     def print_single_loss(self, loss_dict, pbar=None):
         ptxt = f"[{datetime.now().strftime('%H:%M:%S')}] Loss "
         ptxt += f" | Total={loss_dict['total']:.2f}"
@@ -425,6 +488,17 @@ class CLinesTrain:
         for k in l.columns:
             if k not in ["cv", "epoch", "type", "total", "lr"] and "_" not in k:
                 ptxt += f" | {k}={l.loc['train', k]:.2f}/{l.loc['val', k]:.2f}"
+
+        if self.verbose > 1:
+            ptxt += f"\n[Benchmark scores (train/val)] "
+
+            bench_df = self.get_benchmark(
+                cv_idx, epoch_idx, groupby=["benchmark", "type"]
+            ).reset_index()
+
+            for b_name, b_df in bench_df.groupby("benchmark"):
+                b_df = b_df.set_index("type")
+                ptxt += f"{b_name}: {b_df.loc['train', 'score']:.2f}/{b_df.loc['val', 'score']:.2f} | "
 
         if pbar is not None:
             pbar.set_description(ptxt)
@@ -464,10 +538,10 @@ class CLinesTrain:
         self.model.module.only_return_mu = True
         self.model.eval()
         data_all = DataLoader(
-                self.data,
-                batch_size=len(self.data.samples),
-                shuffle=False,
-            )
+            self.data,
+            batch_size=len(self.data.samples),
+            shuffle=False,
+        )
         data = next(iter(data_all))
         x, y, _, x_mask = data
         x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
@@ -477,8 +551,10 @@ class CLinesTrain:
             x_masked,
         )
         shap_values = explainer.shap_values(x_masked, nsamples=n_samples)
-        pickle.dump(shap_values, open(f"{plot_folder}/files/{self.timestamp}_shap_values.pkl", "wb"))
-
+        pickle.dump(
+            shap_values,
+            open(f"{plot_folder}/files/{self.timestamp}_shap_values.pkl", "wb"),
+        )
 
     def _plot_lr_rates(self, ax):
         for e, lr in self.lrs:
