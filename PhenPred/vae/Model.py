@@ -143,7 +143,9 @@ class MOVE(nn.Module):
 
         # Contrastive loss of joint embeddings
         loss_func = losses.ContrastiveLoss(
-            distance=CosineSimilarity(), pos_margin=1, neg_margin=0
+            distance=CosineSimilarity(),
+            pos_margin=0.8,
+            neg_margin=0.2,
         )
 
         c_loss = [loss_func(out_net["mu"], y[:, i]) for i in range(32)]
