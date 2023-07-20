@@ -108,6 +108,7 @@ if __name__ == "__main__":
         direction="minimize",
         study_name="MOVE",
         load_if_exists=True,
+        pruner=optuna.pruners.MedianPruner(n_startup_trials=10, n_warmup_steps=10),
         storage=f"sqlite:///{plot_folder}/files/optuna.db",
     )
 
@@ -148,3 +149,21 @@ if __name__ == "__main__":
 
     fig = optuna.visualization.plot_param_importances(opt)
     fig.write_image(f"{plot_folder}/files/optuna_best_param_plot.pdf")
+
+    fig = optuna.visualization.plot_optimization_history(opt)
+    fig.write_image(f"{plot_folder}/files/optuna_optimization_history.pdf")
+
+    fig = optuna.visualization.plot_slice(opt)
+    fig.write_image(f"{plot_folder}/files/optuna_slice_plot.pdf")
+
+    fig = optuna.visualization.plot_edf(opt)
+    fig.write_image(f"{plot_folder}/files/optuna_edf_plot.pdf")
+
+    fig = optuna.visualization.plot_intermediate_values(opt)
+    fig.write_image(f"{plot_folder}/files/optuna_intermediate_values_plot.pdf")
+
+    fig = optuna.visualization.plot_parallel_coordinate(opt)
+    fig.write_image(f"{plot_folder}/files/optuna_parallel_coordinate_plot.pdf")
+
+    fig = optuna.visualization.plot_contour(opt, params=["learning_rate", "batch_size"])
+    fig.write_image(f"{plot_folder}/files/optuna_contour_plot.pdf")
