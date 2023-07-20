@@ -110,7 +110,7 @@ class MOVE(nn.Module):
             log_var=log_var,
         )
 
-    def loss(self, x, x_nans, out_net, y):
+    def loss(self, x, x_nans, out_net, y, x_mask, view_names):
         # Reconstruction loss
         x_hat = out_net["x_hat"]
         mu = out_net["mu"]
@@ -118,9 +118,23 @@ class MOVE(nn.Module):
 
         recon_loss, recon_loss_views = 0, []
         for i in range(len(x)):
+            mask = x_nans[i].int()
+
+            if view_names[i] == "copynumber":
+                x_hat[i] = torch.round(x_hat[i])
+
             recon_xi = self.recon_criterion(
-                x_hat[i][x_nans[i]], x[i][x_nans[i]], reduction="sum"
+                (x_hat[i] * mask)[:, x_mask[i][0]],
+                (x[i] * mask)[:, x_mask[i][0]],
+                reduction="sum",
             )
+
+            if view_names[i] == "copynumber":
+                recon_xi /= ((x[i] * mask)[:, x_mask[i][0]] != 0).sum()
+
+            else:
+                recon_xi /= mask[:, x_mask[i][0]].sum()
+
             recon_loss_views.append(recon_xi)
             recon_loss += recon_xi
 
