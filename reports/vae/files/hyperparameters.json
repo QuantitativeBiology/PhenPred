@@ -20,7 +20,7 @@
     "filter_features": ["transcriptomics", "crisprcas9", "methylation"],
     "filtered_encoder_only": true,
     "feature_miss_rate_thres": 0.85,
-    "num_epochs": 50,
+    "num_epochs": 150,
     "learning_rate": 0.001,
     "batch_size": 153,
     "n_folds": 3,
