@@ -40,8 +40,6 @@ if __name__ == "__main__":
         filtered_encoder_only=hyperparameters["filtered_encoder_only"],
     )
 
-    # clines_db.plot_samples_overlap()
-
     # Train and predictions
     gmvae_args_dict = (
         dict(
@@ -61,6 +59,7 @@ if __name__ == "__main__":
         hyperparameters,
         stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
         gmvae_args_dict=gmvae_args_dict,
+        verbose=hyperparameters["verbose"],
     )
 
     train.run(run_timestamp=hyperparameters["load_run"])
