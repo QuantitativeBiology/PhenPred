@@ -79,6 +79,7 @@ class CLinesTrain:
             views_sizes_full = {n: v.shape[1] for n, v in self.data.views.items()}
 
         assert self.hypers["model"] in ["MOVE", "GMVAE"], "Invalid model"
+
         if self.hypers["model"] == "MOVE":
             model = MOVE(
                 hypers=self.hypers,
@@ -138,10 +139,19 @@ class CLinesTrain:
 
                 if self.hypers["filtered_encoder_only"]:
                     # if filtered_encoder_only, use all data for loss
-                    loss = model.module.loss(x, x_nans, out_net, y)
+                    loss = model.module.loss(
+                        x, x_nans, out_net, y, x_mask, self.data.view_names
+                    )
                 else:
                     # otherwise, use only filtered data for loss
-                    loss = model.module.loss(x_masked, x_nans_masked, out_net, y)
+                    loss = model.module.loss(
+                        x_masked,
+                        x_nans_masked,
+                        out_net,
+                        y,
+                        x_mask,
+                        self.data.view_names,
+                    )
 
                 if model.training:
                     loss["total"].backward()
@@ -321,7 +331,7 @@ class CLinesTrain:
 
         # Data Loader
         data_all = DataLoader(
-            self.data, batch_size=len(self.data.samples), shuffle=False
+            self.data, batch_size=self.hypers["batch_size"], shuffle=False
         )
 
         self.model = self.initialize_model()
@@ -337,6 +347,10 @@ class CLinesTrain:
             )
 
         # Make predictions and latent spaces
+        data_all = DataLoader(
+            self.data, batch_size=len(self.data.samples), shuffle=False
+        )
+
         self.model.eval()
         with torch.no_grad():
             for data in data_all:
@@ -363,6 +377,9 @@ class CLinesTrain:
                         index=self.data.samples,
                         columns=self.data.view_feature_names[name],
                     )
+
+                    if name in {"copynumber"}:
+                        imputed_datasets[name] = imputed_datasets[name].round()
 
                 z = pd.DataFrame(z.tolist(), index=self.data.samples)
                 z.columns = [f"Latent_{i+1}" for i in range(z.shape[1])]
