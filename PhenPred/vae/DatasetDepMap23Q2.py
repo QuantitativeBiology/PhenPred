@@ -124,43 +124,42 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 if n in ["crisprcas9"]:
                     self.features_mask[n] = (self.dfs[n] < -0.5).sum() > 0
 
-                    # barplot
-                    plot_df = self.features_mask[n].value_counts()
-                    plot_df.index = plot_df.index.map(
-                        {True: "Essential", False: "Never essential"}
-                    )
-                    plot_df = plot_df.rename("count").reset_index()
-
-                    _, ax = plt.subplots(1, 1, figsize=(1, 2), dpi=600)
-
-                    sns.barplot(
-                        data=plot_df,
-                        x="index",
-                        y="count",
-                        orient="v",
-                        color="black",
-                        saturation=0.8,
-                        ax=ax,
-                    )
-
-                    # rotate x labels align right
-                    for item in ax.get_xticklabels():
-                        item.set_rotation(45)
-                        item.set_ha("right")
-
-                    ax.set(
-                        title="CRISPR-Cas9\nessential genes",
-                        xlabel="",
-                        ylabel="Count",
-                    )
-
-                    PhenPred.save_figure(
-                        f"{plot_folder}/datasets_{n}_essential_barplot"
-                    )
-
                 else:
                     thres = self.gaussian_mixture_std(self.dfs[n], plot_name=None)
                     self.features_mask[n] = self.dfs[n].std() > thres
+
+    def plot_essential_genes(self):
+        n = "crisprcas9"
+
+        # barplot
+        plot_df = self.features_mask[n].value_counts()
+        plot_df.index = plot_df.index.map({True: "Essential", False: "Never essential"})
+        plot_df = plot_df.rename("count").reset_index()
+
+        _, ax = plt.subplots(1, 1, figsize=(1, 2), dpi=600)
+
+        sns.barplot(
+            data=plot_df,
+            x="index",
+            y="count",
+            orient="v",
+            color="black",
+            saturation=0.8,
+            ax=ax,
+        )
+
+        # rotate x labels align right
+        for item in ax.get_xticklabels():
+            item.set_rotation(45)
+            item.set_ha("right")
+
+        ax.set(
+            title="CRISPR-Cas9\nessential genes",
+            xlabel="",
+            ylabel="Count",
+        )
+
+        PhenPred.save_figure(f"{plot_folder}/datasets_{n}_essential_barplot")
 
     def _build_labels(self, min_obs=15):
         self.labels = []

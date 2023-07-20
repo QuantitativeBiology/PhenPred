@@ -119,7 +119,7 @@ class MOVE(nn.Module):
         recon_loss, recon_loss_views = 0, []
         for i in range(len(x)):
             recon_xi = self.recon_criterion(
-                x_hat[i][x_nans[i]], x[i][x_nans[i]], reduction="mean"
+                x_hat[i][x_nans[i]], x[i][x_nans[i]], reduction="sum"
             )
             recon_loss_views.append(recon_xi)
             recon_loss += recon_xi
