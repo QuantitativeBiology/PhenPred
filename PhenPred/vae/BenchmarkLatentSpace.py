@@ -70,11 +70,15 @@ class LatentSpaceBenchmark:
                     "sanger_"
                 ),
                 pd.get_dummies(self.ss["growth_properties_broad"]).add_prefix("broad_"),
-                self.data.dfs["proteomics"].mean(1).rename("MeanProteomics"),
+                self.data.dfs["proteomics"].mean(1).rename("MeanProteomics")
+                if "proteomics" in self.data.dfs
+                else None,
                 self.data.dfs["methylation"].mean(1).rename("MeanMethylation")
                 if "methylation" in self.data.dfs
                 else None,
-                self.data.dfs["drugresponse"].mean(1).rename("MeanDrugResponse"),
+                self.data.dfs["drugresponse"].mean(1).rename("MeanDrugResponse")
+                if "drugresponse" in self.data.dfs
+                else None,
                 self.df_drug_novel_bin.sum(1).rename("drug_responses").apply(np.log2),
             ],
             axis=1,

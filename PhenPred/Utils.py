@@ -61,7 +61,7 @@ def two_vars_correlation(
     if verbose > 0:
         print(f"Var1={var1.name}; Var2={var2.name}")
 
-    nans_mask = np.logical_or(np.isnan(var1), np.isnan(var2))
+    nans_mask = np.logical_or(pd.isnull(var1), pd.isnull(var2))
     n = (~nans_mask).sum()
 
     if n <= min_n or np.std(var1[~nans_mask]) == 0 or np.std(var2[~nans_mask]) == 0:
