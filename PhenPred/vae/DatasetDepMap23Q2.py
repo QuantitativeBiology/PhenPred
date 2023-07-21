@@ -63,6 +63,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
             }
 
         self._standardize_dfs()
+        self._import_cnv()
         self._import_mutations()
         self._import_fusions()
         self._import_growth()
@@ -255,6 +256,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
             values="value",
             aggfunc="first",
             fill_value=0,
+        )
+
+    def _import_cnv(self):
+        self.cnv = pd.read_csv(
+            f"{data_folder}/cnv_summary_20230303_matrix.csv", index_col=0
         )
 
     def _import_growth(self):

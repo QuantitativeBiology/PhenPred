@@ -10,8 +10,7 @@
         "drugresponse": "drugresponse.csv",
         "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv",
         "methylation": "methylation.csv",
-        "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
-        "copynumber": "cnv_summary_20230303_matrix.csv"
+        "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv"
     },
     "view_loss_weights": {
         "proteomics": 1.2,
@@ -20,8 +19,8 @@
     "model": "MOVE",
     "standardize": true,
     "use_conditional_gmvae": false,
-    "labels": ["tissue", "mutations", "fussions", "msi", "growth"],
-    "filter_features": ["transcriptomics", "crisprcas9", "methylation", "copynumber"],
+    "labels": ["tissue", "mutations", "fussions", "msi", "growth", "cnv"],
+    "filter_features": ["transcriptomics", "crisprcas9", "methylation"],
     "filtered_encoder_only": true,
     "feature_miss_rate_thres": 0.85,
     "num_epochs": 200,
