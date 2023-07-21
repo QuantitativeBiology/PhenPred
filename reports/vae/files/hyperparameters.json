@@ -17,11 +17,11 @@
         "proteomics": 1.2,
         "crisprcas9": 1.2
     },
-    "model": "GMVAE",
+    "model": "MOVE",
     "standardize": true,
     "use_conditional_gmvae": false,
     "labels": ["tissue", "mutations", "fussions", "msi", "growth"],
-    "filter_features": ["transcriptomics", "crisprcas9", "methylation"],
+    "filter_features": ["transcriptomics", "crisprcas9", "methylation", "copynumber"],
     "filtered_encoder_only": true,
     "feature_miss_rate_thres": 0.85,
     "num_epochs": 200,
