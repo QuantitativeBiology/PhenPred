@@ -1,3 +1,4 @@
+import os
 import PhenPred
 import numpy as np
 import pandas as pd
@@ -64,6 +65,9 @@ class CRISPRBenchmark:
 
         # Sample sheet
         self.ss = data.samplesheet.copy()
+
+        if not os.path.exists(f"{plot_folder}/crispr"):
+            os.makedirs(f"{plot_folder}/crispr")
 
     def run(self, run_associations=True):
         if run_associations:

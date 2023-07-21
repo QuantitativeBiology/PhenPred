@@ -1,6 +1,7 @@
 import sys
+import os
 
-sys.path.extend(["/home/egoncalves/PhenPred"])
+sys.path.extend(["/home/scai/PhenPred"])
 
 import PhenPred
 import numpy as np
@@ -64,6 +65,8 @@ class DrugResponseBenchmark:
             .intersection(set(self.drugresponse_mean.columns))
         )
         self.features = list(self.features)
+        if not os.path.exists(f"{plot_folder}/drugresponse"):
+            os.makedirs(f"{plot_folder}/drugresponse")
 
     def run(self):
         self.correlation_new_values()
