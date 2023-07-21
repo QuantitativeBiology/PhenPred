@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+import numpy as np
 
 
 class BottleNeck(nn.Module):
@@ -160,3 +161,14 @@ class JointInference(nn.Module):
         mu, var, z = self.qzxy(x, y)
 
         return mu, var, z, logits, prob, y
+
+class ViewDropout(nn.Module):
+    def __init__(self, p=0.5):
+        super().__init__()
+        self.p = p
+
+    def forward(self, x):
+        if self.training:
+            if np.random.binomial(1, self.p):
+                x.zero_()
+        return x

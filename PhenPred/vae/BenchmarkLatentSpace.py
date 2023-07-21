@@ -1,3 +1,4 @@
+import os
 import umap
 import PhenPred
 import numpy as np
@@ -83,6 +84,9 @@ class LatentSpaceBenchmark:
             ],
             axis=1,
         )
+
+        if not os.path.exists(f"{plot_folder}/latent"):
+            os.makedirs(f"{plot_folder}/latent")
 
     def correlate_latents_with_covariates(self):
         latents_corr = {}
