@@ -128,7 +128,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
                     self.features_mask[n] = (self.dfs[n].abs() == 2).sum() > 3
 
                 else:
-                    thres = self.gaussian_mixture_std(self.dfs[n], plot_name=n)
+                    thres = self.gaussian_mixture_std(self.dfs[n], plot_name=None)
                     self.features_mask[n] = self.dfs[n].std() > thres
 
     def plot_essential_genes(self):
