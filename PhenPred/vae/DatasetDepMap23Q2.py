@@ -194,13 +194,17 @@ class CLinesDatasetDepMap23Q2(Dataset):
             )
 
         if "mutations" in self.labels_names:
-            self.labels.append(self.mutations.loc[:, self.mutations.sum() >= min_obs])
+            self.labels.append(
+                self.mutations.loc[:, self.mutations.sum() >= min_obs].add_prefix(
+                    "mut_"
+                )
+            )
 
         if "fusions" in self.labels_names:
             self.labels.append(self.fusions.loc[:, self.fusions.sum() >= 5])
 
         if "cnv" in self.labels_names:
-            self.labels.append(self.cnv.loc[:, self.cnv.sum() >= 5])
+            self.labels.append(self.cnv.loc[:, self.cnv.sum() >= 5].add_prefix("cnv_"))
 
         if "msi" in self.labels_names:
             self.labels.append(

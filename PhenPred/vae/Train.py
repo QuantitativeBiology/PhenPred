@@ -179,7 +179,7 @@ class CLinesTrain:
             cnvs_view_index = self.data.view_names.index("copynumber")
             cnvs_true = x[cnvs_view_index][:, cnvs_idx]
         else:
-            cnvs_idx = self.data.labels_name.index(f)
+            cnvs_idx = self.data.labels_name.index(f"cnv_{f}")
             cnvs_true = labels[:, cnvs_idx]
 
         # check if there are any CNVs with -2 value
@@ -198,7 +198,7 @@ class CLinesTrain:
         # crispr_view_index = self.data.view_names.index("crisprcas9")
         # crispr_pred = x_hat[crispr_view_index][:, crispr_idx]
 
-        # label_idx = self.data.labels_name.index(f)
+        # label_idx = self.data.labels_name.index(f"mut_{f}")
         # label_true = labels[:, label_idx]
 
         # f_score = np.nanmedian(
