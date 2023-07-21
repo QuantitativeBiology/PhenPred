@@ -204,7 +204,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
             self.labels.append(self.fusions.loc[:, self.fusions.sum() >= 5])
 
         if "cnv" in self.labels_names:
-            self.labels.append(self.cnv.loc[:, self.cnv.sum() >= 5].add_prefix("cnv_"))
+            self.labels.append(
+                self.cnv.loc[:, self.cnv.abs().sum() >= 5].add_prefix("cnv_")
+            )
 
         if "msi" in self.labels_names:
             self.labels.append(
