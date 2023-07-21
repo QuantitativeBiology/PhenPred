@@ -31,7 +31,11 @@ class ProteomicsBenchmark:
         self.df_mean = self.df_original.fillna(self.df_original.mean())
 
         # Other relevant datasets
-        self.df_cnv = self.data.dfs["copynumber"]
+        if "copynumber" in self.data.dfs:
+            self.df_cnv = self.data.dfs["copynumber"]
+        else:
+            self.df_cnv = self.data.cnv
+
         self.df_gexp = self.data.dfs["transcriptomics"]
 
         # Independent proteomics dataset - CCLE
