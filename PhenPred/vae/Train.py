@@ -174,9 +174,13 @@ class CLinesTrain:
         prot_view_index = self.data.view_names.index("proteomics")
         prot_pred = x_hat[prot_view_index][:, prot_idx]
 
-        cnvs_idx = self.data.get_view_feature_index(f, "copynumber")
-        cnvs_view_index = self.data.view_names.index("copynumber")
-        cnvs_true = x[cnvs_view_index][:, cnvs_idx]
+        if "copynumber" in self.data.view_names:
+            cnvs_idx = self.data.get_view_feature_index(f, "copynumber")
+            cnvs_view_index = self.data.view_names.index("copynumber")
+            cnvs_true = x[cnvs_view_index][:, cnvs_idx]
+        else:
+            cnvs_idx = self.data.labels_name.index(f)
+            cnvs_true = labels[:, cnvs_idx]
 
         # check if there are any CNVs with -2 value
         f_score = np.nanmedian(
