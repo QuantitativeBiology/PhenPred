@@ -1,3 +1,4 @@
+import os
 import PhenPred
 import pandas as pd
 import seaborn as sns
@@ -12,6 +13,9 @@ class MismatchBenchmark:
 
         self.data = data
         self.vae_predicted = vae_predicted
+
+        if not os.path.exists(f"{plot_folder}/mismatch"):
+            os.makedirs(f"{plot_folder}/mismatch")
 
     def run(self):
         self.drug_response()
