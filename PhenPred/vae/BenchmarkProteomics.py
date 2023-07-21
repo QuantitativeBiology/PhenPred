@@ -1,3 +1,4 @@
+import os
 import PhenPred
 import numpy as np
 import pandas as pd
@@ -65,6 +66,9 @@ class ProteomicsBenchmark:
         self.samples_without_prot = set(
             self.df_original.index[self.df_original.isnull().all(1)]
         )
+
+        if not os.path.exists(f"{plot_folder}/proteomics"):
+            os.makedirs(f"{plot_folder}/proteomics")
 
     def run(self):
         self.compare_imputed_ccle()

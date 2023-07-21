@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 from PhenPred.vae.Losses import CLinesLosses
-from PhenPred.vae.Layers import BottleNeck, Gaussian, JointInference
+from PhenPred.vae.Layers import JointInference, ViewDropout
 
 
 class GMVAE(nn.Module):
@@ -52,6 +52,9 @@ class GMVAE(nn.Module):
                 + [self.views_logits]
             )
             layers = nn.ModuleList()
+            layers.append(nn.Dropout(p=self.hypers["feature_dropout"]))
+            if self.hypers['view_dropout'] > 0:
+                layers.append(ViewDropout(p=self.hypers['view_dropout']))
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
                 # layers.append(nn.BatchNorm1d(layer_sizes[i]))
@@ -140,7 +143,7 @@ class GMVAE(nn.Module):
                 y_var=y_var,
             )
 
-    def loss(self, x, x_nans, out_net):
+    def loss(self, x, x_nans, out_net, y, x_mask, view_names):
 
         return CLinesLosses.unlabeled_loss(
                         views=x,
@@ -151,4 +154,5 @@ class GMVAE(nn.Module):
                         w_gauss=self.w_gauss,
                         w_cat=self.w_cat,
                         num_cat=self.k,
+                        view_loss_weights=self.hypers["view_loss_weights"],
                     )
