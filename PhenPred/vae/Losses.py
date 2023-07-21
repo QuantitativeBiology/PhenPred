@@ -20,6 +20,7 @@ class CLinesLosses:
         w_gauss=0.01,
         w_cat=0.001,
         num_cat=None,
+        view_loss_weights=None,
     ):
         """
         Sourced from: https://github.com/jariasf/GMVAE/tree/master/pytorch
@@ -51,7 +52,7 @@ class CLinesLosses:
                 recon_xi = cls.reconstruction_loss(real, predicted, rec_type)
             else:
                 recon_xi = rec_type(real, predicted)
-            loss_rec += recon_xi
+            loss_rec += recon_xi * view_loss_weights[i]
             recon_loss_views.append(recon_xi)
 
         # gaussian loss
