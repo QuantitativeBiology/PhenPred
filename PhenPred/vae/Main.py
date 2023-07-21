@@ -74,7 +74,6 @@ if __name__ == "__main__":
     latent_benchmark = LatentSpaceBenchmark(
         train.timestamp, clines_db, vae_latent, mofa_latent
     )
-    latent_benchmark.run()
     latent_benchmark.plot_latent_spaces(
         markers=clines_db.get_features(
             dict(metabolomics=["1-methylnicotinamide"], transcriptomics=["VIM", "CDH1"])
