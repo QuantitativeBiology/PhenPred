@@ -120,8 +120,8 @@ class MOVE(nn.Module):
         for i in range(len(x)):
             mask = x_nans[i].int()
 
-            if view_names[i] == "copynumber":
-                x_hat[i] = torch.round(x_hat[i])
+            # if view_names[i] == "copynumber":
+            #     x_hat[i] = torch.round(x_hat[i])
 
             recon_xi = self.recon_criterion(
                 (x_hat[i] * mask)[:, x_mask[i][0]],
@@ -129,11 +129,11 @@ class MOVE(nn.Module):
                 reduction="sum",
             )
 
-            if view_names[i] == "copynumber":
-                recon_xi /= ((x[i] * mask)[:, x_mask[i][0]] != 0).sum()
+            # if view_names[i] == "copynumber":
+            #     recon_xi /= ((x[i] * mask)[:, x_mask[i][0]] != 0).sum()
 
-            else:
-                recon_xi /= mask[:, x_mask[i][0]].sum()
+            # else:
+            recon_xi /= mask[:, x_mask[i][0]].sum()
 
             recon_loss_views.append(recon_xi)
             recon_loss += recon_xi
