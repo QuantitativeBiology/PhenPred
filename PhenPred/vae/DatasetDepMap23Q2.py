@@ -124,8 +124,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 if n in ["crisprcas9"]:
                     self.features_mask[n] = (self.dfs[n] < -0.5).sum() > 0
 
+                elif n in ["copynumber"]:
+                    self.features_mask[n] = (self.dfs[n].abs() == 2).sum() > 3
+
                 else:
-                    thres = self.gaussian_mixture_std(self.dfs[n], plot_name=None)
+                    thres = self.gaussian_mixture_std(self.dfs[n], plot_name=n)
                     self.features_mask[n] = self.dfs[n].std() > thres
 
     def plot_essential_genes(self):
@@ -194,6 +197,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         if "fusions" in self.labels_names:
             self.labels.append(self.fusions.loc[:, self.fusions.sum() >= 5])
+
+        if "cnv" in self.labels_names:
+            self.labels.append(self.cnv.loc[:, self.cnv.sum() >= 5])
 
         if "msi" in self.labels_names:
             self.labels.append(
