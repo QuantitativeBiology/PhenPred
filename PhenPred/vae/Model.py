@@ -56,6 +56,7 @@ class MOVE(nn.Module):
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
+                layers.append(nn.BatchNorm1d(layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.activation_function)
 
@@ -86,6 +87,7 @@ class MOVE(nn.Module):
             layers = nn.ModuleList()
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
+                layers.append(nn.BatchNorm1d(layer_sizes[i]))
                 layers.append(nn.Dropout(p=self.hypers["probability"]))
                 layers.append(self.activation_function)
 
@@ -110,7 +112,7 @@ class MOVE(nn.Module):
             log_var=log_var,
         )
 
-    def loss(self, x, x_nans, out_net, y, x_mask, view_names):
+    def loss(self, x, x_nans, out_net, y, x_mask):
         # Reconstruction loss
         x_hat = out_net["x_hat"]
         mu = out_net["mu"]
@@ -120,19 +122,12 @@ class MOVE(nn.Module):
         for i in range(len(x)):
             mask = x_nans[i].int()
 
-            # if view_names[i] == "copynumber":
-            #     x_hat[i] = torch.round(x_hat[i])
-
             recon_xi = self.recon_criterion(
                 (x_hat[i] * mask)[:, x_mask[i][0]],
                 (x[i] * mask)[:, x_mask[i][0]],
                 reduction="sum",
             )
 
-            # if view_names[i] == "copynumber":
-            #     recon_xi /= ((x[i] * mask)[:, x_mask[i][0]] != 0).sum()
-
-            # else:
             recon_xi /= mask[:, x_mask[i][0]].sum()
 
             recon_loss_views.append(recon_xi)
