@@ -169,7 +169,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.labels = []
 
         if "tissue" in self.labels_names:
-            self.labels.append(pd.get_dummies(self.samplesheet["tissue"]))
+            self.labels.append(
+                pd.get_dummies(self.samplesheet["tissue"]).add_prefix("tissue_")
+            )
 
         if "cancer_type" in self.labels_names:
             self.labels.append(pd.get_dummies(self.samplesheet["cancer_type"]))

@@ -10,6 +10,7 @@ import torch.nn as nn
 import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from torchinfo import summary
 from datetime import datetime
 from PhenPred.vae import plot_folder
 from torch.utils.data import DataLoader
@@ -101,6 +102,8 @@ class CLinesTrain:
 
         model = nn.DataParallel(model)
 
+        print(summary(model))
+
         return model
 
     def epoch(
@@ -139,18 +142,11 @@ class CLinesTrain:
 
                 if self.hypers["filtered_encoder_only"]:
                     # if filtered_encoder_only, use all data for loss
-                    loss = model.module.loss(
-                        x, x_nans, out_net, y, x_mask, self.data.view_names
-                    )
+                    loss = model.module.loss(x, x_nans, out_net, y, x_mask)
                 else:
                     # otherwise, use only filtered data for loss
                     loss = model.module.loss(
-                        x_masked,
-                        x_nans_masked,
-                        out_net,
-                        y,
-                        x_mask,
-                        self.data.view_names,
+                        x_masked, x_nans_masked, out_net, y, x_mask
                     )
 
                 if model.training:
