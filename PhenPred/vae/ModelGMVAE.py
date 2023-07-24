@@ -16,7 +16,7 @@ class GMVAE(nn.Module):
         hidden_size=512,
         conditional_size=0,
         views_sizes_full=None,
-        only_return_mu=False
+        only_return_mu=False,
     ) -> None:
         super().__init__()
 
@@ -53,8 +53,8 @@ class GMVAE(nn.Module):
             )
             layers = nn.ModuleList()
             layers.append(nn.Dropout(p=self.hypers["feature_dropout"]))
-            if self.hypers['view_dropout'] > 0:
-                layers.append(ViewDropout(p=self.hypers['view_dropout']))
+            if self.hypers["view_dropout"] > 0:
+                layers.append(ViewDropout(p=self.hypers["view_dropout"]))
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
                 # layers.append(nn.BatchNorm1d(layer_sizes[i]))
@@ -143,16 +143,15 @@ class GMVAE(nn.Module):
                 y_var=y_var,
             )
 
-    def loss(self, x, x_nans, out_net, y, x_mask, view_names):
-
+    def loss(self, x, x_nans, out_net, y, x_mask):
         return CLinesLosses.unlabeled_loss(
-                        views=x,
-                        out_net=out_net,
-                        views_mask=x_nans,
-                        rec_type=self.hypers["reconstruction_loss"],
-                        w_rec=self.w_rec,
-                        w_gauss=self.w_gauss,
-                        w_cat=self.w_cat,
-                        num_cat=self.k,
-                        view_loss_weights=self.hypers["view_loss_weights"],
-                    )
+            views=x,
+            out_net=out_net,
+            views_mask=x_nans,
+            rec_type=self.hypers["reconstruction_loss"],
+            w_rec=self.w_rec,
+            w_gauss=self.w_gauss,
+            w_cat=self.w_cat,
+            num_cat=self.k,
+            view_loss_weights=self.hypers["view_loss_weights"],
+        )
