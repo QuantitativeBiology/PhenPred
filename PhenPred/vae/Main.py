@@ -28,7 +28,7 @@ from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
 if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
-    # hyperparameters = Hypers.read_hyperparameters(timestamp="20230716_211314")
+    # hyperparameters = Hypers.read_hyperparameters(timestamp="20230721_213042")
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(

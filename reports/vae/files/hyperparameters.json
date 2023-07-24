@@ -1,7 +1,7 @@
 {
     "dataname": "depmap23Q2",
     "load_run": null,
-    "save_model": true,
+    "save_model": false,
     "skip_cv": true,
     "verbose": 10,
     "datasets": {
@@ -10,7 +10,8 @@
         "drugresponse": "drugresponse.csv",
         "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv",
         "methylation": "methylation.csv",
-        "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv"
+        "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
+        "copynumber": "cnv_summary_20230303_matrix.csv"
     },
     "view_loss_weights": {
         "proteomics": 1.2,
@@ -19,7 +20,7 @@
     "model": "MOVE",
     "standardize": true,
     "use_conditional_gmvae": false,
-    "labels": ["tissue", "mutations", "fussions", "msi", "growth", "cnv"],
+    "labels": ["tissue", "mutations", "fussions", "msi", "growth"],
     "filter_features": ["transcriptomics", "crisprcas9", "methylation"],
     "filtered_encoder_only": true,
     "feature_miss_rate_thres": 0.85,
@@ -37,7 +38,7 @@
     "w_rec": 1,
     "w_gauss": 0.01,
     "w_cat": 0.01,
-    "w_contrastive": 0.05,
+    "w_contrastive": 0.01,
     "views_logits": 256,
     "optimizer_type": "adam",
     "w_decay": 5e-4,
