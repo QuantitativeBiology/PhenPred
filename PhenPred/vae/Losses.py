@@ -33,6 +33,8 @@ class CLinesLosses:
         Returns:
             loss_dic: (dict) contains the values of each loss function and predictions
         """
+        view_loss_weights = view_loss_weights if view_loss_weights else [1] * len(views)
+
         # obtain network variables
         z, x_hat = out_net["z"], out_net["x_hat"]
         logits, prob_cat = out_net["y_logits"], out_net["y_prob"]

@@ -39,12 +39,8 @@ class Hypers:
         if "w_cat" not in hypers:
             hypers["w_cat"] = 0.01
 
-        hypers["view_loss_weights"] = [
-            float(hypers["view_loss_weights"][k])
-            if k in hypers["view_loss_weights"]
-            else 1
-            for k in hypers["datasets"].keys()
-        ]
+        if hypers["view_loss_weights"] is None:
+            hypers["view_loss_weights"] = [1.0] * len(hypers["views"])
 
         hypers["datasets"] = {
             k: f"{data_folder}/{v}" for k, v in hypers["datasets"].items()
