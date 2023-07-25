@@ -32,7 +32,6 @@ class CLinesTrain:
         hypers,
         stratify_cv_by=None,
         early_stop_patience=20,
-        gmvae_args_dict=None,
         timestamp=None,
         verbose=0,
     ):
@@ -45,25 +44,21 @@ class CLinesTrain:
         self.timestamp = (
             datetime.now().strftime("%Y%m%d_%H%M%S") if timestamp is None else timestamp
         )
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.lrs = [(1, hypers["learning_rate"])]
+
         self.early_stop_patience = early_stop_patience
 
-        if gmvae_args_dict is not None:
-            self.gmvae_args_dict = gmvae_args_dict
-            self.gmvae_args_dict["gumbel_temp"] = self.gmvae_args_dict["init_temp"]
-
+        self.lrs = [(1, hypers["learning_rate"])]
         self.benchmark_scores = []
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def run(self, run_timestamp=None):
         if run_timestamp is not None:
             self.timestamp = run_timestamp
-            # self.load_model()
             return
 
         if not self.hypers["skip_cv"]:
             self.training()
-
             losses_df = self.save_losses()
             self.plot_losses(losses_df)
 
@@ -90,14 +85,10 @@ class CLinesTrain:
             )
         else:
             model = GMVAE(
-                views_sizes=views_sizes,
                 hypers=self.hypers,
-                k=self.gmvae_args_dict["k"],
-                views_logits=self.hypers["views_logits"],
-                conditional_size=self.data.labels.shape[1]
-                if self.hypers["use_conditional_gmvae"]
-                else 0,
+                views_sizes=views_sizes,
                 views_sizes_full=views_sizes_full,
+                conditional_size=self.data.labels.shape[1],
             )
 
         model = nn.DataParallel(model)
@@ -135,8 +126,8 @@ class CLinesTrain:
                 else:
                     out_net = model(
                         x_masked,
-                        self.gmvae_args_dict["gumbel_temp"],
-                        self.gmvae_args_dict["hard_gumbel"],
+                        self.hypers["gmvae_gumbel_temp"],
+                        self.hypers["gmvae_hard_gumbel"],
                         y,
                     )
 
@@ -363,8 +354,8 @@ class CLinesTrain:
                 else:
                     out_net = self.model(
                         x_masked,
-                        self.gmvae_args_dict["gumbel_temp"],
-                        self.gmvae_args_dict["hard_gumbel"],
+                        self.hypers["gmvae_gumbel_temp"],
+                        self.hypers["gmvae_hard_gumbel"],
                         y,
                     )
 

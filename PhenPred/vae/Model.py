@@ -4,13 +4,20 @@ import numpy as np
 import torch.nn as nn
 from pytorch_metric_learning import losses
 from PhenPred.vae.Losses import CLinesLosses
-from PhenPred.vae.Layers import BottleNeck, Gaussian
-from pytorch_metric_learning.distances import CosineSimilarity
 from pytorch_metric_learning.reducers import DoNothingReducer
+from pytorch_metric_learning.distances import CosineSimilarity
+from PhenPred.vae.Layers import BottleNeck, Gaussian, ViewDropout
 
 
 class MOVE(nn.Module):
-    def __init__(self, hypers, views_sizes, conditional_size, views_sizes_full=None):
+    def __init__(
+        self,
+        hypers,
+        views_sizes,
+        conditional_size,
+        views_sizes_full=None,
+        lazy_init=False,
+    ):
         super().__init__()
 
         self.hypers = hypers
@@ -28,12 +35,15 @@ class MOVE(nn.Module):
         self.recon_criterion = self.hypers["reconstruction_loss"]
         self.activation_function = self.hypers["activation_function"]
 
-        self._build()
+        if not lazy_init:
+            self._build()
 
-        print(f"# ---- MOVE")
-        self.total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        print(f"Total parameters: {self.total_params:,d}")
-        print(self)
+            print(f"# ---- MOVE")
+            self.total_params = sum(
+                p.numel() for p in self.parameters() if p.requires_grad
+            )
+            print(f"Total parameters: {self.total_params:,d}")
+            print(self)
 
     def _build(self):
         self._build_encoders()
@@ -46,14 +56,21 @@ class MOVE(nn.Module):
 
         self._build_decoders()
 
-    def _build_encoders(self):
+    def _build_encoders(self, suffix_layers=None):
         self.encoders = nn.ModuleList()
         for n in self.views_sizes:
+            layers = nn.ModuleList()
+
             layer_sizes = [self.views_sizes[n] + self.conditional_size] + [
                 int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"]
             ]
 
-            layers = nn.ModuleList()
+            if suffix_layers is not None:
+                layer_sizes += suffix_layers
+
+            if self.hypers["view_dropout"] > 0:
+                layers.append(ViewDropout(p=self.hypers["view_dropout"]))
+
             for i in range(1, len(layer_sizes)):
                 layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
                 layers.append(nn.BatchNorm1d(layer_sizes[i]))
@@ -71,16 +88,13 @@ class MOVE(nn.Module):
             self.encoders.append(nn.Sequential(*layers))
 
     def _build_decoders(self):
-        if self.views_sizes_full is None:
-            input_sizes = self.views_sizes
-        else:
-            input_sizes = self.views_sizes_full
-
-        latent_views_sum = self.hypers["latent_dim"]
+        input_sizes = (
+            self.views_sizes_full if self.views_sizes_full else self.views_sizes
+        )
 
         self.decoders = nn.ModuleList()
         for n in self.views_sizes:
-            layer_sizes = [latent_views_sum + self.conditional_size] + [
+            layer_sizes = [self.hypers["latent_dim"] + self.conditional_size] + [
                 int(v * input_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
             ]
 
@@ -112,29 +126,48 @@ class MOVE(nn.Module):
             log_var=log_var,
         )
 
-    def loss(self, x, x_nans, out_net, y, x_mask):
+    def loss(self, x, x_nans, out_net, y, x_mask, view_loss_weights=None):
+        view_loss_weights = view_loss_weights if view_loss_weights else [1] * len(x)
+
         # Reconstruction loss
-        x_hat = out_net["x_hat"]
-        mu = out_net["mu"]
-        logvar = out_net["log_var"]
+        x_hat, mu, logvar = out_net["x_hat"], out_net["mu"], out_net["log_var"]
 
         recon_loss, recon_loss_views = 0, []
         for i in range(len(x)):
             mask = x_nans[i].int()
 
-            recon_xi = self.recon_criterion(
-                (x_hat[i] * mask)[:, x_mask[i][0]],
-                (x[i] * mask)[:, x_mask[i][0]],
-                reduction="sum",
-            )
+            # TODO: Imbalance in CNV (0>>n), calculate MSE per class and then mean
+            if i == 6:
+                x_hat_i = (x_hat[i] * mask)[:, x_mask[i][0]]
+                x_i = (x[i] * mask)[:, x_mask[i][0]]
 
-            recon_xi /= mask[:, x_mask[i][0]].sum()
+                recon_xi = torch.stack(
+                    [
+                        self.recon_criterion(
+                            x_hat_i[x_i == v],
+                            x_i[x_i == v],
+                            reduction="sum",
+                        )
+                        / c
+                        for v, c in zip(*torch.unique(x_i, return_counts=True))
+                    ]
+                ).mean()
+
+            else:
+                recon_xi = self.recon_criterion(
+                    (x_hat[i] * mask)[:, x_mask[i][0]],
+                    (x[i] * mask)[:, x_mask[i][0]],
+                    reduction="sum",
+                )
+                recon_xi /= mask[:, x_mask[i][0]].sum()
+
+            recon_xi *= view_loss_weights[i]
 
             recon_loss_views.append(recon_xi)
             recon_loss += recon_xi
 
         # KL divergence loss
-        kl_loss = self.hypers["w_kl"] * CLinesLosses.kl_divergence(mu, logvar)
+        kl_loss = CLinesLosses.kl_divergence(mu, logvar)
 
         # Contrastive loss of joint embeddings
         loss_func = losses.ContrastiveLoss(
@@ -143,11 +176,15 @@ class MOVE(nn.Module):
             neg_margin=0.2,
         )
 
-        c_loss = [loss_func(out_net["mu"], y[:, i]) for i in range(32)]
-        c_loss = torch.stack(c_loss).sum() * self.hypers["w_contrastive"]
+        c_loss = [loss_func(out_net["z"], y[:, i]) for i in range(32)]
+        c_loss = torch.stack(c_loss).sum()
 
         # Total loss
-        loss = recon_loss + kl_loss + c_loss
+        loss = (
+            recon_loss
+            + self.hypers["w_kl"] * kl_loss
+            + self.hypers["w_contrastive"] * c_loss
+        )
 
         return dict(
             total=loss,
