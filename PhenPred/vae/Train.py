@@ -55,6 +55,7 @@ class CLinesTrain:
     def run(self, run_timestamp=None):
         if run_timestamp is not None:
             self.timestamp = run_timestamp
+
             return
 
         if not self.hypers["skip_cv"]:
@@ -518,6 +519,9 @@ class CLinesTrain:
         l.to_csv(f"{plot_folder}/files/{self.timestamp}_losses.csv", index=False)
         return l
 
+    def load_losses_df(self):
+        return pd.read_csv(f"{plot_folder}/files/{self.timestamp}_losses.csv")
+
     def save_model(self):
         if self.model is None:
             warnings.warn("No model to save. Run predictions first.")
@@ -577,7 +581,10 @@ class CLinesTrain:
                 fontsize=4,
             )
 
-    def plot_losses(self, losses_df, loss_terms=None, figsize=(3, 2)):
+    def plot_losses(self, losses_df=None, loss_terms=None, figsize=(3, 2)):
+        if losses_df is None:
+            losses_df = self.load_losses_df()
+
         # Plot total losses
         plot_df = pd.melt(losses_df, id_vars=["epoch", "type"], value_vars="total")
 
@@ -608,18 +615,20 @@ class CLinesTrain:
 
         # Plot reconstruction losses
         if loss_terms is None:
-            loss_terms = [
+            cols = [
                 c
                 for c in losses_df
                 if c not in ["cv", "epoch", "type", "total", "lr"] and "_" in c
             ]
+        else:
+            cols = loss_terms
 
-        unique_prefix = {v.split("_")[0] for v in loss_terms}
+        unique_prefix = {v.split("_")[0] for v in cols}
         for prefix in unique_prefix:
             plot_df = pd.melt(
                 losses_df,
                 id_vars=["epoch", "type"],
-                value_vars=[c for c in loss_terms if c.startswith(prefix)],
+                value_vars=[c for c in cols if c.startswith(prefix)],
             )
 
             _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)
@@ -650,16 +659,18 @@ class CLinesTrain:
 
         # Plot loss terms
         if loss_terms is None:
-            loss_terms = [
+            cols = [
                 c
                 for c in losses_df
                 if c not in ["cv", "epoch", "type", "total", "lr"] and "_" not in c
             ]
+        else:
+            cols = loss_terms
 
         plot_df = pd.melt(
             losses_df,
             id_vars=["epoch", "type"],
-            value_vars=loss_terms,
+            value_vars=cols,
         )
 
         _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)

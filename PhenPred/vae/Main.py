@@ -28,7 +28,7 @@ from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
 if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
-    # hyperparameters = Hypers.read_hyperparameters(timestamp="20230721_213042")
+    # hyperparameters = Hypers.read_hyperparameters(timestamp="20230725_114145")
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -49,6 +49,7 @@ if __name__ == "__main__":
     )
 
     train.run(run_timestamp=hyperparameters["load_run"])
+    train.plot_losses()
 
     # Load imputed data
     vae_imputed, vae_latent = train.load_vae_reconstructions()
