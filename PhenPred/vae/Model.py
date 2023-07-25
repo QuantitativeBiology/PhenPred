@@ -166,8 +166,10 @@ class MOVE(nn.Module):
             recon_loss_views.append(recon_xi)
             recon_loss += recon_xi
 
+        recon_loss *= self.hypers["w_rec"]
+
         # KL divergence loss
-        kl_loss = CLinesLosses.kl_divergence(mu, logvar)
+        kl_loss = CLinesLosses.kl_divergence(mu, logvar) * self.hypers["w_kl"]
 
         # Contrastive loss of joint embeddings
         loss_func = losses.ContrastiveLoss(
@@ -176,15 +178,11 @@ class MOVE(nn.Module):
             neg_margin=0.2,
         )
 
-        c_loss = [loss_func(out_net["z"], y[:, i]) for i in range(32)]
-        c_loss = torch.stack(c_loss).sum()
+        c_loss = [loss_func(mu, y[:, i]) for i in range(32)]
+        c_loss = torch.stack(c_loss).sum() * self.hypers["w_contrastive"]
 
         # Total loss
-        loss = (
-            recon_loss
-            + self.hypers["w_kl"] * kl_loss
-            + self.hypers["w_contrastive"] * c_loss
-        )
+        loss = recon_loss + kl_loss + c_loss
 
         return dict(
             total=loss,

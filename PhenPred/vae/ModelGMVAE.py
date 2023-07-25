@@ -105,26 +105,26 @@ class GMVAE(MOVE):
         )
 
         # GMVAE losss
-        loss_gauss = CLinesLosses.gaussian_loss(
-            out_net["z"],
-            out_net["mu"],
-            out_net["log_var"],
-            out_net["y_mu"],
-            out_net["y_log_var"],
+        loss_gauss = (
+            CLinesLosses.gaussian_loss(
+                out_net["z"],
+                out_net["mu"],
+                out_net["log_var"],
+                out_net["y_mu"],
+                out_net["y_log_var"],
+            )
+            * self.hypers["w_gauss"]
         )
 
         loss_cat = -CLinesLosses.entropy(
             out_net["y_logits"], out_net["y_prob"]
         ) - np.log(1 / self.k)
+        loss_cat *= self.hypers["w_cat"]
 
         _, predicted_labels = torch.max(out_net["y_logits"], dim=1)
 
-        # Total loss
         loss_total = (
-            self.hypers["w_rec"] * vae_loss["reconstruction"]
-            + self.hypers["w_gauss"] * loss_gauss
-            + self.hypers["w_cat"] * loss_cat
-            + self.hypers["w_contrastive"] * vae_loss["contrastive"]
+            vae_loss["reconstruction"] + loss_gauss + loss_cat + vae_loss["contrastive"]
         )
 
         return dict(

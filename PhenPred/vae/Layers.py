@@ -114,14 +114,18 @@ class GumbelSoftmax(nn.Module):
 
 
 class JointInference(nn.Module):
-    def __init__(self, x_dim, z_dim, y_dim, hidden_size=128):
+    def __init__(self, x_dim, z_dim, y_dim, hidden_size=128, activation_function=None):
         super().__init__()
+
+        self.activation_function = (
+            activation_function if activation_function else nn.PReLU()
+        )
 
         # q(y|x)
         self.inference_qyx = torch.nn.ModuleList(
             [
                 nn.Linear(x_dim, hidden_size),
-                nn.ReLU(),
+                self.activation_function,
                 GumbelSoftmax(hidden_size, y_dim),
             ]
         )
@@ -130,7 +134,7 @@ class JointInference(nn.Module):
         self.inference_qzyx = torch.nn.ModuleList(
             [
                 nn.Linear(x_dim + y_dim, hidden_size),
-                nn.ReLU(),
+                self.activation_function,
                 Gaussian(hidden_size, z_dim),
             ]
         )
@@ -161,6 +165,7 @@ class JointInference(nn.Module):
         mu, var, z = self.qzxy(x, y)
 
         return mu, var, z, logits, prob, y
+
 
 class ViewDropout(nn.Module):
     def __init__(self, p=0.5):
