@@ -41,24 +41,10 @@ class OptunaOptimization:
         hypers = self.sample_params(trial)
 
         # Train
-        gmvae_args_dict = (
-            dict(
-                k=100,
-                init_temp=1.0,
-                decay_temp=1.0,
-                hard_gumbel=0,
-                min_temp=0.5,
-                decay_temp_rate=0.013862944,
-            )
-            if hyperparameters["model"] == "GMVAE"
-            else None
-        )
-
         loss_val = CLinesTrain(
             self.data,
             hypers,
             early_stop_patience=10,
-            gmvae_args_dict=gmvae_args_dict,
         ).training(cv)
 
         return loss_val

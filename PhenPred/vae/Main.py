@@ -32,34 +32,20 @@ if __name__ == "__main__":
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
-        labels_names=hyperparameters["labels"],
         datasets=hyperparameters["datasets"],
-        feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
+        labels_names=hyperparameters["labels"],
         standardize=hyperparameters["standardize"],
         filter_features=hyperparameters["filter_features"],
         filtered_encoder_only=hyperparameters["filtered_encoder_only"],
+        feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
     )
 
     # Train and predictions
-    gmvae_args_dict = (
-        dict(
-            k=100,
-            init_temp=1.0,
-            decay_temp=1.0,
-            hard_gumbel=0,
-            min_temp=0.5,
-            decay_temp_rate=0.013862944,
-        )
-        if hyperparameters["model"] == "GMVAE"
-        else None
-    )
-
     train = CLinesTrain(
         clines_db,
         hyperparameters,
-        stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
-        gmvae_args_dict=gmvae_args_dict,
         verbose=hyperparameters["verbose"],
+        stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
     )
 
     train.run(run_timestamp=hyperparameters["load_run"])

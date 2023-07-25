@@ -1,39 +1,38 @@
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
+from PhenPred import vae
+from PhenPred.vae.Model import MOVE
 from PhenPred.vae.Losses import CLinesLosses
 from PhenPred.vae.Layers import JointInference, ViewDropout
 
 
-class GMVAE(nn.Module):
+class GMVAE(MOVE):
     def __init__(
         self,
         hypers,
         views_sizes,
-        k=50,
-        views_logits=256,
-        hidden_size=512,
-        conditional_size=0,
+        conditional_size,
         views_sizes_full=None,
         only_return_mu=False,
     ) -> None:
-        super().__init__()
+        super().__init__(
+            hypers,
+            views_sizes,
+            conditional_size,
+            views_sizes_full=views_sizes_full,
+            lazy_init=True,
+        )
 
-        self.k = k
-        self.hypers = hypers
-        self.views_sizes = views_sizes
-        self.views_sizes_full = views_sizes_full
-        self.views_logits = views_logits
-        self.hidden_size = hidden_size
-        self.conditional_size = conditional_size
+        self.k = self.hypers["gmvae_k"]
+        self.views_logits = self.hypers["gmvae_views_logits"]
+        self.hidden_size = self.hypers["gmvae_hidden_size"]
         self.only_return_mu = only_return_mu
 
         self.y_mu = nn.Linear(self.k, self.hypers["latent_dim"])
         self.y_var = nn.Linear(self.k, self.hypers["latent_dim"])
-        self.w_rec = self.hypers["w_rec"]
-        self.w_gauss = self.hypers["w_gauss"]
-        self.w_cat = self.hypers["w_cat"]
 
         self._build()
 
@@ -43,73 +42,30 @@ class GMVAE(nn.Module):
         print(self)
 
     def _build(self):
-        # Encoders
-        self.encoders = nn.ModuleList()
-        for n in self.views_sizes:
-            layer_sizes = (
-                [self.views_sizes[n] + self.conditional_size]
-                + [int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"]]
-                + [self.views_logits]
-            )
-            layers = nn.ModuleList()
-            layers.append(nn.Dropout(p=self.hypers["feature_dropout"]))
-            if self.hypers["view_dropout"] > 0:
-                layers.append(ViewDropout(p=self.hypers["view_dropout"]))
-            for i in range(1, len(layer_sizes)):
-                layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-                # layers.append(nn.BatchNorm1d(layer_sizes[i]))
-                if i != len(layer_sizes) - 1:
-                    layers.append(nn.Dropout(p=self.hypers["probability"]))
-                layers.append(self.hypers["activation_function"])
+        self._build_encoders()
 
-            self.encoders.append(nn.Sequential(*layers))
-
-        # Joint Inference
+        latent_views_sum = sum(self.views_latent_sizes.values())
         self.joint_inference = JointInference(
-            x_dim=self.views_logits * len(self.views_sizes),
+            x_dim=latent_views_sum,
             z_dim=self.hypers["latent_dim"],
             y_dim=self.k,
             hidden_size=self.hidden_size,
         )
 
         # Decoders
-        self.decoders = nn.ModuleList()
-        for n in self.views_sizes:
-            layer_sizes = [self.hypers["latent_dim"] + self.conditional_size] + [
-                int(v * self.views_sizes[n]) for v in self.hypers["hidden_dims"][::-1]
-            ]
-
-            layers = nn.ModuleList()
-            for i in range(1, len(layer_sizes)):
-                layers.append(nn.Linear(layer_sizes[i - 1], layer_sizes[i]))
-                # layers.append(nn.BatchNorm1d(layer_sizes[i]))
-                layers.append(nn.Dropout(p=self.hypers["probability"]))
-                layers.append(self.hypers["activation_function"])
-
-            if self.views_sizes_full is None:
-                layers.append(nn.Linear(layer_sizes[-1], self.views_sizes[n]))
-            else:
-                layers.append(nn.Linear(layer_sizes[-1], self.views_sizes_full[n]))
-            # layers.append(nn.Sigmoid())
-
-            self.decoders.append(nn.Sequential(*layers))
+        self._build_decoders()
 
     def pzy(self, y):
         y_mu = self.y_mu(y)
         y_var = F.softplus(self.y_var(y))
         return y_mu, y_var
 
-    def forward(self, views, temperature=1.0, hard=0, conditionals=None):
+    def forward(self, x, temperature=1.0, hard=0, labels=None):
         # Encoders
-        if self.conditional_size == 0 or conditionals is None:
-            views_logits = [
-                self.encoders[i](views[i]) for i, _ in enumerate(self.views_sizes)
-            ]
-        else:
-            views_logits = [
-                self.encoders[i](torch.cat((views[i], conditionals), dim=1))
-                for i, _ in enumerate(self.views_sizes)
-            ]
+        views_logits = [
+            self.encoders[i](torch.cat((x[i], labels), dim=1))
+            for i, _ in enumerate(self.views_sizes)
+        ]
 
         # Joint Inference
         z_mu, z_var, z, y_logits, y_prob, y = self.joint_inference(
@@ -120,38 +76,63 @@ class GMVAE(nn.Module):
         y_mu, y_var = self.pzy(y)
 
         # Decoders
-        x_hat = []
-        if self.conditional_size == 0:
-            for i, n in enumerate(self.views_sizes):
-                x_hat.append(self.decoders[i](z))
-        else:
-            for i, n in enumerate(self.views_sizes):
-                x_hat.append(self.decoders[i](torch.cat((z, conditionals), dim=1)))
+        x_hat = [
+            self.decoders[i](torch.cat((z, labels), dim=1))
+            for i, _ in enumerate(self.views_sizes)
+        ]
 
         if self.only_return_mu:
             return z_mu
         else:
             return dict(
                 x_hat=x_hat,
-                z_mu=z_mu,
-                z_var=z_var,
                 z=z,
+                mu=z_mu,
+                log_var=z_var,
+                y=y,
                 y_logits=y_logits,
                 y_prob=y_prob,
-                y=y,
                 y_mu=y_mu,
-                y_var=y_var,
+                y_log_var=y_var,
             )
 
-    def loss(self, x, x_nans, out_net, y, x_mask):
-        return CLinesLosses.unlabeled_loss(
-            views=x,
-            out_net=out_net,
-            views_mask=x_nans,
-            rec_type=self.hypers["reconstruction_loss"],
-            w_rec=self.w_rec,
-            w_gauss=self.w_gauss,
-            w_cat=self.w_cat,
-            num_cat=self.k,
-            view_loss_weights=self.hypers["view_loss_weights"],
+    def loss(self, x, x_nans, out_net, y, x_mask, view_loss_weights=None):
+        view_loss_weights = view_loss_weights if view_loss_weights else [1] * len(x)
+
+        # MOVE loss
+        vae_loss = super().loss(
+            x, x_nans, out_net, y, x_mask, self.hypers["view_loss_weights"]
+        )
+
+        # GMVAE losss
+        loss_gauss = CLinesLosses.gaussian_loss(
+            out_net["z"],
+            out_net["mu"],
+            out_net["log_var"],
+            out_net["y_mu"],
+            out_net["y_log_var"],
+        )
+
+        loss_cat = -CLinesLosses.entropy(
+            out_net["y_logits"], out_net["y_prob"]
+        ) - np.log(1 / self.k)
+
+        _, predicted_labels = torch.max(out_net["y_logits"], dim=1)
+
+        # Total loss
+        loss_total = (
+            self.hypers["w_rec"] * vae_loss["reconstruction"]
+            + self.hypers["w_gauss"] * loss_gauss
+            + self.hypers["w_cat"] * loss_cat
+            + self.hypers["w_contrastive"] * vae_loss["contrastive"]
+        )
+
+        return dict(
+            total=loss_total,
+            reconstruction=vae_loss["reconstruction"],
+            reconstruction_views=vae_loss["reconstruction_views"],
+            gaussian=loss_gauss,
+            categorical=loss_cat,
+            contrastive=vae_loss["contrastive"],
+            predicted_labels=predicted_labels,
         )
