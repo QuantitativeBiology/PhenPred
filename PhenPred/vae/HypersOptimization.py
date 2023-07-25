@@ -80,10 +80,10 @@ class OptunaOptimization:
         hypers["gmvae_hard_gumbel"] = trial.suggest_float("gmvae_hard_gumbel", 0.0, 1.0)
 
         # Loss terms weights
-        hypers["w_gauss"] = trial.suggest_float("w_rec", 0.0, 1.0, log=True)
-        hypers["w_cat"] = trial.suggest_float("w_cat", 0.0, 1.0, log=True)
+        hypers["w_gauss"] = trial.suggest_float("w_rec", 1e-6, 1.0, log=True)
+        hypers["w_cat"] = trial.suggest_float("w_cat", 1e-6, 1.0, log=True)
         hypers["w_contrastive"] = trial.suggest_float(
-            "w_contrastive", 0.0, 1.0, log=True
+            "w_contrastive", 1e-6, 1.0, log=True
         )
 
         hypers = Hypers.parse_torch_functions(hypers)
