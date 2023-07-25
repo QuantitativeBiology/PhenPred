@@ -606,7 +606,7 @@ class CLinesTrain:
             f"{plot_folder}/losses/{self.timestamp}_train_validation_loss"
         )
 
-        # Plot loss terms
+        # Plot reconstruction losses
         if loss_terms is None:
             loss_terms = [
                 c
@@ -647,3 +647,41 @@ class CLinesTrain:
             PhenPred.save_figure(
                 f"{plot_folder}/losses/{self.timestamp}_{prefix}_losses"
             )
+
+        # Plot loss terms
+        if loss_terms is None:
+            loss_terms = [
+                c
+                for c in losses_df
+                if c not in ["cv", "epoch", "type", "total", "lr"] and "_" not in c
+            ]
+
+        plot_df = pd.melt(
+            losses_df,
+            id_vars=["epoch", "type"],
+            value_vars=loss_terms,
+        )
+
+        _, ax = plt.subplots(1, 1, figsize=figsize, dpi=600)
+        sns.lineplot(
+            data=plot_df,
+            x="epoch",
+            y="value",
+            hue="variable",
+            style="type",
+            errorbar=("ci", 99),
+            err_kws=dict(alpha=0.2, lw=0),
+            ax=ax,
+        )
+        self._plot_lr_rates(ax)
+        ax.legend(
+            title="Losses",
+            loc="upper left",
+            bbox_to_anchor=(1, 1),
+        )
+        ax.set(
+            title=f"Total loss",
+            xlabel="Epoch",
+            ylabel="Loss",
+        )
+        PhenPred.save_figure(f"{plot_folder}/losses/{self.timestamp}_terms_losses")
