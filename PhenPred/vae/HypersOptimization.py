@@ -30,37 +30,31 @@ class OptunaOptimization:
         self.random_state = random_state
 
     def __call__(self, trial):
-        # Cross validation
         cv = StratifiedShuffleSplit(
             n_splits=self.n_splits,
             test_size=self.test_size,
             random_state=self.random_state,
         ).split(self.data, self.data.samples_by_tissue("Haematopoietic and Lymphoid"))
 
-        # Sample hyperparameters
         hypers = self.sample_params(trial)
 
-        # Train
-        loss_val = CLinesTrain(
-            self.data,
-            hypers,
-            early_stop_patience=10,
-        ).training(cv)
+        loss_val = CLinesTrain(self.data, hypers, early_stop_patience=10).training(cv)
 
         return loss_val
 
     def sample_params(self, trial):
         hypers = self.hypers.copy()
 
-        hypers["model"] = trial.suggest_categorical("model", ["MOVE", "GMVAE"])
+        hypers["model"] = trial.suggest_categorical("model", ["GMVAE"])
+
+        hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
         hypers["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-5, 1e-2, log=True
         )
-        hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
         hypers["view_latent_dim"] = trial.suggest_float("view_latent_dim", 0.01, 0.1)
         hypers["latent_dim"] = trial.suggest_int("latent_dim", 10, 100)
         hypers["hidden_dims"] = trial.suggest_categorical(
-            "hidden_dims", ["0.4", "0.5", "0.6", "0.7", "0.7,0.4"]
+            "hidden_dims", ["0.3", "0.4", "0.5", "0.6", "0.7", "0.7,0.4", "0.6, 0.3"]
         )
         hypers["optimizer_type"] = trial.suggest_categorical(
             "optimizer_type", ["adam", "sgd"]
@@ -69,6 +63,15 @@ class OptunaOptimization:
             "activation_function", ["relu", "leaky_relu", "prelu"]
         )
         hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.5, 0.85)
+
+        hypers["gmvae_k"] = trial.suggest_int("gmvae_k", 1, 200)
+        hypers["gmvae_views_logits"] = trial.suggest_int("gmvae_views_logits", 1, 1024)
+        hypers["gmvae_hidden_size"] = trial.suggest_int("gmvae_hidden_size", 1, 1024)
+        hypers["gmvae_gumbel_temp"] = trial.suggest_float(
+            "gmvae_gumbel_temp", 0.01, 1.0
+        )
+        hypers["gmvae_hard_gumbel"] = trial.suggest_float("gmvae_hard_gumbel", 0.0, 1.0)
+
         hypers = Hypers.parse_torch_functions(hypers)
 
         return hypers
@@ -77,7 +80,7 @@ class OptunaOptimization:
 if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
-    hyperparameters["num_epochs"] = 150
+    hyperparameters["num_epochs"] = 100
 
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -92,10 +95,10 @@ if __name__ == "__main__":
     # Optuna optimization
     opt = optuna.create_study(
         direction="minimize",
-        study_name="MOVE",
+        study_name="GMVAE",
         load_if_exists=True,
         pruner=optuna.pruners.MedianPruner(n_startup_trials=10, n_warmup_steps=10),
-        storage=f"sqlite:///{plot_folder}/files/optuna.db",
+        storage=f"sqlite:///{plot_folder}/files/optuna_gmvae.db",
     )
 
     opt.optimize(
