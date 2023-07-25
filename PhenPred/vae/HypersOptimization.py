@@ -47,23 +47,30 @@ class OptunaOptimization:
 
         hypers["model"] = trial.suggest_categorical("model", ["GMVAE"])
 
+        # Optimizer
         hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
         hypers["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-5, 1e-2, log=True
         )
-        hypers["view_latent_dim"] = trial.suggest_float("view_latent_dim", 0.01, 0.1)
-        hypers["latent_dim"] = trial.suggest_int("latent_dim", 10, 100)
-        hypers["hidden_dims"] = trial.suggest_categorical(
-            "hidden_dims", ["0.3", "0.4", "0.5", "0.6", "0.7", "0.7,0.4", "0.6, 0.3"]
-        )
-        hypers["optimizer_type"] = trial.suggest_categorical(
-            "optimizer_type", ["adam", "sgd"]
-        )
+
+        # Layers
+        hypers["probability"] = trial.suggest_float("probability", 0.0, 0.6)
         hypers["activation_function"] = trial.suggest_categorical(
             "activation_function", ["relu", "leaky_relu", "prelu"]
         )
+        hypers["batch_norm"] = trial.suggest_categorical("batch_norm", [True, False])
+
+        # Dimensions
+        hypers["view_latent_dim"] = trial.suggest_float("view_latent_dim", 0.01, 0.1)
+        hypers["latent_dim"] = trial.suggest_int("latent_dim", 10, 256)
+        hypers["hidden_dims"] = trial.suggest_categorical(
+            "hidden_dims", ["0.3", "0.4", "0.5", "0.6", "0.7", "0.7,0.4", "0.6, 0.3"]
+        )
+
+        # Scheduler
         hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.5, 0.85)
 
+        # GMVAE
         hypers["gmvae_k"] = trial.suggest_int("gmvae_k", 1, 200)
         hypers["gmvae_views_logits"] = trial.suggest_int("gmvae_views_logits", 1, 1024)
         hypers["gmvae_hidden_size"] = trial.suggest_int("gmvae_hidden_size", 1, 1024)
@@ -71,6 +78,13 @@ class OptunaOptimization:
             "gmvae_gumbel_temp", 0.01, 1.0
         )
         hypers["gmvae_hard_gumbel"] = trial.suggest_float("gmvae_hard_gumbel", 0.0, 1.0)
+
+        # Loss terms weights
+        hypers["w_gauss"] = trial.suggest_float("w_rec", 0.0, 1.0, log=True)
+        hypers["w_cat"] = trial.suggest_float("w_cat", 0.0, 1.0, log=True)
+        hypers["w_contrastive"] = trial.suggest_float(
+            "w_contrastive", 0.0, 1.0, log=True
+        )
 
         hypers = Hypers.parse_torch_functions(hypers)
 
@@ -97,7 +111,7 @@ if __name__ == "__main__":
         direction="minimize",
         study_name="GMVAE",
         load_if_exists=True,
-        pruner=optuna.pruners.MedianPruner(n_startup_trials=10, n_warmup_steps=10),
+        pruner=optuna.pruners.MedianPruner(n_startup_trials=30, n_warmup_steps=15),
         storage=f"sqlite:///{plot_folder}/files/optuna_gmvae.db",
     )
 
@@ -129,6 +143,7 @@ if __name__ == "__main__":
     hyperparameters_opt = Hypers.read_hyperparameters(parse_torch_functions=False)
     hyperparameters_opt.update(trial.params)
 
+    # Save best hyperparameters
     json.dump(
         hyperparameters_opt,
         open(f"{plot_folder}/files/optuna_hyperparameters.json", "w"),
@@ -136,23 +151,30 @@ if __name__ == "__main__":
         default=lambda o: "<not serializable>",
     )
 
+    # Plot results
     fig = optuna.visualization.plot_param_importances(opt)
-    fig.write_image(f"{plot_folder}/files/optuna_best_param_plot.pdf")
+    fig.write_image(f"{plot_folder}/files/optuna_{opt.study_name}_best_param_plot.pdf")
 
     fig = optuna.visualization.plot_optimization_history(opt)
-    fig.write_image(f"{plot_folder}/files/optuna_optimization_history.pdf")
+    fig.write_image(
+        f"{plot_folder}/files/optuna_{opt.study_name}_optimization_history.pdf"
+    )
 
     fig = optuna.visualization.plot_slice(opt)
-    fig.write_image(f"{plot_folder}/files/optuna_slice_plot.pdf")
+    fig.write_image(f"{plot_folder}/files/optuna_{opt.study_name}_slice_plot.pdf")
 
     fig = optuna.visualization.plot_edf(opt)
-    fig.write_image(f"{plot_folder}/files/optuna_edf_plot.pdf")
+    fig.write_image(f"{plot_folder}/files/optuna_{opt.study_name}_edf_plot.pdf")
 
     fig = optuna.visualization.plot_intermediate_values(opt)
-    fig.write_image(f"{plot_folder}/files/optuna_intermediate_values_plot.pdf")
+    fig.write_image(
+        f"{plot_folder}/files/optuna_{opt.study_name}_intermediate_values_plot.pdf"
+    )
 
     fig = optuna.visualization.plot_parallel_coordinate(opt)
-    fig.write_image(f"{plot_folder}/files/optuna_parallel_coordinate_plot.pdf")
+    fig.write_image(
+        f"{plot_folder}/files/optuna_{opt.study_name}_parallel_coordinate_plot.pdf"
+    )
 
     fig = optuna.visualization.plot_contour(opt, params=["learning_rate", "batch_size"])
-    fig.write_image(f"{plot_folder}/files/optuna_contour_plot.pdf")
+    fig.write_image(f"{plot_folder}/files/optuna_{opt.study_name}_contour_plot.pdf")
