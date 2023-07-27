@@ -49,7 +49,6 @@ if __name__ == "__main__":
     )
 
     train.run(run_timestamp=hyperparameters["load_run"])
-    train.plot_losses()
 
     # Load imputed data
     vae_imputed, vae_latent = train.load_vae_reconstructions()
