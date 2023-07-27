@@ -122,14 +122,25 @@ if __name__ == "__main__":
         n_jobs=2,
     )
 
+    # Filter outlier trials
+    value_thres = 10
+    filtered_trials = [t for t in opt.trials if t.value and t.value < value_thres]
+    filtered_opt = optuna.create_study(direction="minimize", study_name="GMVAE")
+    filtered_opt.add_trials(filtered_trials)
+    print(
+        f"Filtering {len(opt.trials) - len(filtered_trials)} trials with value > {value_thres}"
+    )
+
     # Print results
-    trial = opt.best_trial
-    pruned_trials = opt.get_trials(deepcopy=False, states=[TrialState.PRUNED])
-    complete_trials = opt.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
+    trial = filtered_opt.best_trial
+    pruned_trials = filtered_opt.get_trials(deepcopy=False, states=[TrialState.PRUNED])
+    complete_trials = filtered_opt.get_trials(
+        deepcopy=False, states=[TrialState.COMPLETE]
+    )
 
     print(
         "Study statistics: "
-        + f"\n\tNumber of finished trials = {len(opt.trials):,}"
+        + f"\n\tNumber of finished trials = {len(filtered_opt.trials):,}"
         + f"\n\tNumber of pruned trials = {len(pruned_trials):,}"
         + f"\n\tNumber of complete trials = {len(complete_trials):,}"
         + f"\nBest trial: Value = {trial.value:.5f}"
@@ -152,29 +163,34 @@ if __name__ == "__main__":
     )
 
     # Plot results
-    fig = optuna.visualization.plot_param_importances(opt)
-    fig.write_image(f"{plot_folder}/files/optuna_{opt.study_name}_best_param_plot.pdf")
-
-    fig = optuna.visualization.plot_optimization_history(opt)
+    fig = optuna.visualization.plot_param_importances(filtered_opt)
     fig.write_image(
-        f"{plot_folder}/files/optuna_{opt.study_name}_optimization_history.pdf"
+        f"{plot_folder}/files/optuna_{filtered_opt.study_name}_best_param_plot.pdf"
     )
 
-    fig = optuna.visualization.plot_slice(opt)
-    fig.write_image(f"{plot_folder}/files/optuna_{opt.study_name}_slice_plot.pdf")
-
-    fig = optuna.visualization.plot_edf(opt)
-    fig.write_image(f"{plot_folder}/files/optuna_{opt.study_name}_edf_plot.pdf")
-
-    fig = optuna.visualization.plot_intermediate_values(opt)
+    fig = optuna.visualization.plot_optimization_history(filtered_opt)
     fig.write_image(
-        f"{plot_folder}/files/optuna_{opt.study_name}_intermediate_values_plot.pdf"
+        f"{plot_folder}/files/optuna_{filtered_opt.study_name}_optimization_history.pdf"
     )
 
-    fig = optuna.visualization.plot_parallel_coordinate(opt)
+    fig = optuna.visualization.plot_slice(filtered_opt)
     fig.write_image(
-        f"{plot_folder}/files/optuna_{opt.study_name}_parallel_coordinate_plot.pdf"
+        f"{plot_folder}/files/optuna_{filtered_opt.study_name}_slice_plot.pdf"
     )
 
-    fig = optuna.visualization.plot_contour(opt, params=["learning_rate", "batch_size"])
-    fig.write_image(f"{plot_folder}/files/optuna_{opt.study_name}_contour_plot.pdf")
+    fig = optuna.visualization.plot_edf(filtered_opt)
+    fig.write_image(
+        f"{plot_folder}/files/optuna_{filtered_opt.study_name}_edf_plot.pdf"
+    )
+
+    fig = optuna.visualization.plot_parallel_coordinate(filtered_opt)
+    fig.write_image(
+        f"{plot_folder}/files/optuna_{filtered_opt.study_name}_parallel_coordinate_plot.pdf"
+    )
+
+    fig = optuna.visualization.plot_contour(
+        filtered_opt, params=["w_rec", "latent_dim"]
+    )
+    fig.write_image(
+        f"{plot_folder}/files/optuna_{filtered_opt.study_name}_contour_plot.pdf"
+    )
