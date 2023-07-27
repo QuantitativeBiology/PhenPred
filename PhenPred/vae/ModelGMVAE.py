@@ -52,7 +52,6 @@ class GMVAE(MOVE):
             hidden_size=self.hidden_size,
         )
 
-        # Decoders
         self._build_decoders()
 
     def pzy(self, y):

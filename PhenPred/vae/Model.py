@@ -143,12 +143,10 @@ class MOVE(nn.Module):
         recon_loss, recon_loss_views = 0, []
         for i in range(len(x)):
             mask = x_nans[i].int()
+            x_hat_i, x_i = (x_hat[i] * mask), (x[i] * mask)
 
             # TODO: Imbalance in CNV (0>>n), calculate MSE per class and then mean
             if i == 6:
-                x_hat_i = (x_hat[i] * mask)[:, x_mask[i][0]]
-                x_i = (x[i] * mask)[:, x_mask[i][0]]
-
                 recon_xi = torch.stack(
                     [
                         self.recon_criterion(
@@ -162,12 +160,14 @@ class MOVE(nn.Module):
                 ).mean()
 
             else:
-                recon_xi = self.recon_criterion(
-                    (x_hat[i] * mask)[:, x_mask[i][0]],
-                    (x[i] * mask)[:, x_mask[i][0]],
-                    reduction="sum",
+                recon_xi = (
+                    self.recon_criterion(
+                        x_hat_i,
+                        x_i,
+                        reduction="sum",
+                    )
+                    / mask.sum()
                 )
-                recon_xi /= mask[:, x_mask[i][0]].sum()
 
             recon_xi *= view_loss_weights[i]
 
