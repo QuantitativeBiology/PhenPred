@@ -121,16 +121,7 @@ class CLinesTrain:
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(model.training):
-                if self.hypers["model"] == "MOVE":
-                    out_net = model(x_masked, y)
-
-                else:
-                    out_net = model(
-                        x_masked,
-                        self.hypers["gmvae_gumbel_temp"],
-                        self.hypers["gmvae_hard_gumbel"],
-                        y,
-                    )
+                out_net = model(x_masked, y)
 
                 if self.hypers["filtered_encoder_only"]:
                     # if filtered_encoder_only, use all data for loss
@@ -273,6 +264,18 @@ class CLinesTrain:
                         lr=optimizer.param_groups[0]["lr"],
                     ),
                 )
+
+                if self.hypers["model"] == "GMVAE" and self.hypers["gmvae_decay_temp"]:
+                    new_gumbel_temp = np.maximum(
+                        self.hypers["gmvae_init_temp"]
+                        * np.exp(-self.hypers["gmvae_decay_temp_rate"] * epoch),
+                        self.hypers["gmvae_min_temp"],
+                    )
+
+                    if self.verbose > 1:
+                        print(f"Gumbel Temperature: {new_gumbel_temp:.3f}")
+
+                    model.module.gumbel_temp = new_gumbel_temp
 
                 self.print_losses(cv_idx, epoch)
 
