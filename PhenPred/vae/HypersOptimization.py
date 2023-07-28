@@ -77,24 +77,47 @@ class OptunaOptimization:
             "w_contrastive", 1e-6, 1.0, log=True
         )
 
+        # Contrastive loss margins
+        hypers["contrastive_pos_margin"] = trial.suggest_float(
+            "contrastive_pos_margin", 0.65, 0.95
+        )
+
+        hypers["contrastive_neg_margin"] = trial.suggest_float(
+            "contrastive_neg_margin", 0.05, 0.35
+        )
+
         # GMVAE
         if hypers["model"] == "GMVAE":
             hypers["gmvae_k"] = trial.suggest_int("gmvae_k", 1, 200)
+
+            hypers["w_gauss"] = trial.suggest_float("w_gauss", 1e-6, 1.0, log=True)
+            hypers["w_cat"] = trial.suggest_float("w_cat", 1e-6, 1.0, log=True)
+
             hypers["gmvae_views_logits"] = trial.suggest_int(
                 "gmvae_views_logits", 1, 1024
             )
             hypers["gmvae_hidden_size"] = trial.suggest_int(
                 "gmvae_hidden_size", 1, 1024
             )
-            hypers["gmvae_gumbel_temp"] = trial.suggest_float(
-                "gmvae_gumbel_temp", 0.01, 1.0
+            hypers["gmvae_decay_temp"] = trial.suggest_categorical(
+                "gmvae_decay_temp", [True, False]
+            )
+            hypers["gmvae_init_temp"] = trial.suggest_float(
+                "gmvae_init_temp",
+                0.5,
+                1.0,
+            )
+            hypers["gmvae_min_temp"] = trial.suggest_float(
+                "gmvae_min_temp",
+                0.1,
+                0.5,
             )
             hypers["gmvae_hard_gumbel"] = trial.suggest_float(
                 "gmvae_hard_gumbel", 0.0, 1.0
             )
-
-            hypers["w_gauss"] = trial.suggest_float("w_gauss", 1e-6, 1.0, log=True)
-            hypers["w_cat"] = trial.suggest_float("w_cat", 1e-6, 1.0, log=True)
+            hypers["gmvae_decay_temp_rate"] = trial.suggest_float(
+                "gmvae_decay_temp_rate", 0.0001, 0.2
+            )
 
         hypers = Hypers.parse_torch_functions(hypers)
 
@@ -203,7 +226,7 @@ if __name__ == "__main__":
     )
 
     fig = optuna.visualization.plot_contour(
-        filtered_opt, params=["w_rec", "latent_dim"]
+        filtered_opt, params=["probability", "hidden_dims"]
     )
     fig.write_image(
         f"{plot_folder}/files/optuna_{filtered_opt.study_name}_contour_plot.pdf"
