@@ -4,6 +4,8 @@
 import os
 import sys
 
+from sympy import hyper
+
 proj_dir = "/home/egoncalves/PhenPred"
 if not os.path.exists(proj_dir):
     proj_dir = "/Users/emanuel/Projects/PhenPred"
@@ -45,7 +47,7 @@ class OptunaOptimization:
     def sample_params(self, trial):
         hypers = self.hypers.copy()
 
-        hypers["model"] = trial.suggest_categorical("model", ["GMVAE"])
+        hypers["model"] = trial.suggest_categorical("model", ["MOVE"])
 
         # Optimizer
         hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
@@ -70,21 +72,29 @@ class OptunaOptimization:
         # Scheduler
         hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.5, 0.85)
 
-        # GMVAE
-        hypers["gmvae_k"] = trial.suggest_int("gmvae_k", 1, 200)
-        hypers["gmvae_views_logits"] = trial.suggest_int("gmvae_views_logits", 1, 1024)
-        hypers["gmvae_hidden_size"] = trial.suggest_int("gmvae_hidden_size", 1, 1024)
-        hypers["gmvae_gumbel_temp"] = trial.suggest_float(
-            "gmvae_gumbel_temp", 0.01, 1.0
-        )
-        hypers["gmvae_hard_gumbel"] = trial.suggest_float("gmvae_hard_gumbel", 0.0, 1.0)
-
         # Loss terms weights
-        hypers["w_gauss"] = trial.suggest_float("w_rec", 1e-6, 1.0, log=True)
-        hypers["w_cat"] = trial.suggest_float("w_cat", 1e-6, 1.0, log=True)
         hypers["w_contrastive"] = trial.suggest_float(
             "w_contrastive", 1e-6, 1.0, log=True
         )
+
+        # GMVAE
+        if hypers["model"] == "GMVAE":
+            hypers["gmvae_k"] = trial.suggest_int("gmvae_k", 1, 200)
+            hypers["gmvae_views_logits"] = trial.suggest_int(
+                "gmvae_views_logits", 1, 1024
+            )
+            hypers["gmvae_hidden_size"] = trial.suggest_int(
+                "gmvae_hidden_size", 1, 1024
+            )
+            hypers["gmvae_gumbel_temp"] = trial.suggest_float(
+                "gmvae_gumbel_temp", 0.01, 1.0
+            )
+            hypers["gmvae_hard_gumbel"] = trial.suggest_float(
+                "gmvae_hard_gumbel", 0.0, 1.0
+            )
+
+            hypers["w_gauss"] = trial.suggest_float("w_gauss", 1e-6, 1.0, log=True)
+            hypers["w_cat"] = trial.suggest_float("w_cat", 1e-6, 1.0, log=True)
 
         hypers = Hypers.parse_torch_functions(hypers)
 
@@ -107,12 +117,13 @@ if __name__ == "__main__":
     )
 
     # Optuna optimization
+    study_name = "MOVE"
     opt = optuna.create_study(
         direction="minimize",
-        study_name="GMVAE",
+        study_name=study_name,
         load_if_exists=True,
-        pruner=optuna.pruners.MedianPruner(n_startup_trials=30, n_warmup_steps=15),
-        storage=f"sqlite:///{plot_folder}/files/optuna_gmvae.db",
+        pruner=optuna.pruners.MedianPruner(n_startup_trials=20, n_warmup_steps=15),
+        storage=f"sqlite:///{plot_folder}/files/optuna_{study_name}.db",
     )
 
     opt.optimize(
@@ -157,7 +168,10 @@ if __name__ == "__main__":
     # Save best hyperparameters
     json.dump(
         hyperparameters_opt,
-        open(f"{plot_folder}/files/optuna_hyperparameters.json", "w"),
+        open(
+            f"{plot_folder}/files/optuna_{filtered_opt.study_name}_hyperparameters.json",
+            "w",
+        ),
         indent=4,
         default=lambda o: "<not serializable>",
     )
