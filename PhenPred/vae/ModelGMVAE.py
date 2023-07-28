@@ -31,6 +31,9 @@ class GMVAE(MOVE):
         self.hidden_size = self.hypers["gmvae_hidden_size"]
         self.only_return_mu = only_return_mu
 
+        self.gumbel_temp = self.hypers["gmvae_init_temp"]
+        self.hard_gumbel = self.hypers["gmvae_hard_gumbel"]
+
         self.y_mu = nn.Linear(self.k, self.hypers["latent_dim"])
         self.y_var = nn.Linear(self.k, self.hypers["latent_dim"])
 
@@ -59,7 +62,7 @@ class GMVAE(MOVE):
         y_var = F.softplus(self.y_var(y))
         return y_mu, y_var
 
-    def forward(self, x, temperature=1.0, hard=0, labels=None):
+    def forward(self, x, labels=None):
         # Encoders
         views_logits = [
             self.encoders[i](torch.cat((x[i], labels), dim=1))
@@ -68,7 +71,7 @@ class GMVAE(MOVE):
 
         # Joint Inference
         z_mu, z_var, z, y_logits, y_prob, y = self.joint_inference(
-            torch.cat(views_logits, dim=1), temperature, hard
+            torch.cat(views_logits, dim=1), self.gumbel_temp, self.hard_gumbel
         )
 
         # p(z|y)
