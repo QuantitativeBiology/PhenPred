@@ -81,7 +81,7 @@ class CLinesTrain:
             model = MOVE(
                 hypers=self.hypers,
                 views_sizes=views_sizes,
-                conditional_size=self.data.labels.shape[1],
+                conditional_size=self.data.labels.shape[1] if self.hypers["use_conditionals"] else 0,
                 views_sizes_full=views_sizes_full,
             )
         else:
@@ -89,7 +89,7 @@ class CLinesTrain:
                 hypers=self.hypers,
                 views_sizes=views_sizes,
                 views_sizes_full=views_sizes_full,
-                conditional_size=self.data.labels.shape[1],
+                conditional_size=self.data.labels.shape[1] if self.hypers["use_conditionals"] else 0,
             )
 
         model = nn.DataParallel(model)
@@ -121,7 +121,10 @@ class CLinesTrain:
             optimizer.zero_grad()
 
             with torch.set_grad_enabled(model.training):
-                out_net = model(x_masked, y)
+                if self.hypers["use_conditionals"]:
+                    out_net = model(x_masked + [y])
+                else:
+                    out_net = model(x_masked)
 
                 if self.hypers["filtered_encoder_only"]:
                     # if filtered_encoder_only, use all data for loss
@@ -353,15 +356,10 @@ class CLinesTrain:
 
                 x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
 
-                if self.hypers["model"] == "MOVE":
-                    out_net = self.model(x_masked, y)
+                if self.hypers["use_conditionals"]:
+                    out_net = self.model(x_masked + [y])
                 else:
-                    out_net = self.model(
-                        x_masked,
-                        self.hypers["gmvae_gumbel_temp"],
-                        self.hypers["gmvae_hard_gumbel"],
-                        y,
-                    )
+                    out_net = self.model(x_masked)
 
                 x_hat = out_net["x_hat"]
                 z = out_net["z"]
@@ -538,8 +536,8 @@ class CLinesTrain:
         model_path = f"{plot_folder}/files/{self.timestamp}_model.pt"
 
         if not os.path.isfile(model_path):
-            warnings.warn("No model to load.")
-            return
+            warnings.warn(f"No model to load. {model_path}")
+            raise FileNotFoundError
 
         self.model = self.initialize_model()
         self.model.load_state_dict(
@@ -558,14 +556,27 @@ class CLinesTrain:
             shuffle=False,
         )
         data = next(iter(data_all))
-        x, y, _, x_mask = data
-        x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
+        x, y, x_nans, x_mask = data
 
+        x = [m.to(self.device) for m in x]
+        x_nans = [m.to(self.device) for m in x_nans]
+
+        x_masked = [m[:, x_mask[i][0]].to(self.device) for i, m in enumerate(x)]
+        x_nans_masked = [
+            m[:, x_mask[i][0]].to(self.device) for i, m in enumerate(x_nans)
+        ]
+        y = y.to(self.device)
+
+        if self.hypers["use_conditionals"]:
+            input_list = x_masked + [y]
+        else:
+            input_list = x_masked
+        
         explainer = shap.explainers._gradient._PyTorchGradient(
             self.model,
-            x_masked,
+            input_list,
         )
-        shap_values = explainer.shap_values(x_masked, nsamples=n_samples)
+        shap_values = explainer.shap_values(input_list, nsamples=n_samples)
         pickle.dump(
             shap_values,
             open(f"{plot_folder}/files/{self.timestamp}_shap_values.pkl", "wb"),

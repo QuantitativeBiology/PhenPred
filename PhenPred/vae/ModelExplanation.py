@@ -19,7 +19,7 @@ from PhenPred.vae.Train import CLinesTrain
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 import shap
 
-TIMESTAMP = "20230720_142617"
+TIMESTAMP = "20230814_214435"
 if __name__ == "__main__":
     hyperparameters = Hypers.read_hyperparameters()
 
@@ -51,7 +51,6 @@ if __name__ == "__main__":
         clines_db,
         hyperparameters,
         stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
-        gmvae_args_dict=gmvae_args_dict,
         timestamp=TIMESTAMP
     )
     train.load_model()
