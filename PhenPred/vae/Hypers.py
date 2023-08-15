@@ -42,6 +42,9 @@ class Hypers:
         if hypers["view_loss_weights"] is None:
             hypers["view_loss_weights"] = [1.0] * len(hypers["views"])
 
+        if hypers["use_conditionals"] is None:
+            hypers["use_conditionals"] = True
+
         hypers["datasets"] = {
             k: f"{data_folder}/{v}" for k, v in hypers["datasets"].items()
         }

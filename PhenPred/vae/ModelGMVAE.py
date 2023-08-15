@@ -62,12 +62,20 @@ class GMVAE(MOVE):
         y_var = F.softplus(self.y_var(y))
         return y_mu, y_var
 
-    def forward(self, x, labels=None):
+    def forward(self, x_all):
         # Encoders
-        views_logits = [
-            self.encoders[i](torch.cat((x[i], labels), dim=1))
-            for i, _ in enumerate(self.views_sizes)
-        ]
+        if self.hypers["use_conditionals"]:
+            x = x_all[:-1]
+            labels = x_all[-1]
+            views_logits = [
+                self.encoders[i](torch.cat((x[i], labels), dim=1))
+                for i, _ in enumerate(self.views_sizes)
+            ]
+        else:
+            x = x_all
+            views_logits = [
+                self.encoders[i](x[i]) for i, _ in enumerate(self.views_sizes)
+            ]
 
         # Joint Inference
         z_mu, z_var, z, y_logits, y_prob, y = self.joint_inference(
@@ -78,10 +86,15 @@ class GMVAE(MOVE):
         y_mu, y_var = self.pzy(y)
 
         # Decoders
-        x_hat = [
-            self.decoders[i](torch.cat((z, labels), dim=1))
-            for i, _ in enumerate(self.views_sizes)
-        ]
+        if self.hypers["use_conditionals"]:
+            x_hat = [
+                self.decoders[i](torch.cat((z, labels), dim=1))
+                for i, _ in enumerate(self.views_sizes)
+            ]
+        else:
+            x_hat = [
+                self.decoders[i](z) for i, _ in enumerate(self.views_sizes)
+            ]
 
         if self.only_return_mu:
             return z_mu
