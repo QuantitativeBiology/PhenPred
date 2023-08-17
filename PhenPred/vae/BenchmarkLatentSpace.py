@@ -326,6 +326,7 @@ class LatentSpaceBenchmark:
                 min_dist=umap_min_dist,
                 metric=umap_metric,
                 n_components=umap_n_components,
+                random_state=42
             ).fit_transform(l_tissue),
             columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
             index=l_tissue.index,
@@ -381,6 +382,7 @@ class LatentSpaceBenchmark:
                     min_dist=umap_min_dist,
                     metric=umap_metric,
                     n_components=umap_n_components,
+                    random_state=42
                 ).fit_transform(z_joint),
                 columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
                 index=z_joint.index,
