@@ -19,7 +19,7 @@ from PhenPred.vae.Train import CLinesTrain
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 import shap
 
-TIMESTAMP = "20230816_224729"
+TIMESTAMP = "20230818_111602"
 if __name__ == "__main__":
     hyperparameters = Hypers.read_hyperparameters()
 
@@ -34,19 +34,6 @@ if __name__ == "__main__":
     )
 
     # Train and predictions
-    gmvae_args_dict = (
-        dict(
-            k=100,
-            init_temp=1.0,
-            decay_temp=1.0,
-            hard_gumbel=0,
-            min_temp=0.5,
-            decay_temp_rate=0.013862944,
-        )
-        if hyperparameters["model"] == "GMVAE"
-        else None
-    )
-
     train = CLinesTrain(
         clines_db,
         hyperparameters,

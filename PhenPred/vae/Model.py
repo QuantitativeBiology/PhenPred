@@ -17,6 +17,7 @@ class MOVE(nn.Module):
         conditional_size,
         views_sizes_full=None,
         lazy_init=False,
+        only_return_mu=False,
     ):
         super().__init__()
 
@@ -136,13 +137,15 @@ class MOVE(nn.Module):
             x_hat = [self.decoders[i](torch.cat([z, y], dim=1)) for i in range(len(x))]
         else:
             x_hat = [self.decoders[i](z) for i in range(len(x))]
-
-        return dict(
-            x_hat=x_hat,
-            z=z,
-            mu=mu,
-            log_var=log_var,
-        )
+        if self.only_return_mu:
+            return mu
+        else:
+            return dict(
+                x_hat=x_hat,
+                z=z,
+                mu=mu,
+                log_var=log_var,
+            )
 
     def loss(self, x, x_nans, out_net, y, x_mask, view_loss_weights=None):
         view_loss_weights = view_loss_weights if view_loss_weights else [1] * len(x)
