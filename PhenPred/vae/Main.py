@@ -62,7 +62,35 @@ if __name__ == "__main__":
     )
     latent_benchmark.plot_latent_spaces(
         markers=clines_db.get_features(
-            dict(metabolomics=["1-methylnicotinamide"], transcriptomics=["VIM", "CDH1"])
+            dict(
+                metabolomics=[
+                    "1-methylnicotinamide",
+                    "C18:1 CE",
+                    "uridine",
+                    "alanine",
+                    "C54:3 TAG",
+                    "C50:2 TAG",
+                ],
+                crisprcas9=["FAM50A", "ARF4", "MCL1"],
+                transcriptomics=["VIM", "CDH1", "FDXR", "CCNE2", "RPL22L1"],
+                copynumber=[
+                    "RSPH10B2",
+                    "UGT2B17",
+                    "PCM1",
+                    "MYC",
+                    "MITF",
+                    "NPEPPS",
+                    "TOP2A",
+                ],
+                drugresponse=[
+                    "1079;Dasatinib;GDSC2",
+                    "1248;Daporinad;GDSC1",
+                    "1034;Staurosporine;GDSC2",
+                    "1007;Docetaxel;GDSC1",
+                    "1047;Nutlin-3a (-);GDSC1",
+                ],
+                proteomics=["MTDH", "ADAR"],
+            )
         ),
     )
 

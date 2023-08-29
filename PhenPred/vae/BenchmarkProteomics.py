@@ -371,6 +371,11 @@ class ProteomicsBenchmark:
                 ("TP53", "TP53"),
                 ("CDKN2A", "CDKN2A"),
                 ("ZMYM2", "ZMYM2"),
+                ("PCM1", "PCM1"),
+                ("NDRG1", "NDRG1"),
+                ("NPEPPS", "NPEPPS"),
+                ("TOP2A", "TOP2A"),
+                ("RAC1", "RAC1"),
             ]
 
         for protein, cnv in loss_events_list:
