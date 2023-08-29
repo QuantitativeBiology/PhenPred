@@ -14,15 +14,15 @@
         "copynumber": "data/clines//cnv_summary_20230303_matrix.csv"
     },
     "view_loss_weights": [
-        1.5,
         1.0,
         1.0,
-        1.5,
+        1.0,
+        1.0,
         1.0,
         1.0,
         1.0
     ],
-    "model": "GMVAE",
+    "model": "MOVE",
     "standardize": true,
     "labels": [
         "tissue",
