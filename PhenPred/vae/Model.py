@@ -35,6 +35,7 @@ class MOVE(nn.Module):
 
         self.recon_criterion = self.hypers["reconstruction_loss"]
         self.activation_function = self.hypers["activation_function"]
+        self.only_return_mu = only_return_mu
 
         if not lazy_init:
             self._build()
