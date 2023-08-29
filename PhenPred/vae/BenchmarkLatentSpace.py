@@ -10,6 +10,7 @@ from PhenPred import PALETTE_TTYPE
 from PhenPred.vae.PlotUtils import GIPlot
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
+from sklearn.decomposition import PCA
 
 
 class LatentSpaceBenchmark:
@@ -326,7 +327,7 @@ class LatentSpaceBenchmark:
                 min_dist=umap_min_dist,
                 metric=umap_metric,
                 n_components=umap_n_components,
-                random_state=42
+                random_state=42,
             ).fit_transform(l_tissue),
             columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
             index=l_tissue.index,
@@ -363,6 +364,14 @@ class LatentSpaceBenchmark:
 
     def plot_latent_spaces(
         self,
+        markers=None,
+    ):
+        self.plot_latent_spaces_aux(method="UMAP", markers=markers)
+        self.plot_latent_spaces_aux(method="PCA", markers=markers)
+
+    def plot_latent_spaces_aux(
+        self,
+        method="UMAP",
         umap_neighbors=25,
         umap_min_dist=0.25,
         umap_metric="euclidean",
@@ -370,40 +379,49 @@ class LatentSpaceBenchmark:
         markers=None,
     ):
         samplesheet = self.data.samplesheet["tissue"].fillna("Other tissue")
-
+        centroid_distance_df = []
         for n, z_joint in [
             ("vae", self.latent_space),
             ("mofa", self.mofa_latent["factors"]),
         ]:
-            # Get UMAP projections
-            z_joint_umap = pd.DataFrame(
-                umap.UMAP(
-                    n_neighbors=umap_neighbors,
-                    min_dist=umap_min_dist,
-                    metric=umap_metric,
-                    n_components=umap_n_components,
-                    random_state=42
-                ).fit_transform(z_joint),
-                columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
-                index=z_joint.index,
-            )
+            if method == "UMAP":
+                # Get UMAP projections
+                z_joint_dr = pd.DataFrame(
+                    umap.UMAP(
+                        n_neighbors=umap_neighbors,
+                        min_dist=umap_min_dist,
+                        metric=umap_metric,
+                        n_components=umap_n_components,
+                        random_state=42,
+                    ).fit_transform(z_joint),
+                    columns=[f"UMAP_{i+1}" for i in range(umap_n_components)],
+                    index=z_joint.index,
+                )
+            elif method == "PCA":
+                z_joint_dr = pd.DataFrame(
+                    PCA(n_components=2).fit_transform(z_joint),
+                    columns=[f"PCA_{i+1}" for i in range(2)],
+                    index=z_joint.index,
+                )
+            else:
+                raise Exception("Invalid DR method")
 
             # Plot projections by tissue type
-            plot_df = pd.concat([z_joint_umap, samplesheet], axis=1)
+            plot_df = pd.concat([z_joint_dr, samplesheet], axis=1)
 
             _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
             sns.scatterplot(
                 data=plot_df,
-                x="UMAP_1",
-                y="UMAP_2",
+                x=f"{method}_1",
+                y=f"{method}_2",
                 hue="tissue",
                 palette=PALETTE_TTYPE,
                 alpha=0.75,
                 ax=ax,
             )
             ax.set(
-                xlabel="UMAP_1",
-                ylabel="UMAP_2",
+                xlabel=f"{method}_1",
+                ylabel=f"{method}_2",
                 xticklabels=[],
                 yticklabels=[],
             )
@@ -415,22 +433,50 @@ class LatentSpaceBenchmark:
             sns.despine(ax=ax, left=True, bottom=True, right=True, top=True)
 
             PhenPred.save_figure(
-                f"{plot_folder}/latent/{self.timestamp}_umap_joint{'' if n == 'vae' else '_mofa'}"
+                f"{plot_folder}/latent/{self.timestamp}_{method.lower()}_joint{'' if n == 'vae' else '_mofa'}"
             )
 
             # Plot projections by marker
             if markers is not None and n == "vae":
                 for m in markers:
                     self.plot_latent_continuous(
-                        pd.concat([z_joint_umap, markers[m]], axis=1).dropna(),
+                        pd.concat([z_joint_dr, markers[m]], axis=1).dropna(),
                         "joint",
                         m,
+                        method=method,
                     )
 
-    def plot_latent_continuous(self, plot_df, name, m):
+            # calculate distance to centroid for each tissue for PCA
+            if method == "PCA":
+                centroid_df = plot_df.groupby("tissue").mean()
+                merged_df = pd.merge(
+                    plot_df, centroid_df, on="tissue", suffixes=("", "_centroid")
+                )
+                merged_df["distance_to_centroid"] = np.sqrt(
+                    (merged_df["PCA_1"] - merged_df["PCA_1_centroid"]) ** 2
+                    + (merged_df["PCA_2"] - merged_df["PCA_2_centroid"]) ** 2
+                )
+                merged_df["model"] = n
+                centroid_distance_df.append(merged_df)
+
+        if method == "PCA":
+            centroid_distance_df = pd.concat(centroid_distance_df)
+            print(centroid_distance_df.groupby("model")["distance_to_centroid"].mean())
+            merged_df.to_csv(
+                f"{plot_folder}/files/{self.timestamp}_distance_to_centroid.csv"
+            )
+            _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
+            sns.barplot(
+                data=centroid_distance_df, x="model", y="distance_to_centroid", ax=ax
+            )
+            PhenPred.save_figure(
+                f"{plot_folder}/latent/{self.timestamp}_distance_to_centroid_barplot"
+            )
+
+    def plot_latent_continuous(self, plot_df, name, m, method="UMAP"):
         ax = GIPlot.gi_continuous_plot(
-            x="UMAP_1",
-            y="UMAP_2",
+            x=f"{method}_1",
+            y=f"{method}_2",
             z=m,
             plot_df=plot_df,
             corr_annotation=False,
@@ -444,5 +490,5 @@ class LatentSpaceBenchmark:
         sns.despine(ax=ax, left=False, bottom=False, right=False, top=False)
 
         PhenPred.save_figure(
-            f"{plot_folder}/latent/{self.timestamp}_umap_by_marker_{name}_{m}"
+            f"{plot_folder}/latent/{self.timestamp}_{method.lower()}_by_marker_{name}_{m}"
         )
