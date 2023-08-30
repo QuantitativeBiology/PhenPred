@@ -4,8 +4,6 @@
 import os
 import sys
 
-from sympy import hyper
-
 proj_dir = "/home/egoncalves/PhenPred"
 if not os.path.exists(proj_dir):
     proj_dir = "/Users/emanuel/Projects/PhenPred"
@@ -72,7 +70,7 @@ class OptunaOptimization:
         hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.5, 0.85)
 
         # Loss terms weights
-        hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.5)
+        # hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.5)
 
         # GMVAE
         if hypers["model"] == "GMVAE":
