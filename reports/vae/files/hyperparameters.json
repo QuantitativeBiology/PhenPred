@@ -37,7 +37,7 @@
     "w_rec": 1,
     "w_gauss": 0.0001,
     "w_cat": 0.04894594085259927,
-    "w_contrastive": 5.3826163679926156e-03,
+    "w_contrastive": 0,
     "contrastive_pos_margin": 0.85,
     "contrastive_neg_margin": 0.15,
     "gmvae_k": 51,
