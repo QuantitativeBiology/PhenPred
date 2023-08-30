@@ -55,7 +55,7 @@ class OptunaOptimization:
         hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.0, 0.8)
         hypers["optimizer_type"] = trial.suggest_categorical(
             "optimizer_type",
-            ["adam", "adamw", "rmsprop", "sgd", "lbfgs", "adagrad"],
+            ["adam", "adamw", "adagrad"],
         )
 
         # Layers
