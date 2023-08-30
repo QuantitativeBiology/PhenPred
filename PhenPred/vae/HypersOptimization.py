@@ -47,23 +47,22 @@ class OptunaOptimization:
     def sample_params(self, trial):
         hypers = self.hypers.copy()
 
-        hypers["model"] = trial.suggest_categorical("model", ["MOVE"])
-
         # Optimizer
         hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
         hypers["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-5, 1e-2, log=True
         )
+        hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.0, 0.8)
+        hypers["optimizer_type"] = trial.suggest_categorical(
+            "optimizer_type",
+            ["adam", "adamw", "rmsprop", "sgd", "lbfgs", "adagrad"],
+        )
 
         # Layers
         hypers["probability"] = trial.suggest_float("probability", 0.0, 0.6)
-        hypers["activation_function"] = trial.suggest_categorical(
-            "activation_function", ["relu", "leaky_relu", "prelu"]
-        )
-        hypers["batch_norm"] = trial.suggest_categorical("batch_norm", [True, False])
 
         # Dimensions
-        hypers["view_latent_dim"] = trial.suggest_float("view_latent_dim", 0.01, 0.1)
+        hypers["view_latent_dim"] = trial.suggest_float("view_latent_dim", 0.01, 0.15)
         hypers["latent_dim"] = trial.suggest_int("latent_dim", 10, 256)
         hypers["hidden_dims"] = trial.suggest_categorical(
             "hidden_dims", ["0.3", "0.4", "0.5", "0.6", "0.7", "0.7,0.4", "0.6, 0.3"]
@@ -131,22 +130,23 @@ if __name__ == "__main__":
 
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(
-        labels_names=hyperparameters["labels"],
         datasets=hyperparameters["datasets"],
-        feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
+        labels_names=hyperparameters["labels"],
         standardize=hyperparameters["standardize"],
         filter_features=hyperparameters["filter_features"],
         filtered_encoder_only=hyperparameters["filtered_encoder_only"],
+        feature_miss_rate_thres=hyperparameters["feature_miss_rate_thres"],
     )
 
     # Optuna optimization
     study_name = "MOVE"
+
     opt = optuna.create_study(
         direction="minimize",
         study_name=study_name,
         load_if_exists=True,
-        pruner=optuna.pruners.MedianPruner(n_startup_trials=20, n_warmup_steps=15),
         storage=f"sqlite:///{plot_folder}/files/optuna_{study_name}.db",
+        pruner=optuna.pruners.MedianPruner(n_startup_trials=20, n_warmup_steps=15),
     )
 
     opt.optimize(
