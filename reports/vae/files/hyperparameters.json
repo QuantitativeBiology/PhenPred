@@ -31,7 +31,7 @@
     "hidden_dims": [0.5],
     "probability": 0.327897767321241,
     "feature_dropout": 0,
-    "view_dropout": 0.5,
+    "view_dropout": 0.0,
     "w_decay": 5e-4,
     "w_kl": 0.0001,
     "w_rec": 1,

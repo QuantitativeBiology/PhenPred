@@ -52,7 +52,7 @@ class OptunaOptimization:
         hypers["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-5, 1e-2, log=True
         )
-        hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.0, 0.5)
+        # hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.0, 0.5)
         hypers["optimizer_type"] = trial.suggest_categorical(
             "optimizer_type",
             ["adam", "adamw"],
