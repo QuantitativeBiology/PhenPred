@@ -1,7 +1,7 @@
 {
     "dataname": "depmap23Q2",
     "load_run": "20230829_132703",
-    "save_model": true,
+    "save_model": false,
     "skip_cv": true,
     "verbose": 0,
     "datasets": {
