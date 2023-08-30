@@ -52,17 +52,17 @@ class OptunaOptimization:
         hypers["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-5, 1e-2, log=True
         )
-        hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.0, 0.8)
+        hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.0, 0.5)
         hypers["optimizer_type"] = trial.suggest_categorical(
             "optimizer_type",
-            ["adam", "adamw", "adagrad"],
+            ["adam", "adamw"],
         )
 
         # Layers
         hypers["probability"] = trial.suggest_float("probability", 0.0, 0.6)
 
         # Dimensions
-        hypers["view_latent_dim"] = trial.suggest_float("view_latent_dim", 0.01, 0.15)
+        hypers["view_latent_dim"] = trial.suggest_float("view_latent_dim", 0.01, 0.10)
         hypers["latent_dim"] = trial.suggest_int("latent_dim", 10, 256)
         hypers["hidden_dims"] = trial.suggest_categorical(
             "hidden_dims", ["0.3", "0.4", "0.5", "0.6", "0.7", "0.7,0.4", "0.6, 0.3"]
@@ -74,15 +74,6 @@ class OptunaOptimization:
         # Loss terms weights
         hypers["w_contrastive"] = trial.suggest_float(
             "w_contrastive", 1e-6, 1.0, log=True
-        )
-
-        # Contrastive loss margins
-        hypers["contrastive_pos_margin"] = trial.suggest_float(
-            "contrastive_pos_margin", 0.65, 0.95
-        )
-
-        hypers["contrastive_neg_margin"] = trial.suggest_float(
-            "contrastive_neg_margin", 0.05, 0.35
         )
 
         # GMVAE
