@@ -314,20 +314,55 @@ class CLinesLosses:
 
     @classmethod
     def get_optimizer(cls, model, args):
-        if args["optimizer_type"] == "adam":
-            return torch.optim.Adam(
+        if args["optimizer_type"].lower() == "radam":
+            return torch.optim.RAdam(
                 model.parameters(),
                 lr=args["learning_rate"],
                 weight_decay=args["w_decay"],
             )
-        elif args["optimizer_type"] == "sgd":
+        elif args["optimizer_type"].lower() == "sgd":
             return torch.optim.SGD(
                 model.parameters(),
                 lr=args["learning_rate"],
                 weight_decay=args["w_decay"],
             )
+        elif args["optimizer_type"].lower() == "adamw":
+            return torch.optim.AdamW(
+                model.parameters(),
+                lr=args["learning_rate"],
+                weight_decay=args["w_decay"],
+            )
+
+        elif args["optimizer_type"].lower() == "adagrad":
+            return torch.optim.Adagrad(
+                model.parameters(),
+                lr=args["learning_rate"],
+                weight_decay=args["w_decay"],
+            )
+
+        elif args["optimizer_type"].lower() == "adadelta":
+            return torch.optim.Adadelta(
+                model.parameters(),
+                lr=args["learning_rate"],
+                weight_decay=args["w_decay"],
+            )
+
+        elif args["optimizer_type"].lower() == "lbfgs":
+            return torch.optim.LBFGS(
+                model.parameters(),
+                lr=args["learning_rate"],
+                weight_decay=args["w_decay"],
+            )
+
+        elif args["optimizer_type"].lower() == "rmsprop":
+            return torch.optim.RMSprop(
+                model.parameters(),
+                lr=args["learning_rate"],
+                weight_decay=args["w_decay"],
+            )
+
         else:
-            return torch.optim.RAdam(
+            return torch.optim.Adam(
                 model.parameters(),
                 lr=args["learning_rate"],
                 weight_decay=args["w_decay"],

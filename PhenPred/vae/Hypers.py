@@ -58,13 +58,15 @@ class Hypers:
 
     @classmethod
     def parse_torch_functions(cls, hypers):
-        hypers["activation_function"] = CLinesLosses.activation_function(
-            hypers["activation_function"]
-        )
+        if type(hypers["activation_function"]) == str:
+            hypers["activation_function"] = CLinesLosses.activation_function(
+                hypers["activation_function"]
+            )
 
-        hypers["reconstruction_loss"] = CLinesLosses.reconstruction_loss_method(
-            hypers["reconstruction_loss"]
-        )
+        if type(hypers["reconstruction_loss"]) == str:
+            hypers["reconstruction_loss"] = CLinesLosses.reconstruction_loss_method(
+                hypers["reconstruction_loss"]
+            )
 
         if type(hypers["hidden_dims"]) == str:
             hypers["hidden_dims"] = [float(l) for l in hypers["hidden_dims"].split(",")]
