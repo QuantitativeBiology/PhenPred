@@ -55,7 +55,6 @@ class CLinesTrain:
     def run(self, run_timestamp=None):
         if run_timestamp is not None:
             self.timestamp = run_timestamp
-
             return
 
         if not self.hypers["skip_cv"]:
