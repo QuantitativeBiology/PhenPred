@@ -48,7 +48,7 @@ class OptunaOptimization:
         # Optimizer
         hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
         hypers["learning_rate"] = trial.suggest_float(
-            "learning_rate", 1e-5, 5e-3, log=True
+            "learning_rate", 1e-7, 5e-5, log=True
         )
         hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.0, 0.8)
         hypers["optimizer_type"] = trial.suggest_categorical(
