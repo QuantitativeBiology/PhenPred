@@ -48,9 +48,9 @@ class OptunaOptimization:
         # Optimizer
         hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
         hypers["learning_rate"] = trial.suggest_float(
-            "learning_rate", 1e-5, 1e-2, log=True
+            "learning_rate", 1e-5, 5e-3, log=True
         )
-        hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.0, 0.5)
+        hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.0, 0.8)
         hypers["optimizer_type"] = trial.suggest_categorical(
             "optimizer_type",
             ["adam", "adamw"],
@@ -70,7 +70,7 @@ class OptunaOptimization:
         hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.5, 0.85)
 
         # Loss terms weights
-        # hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.5)
+        hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.5)
 
         # GMVAE
         if hypers["model"] == "GMVAE":
