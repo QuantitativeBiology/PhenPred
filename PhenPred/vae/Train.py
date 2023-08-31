@@ -81,7 +81,9 @@ class CLinesTrain:
             model = MOVE(
                 hypers=self.hypers,
                 views_sizes=views_sizes,
-                conditional_size=self.data.labels.shape[1] if self.hypers["use_conditionals"] else 0,
+                conditional_size=self.data.labels.shape[1]
+                if self.hypers["use_conditionals"]
+                else 0,
                 views_sizes_full=views_sizes_full,
             )
         else:
@@ -89,7 +91,9 @@ class CLinesTrain:
                 hypers=self.hypers,
                 views_sizes=views_sizes,
                 views_sizes_full=views_sizes_full,
-                conditional_size=self.data.labels.shape[1] if self.hypers["use_conditionals"] else 0,
+                conditional_size=self.data.labels.shape[1]
+                if self.hypers["use_conditionals"]
+                else 0,
             )
 
         model = nn.DataParallel(model)
@@ -292,7 +296,7 @@ class CLinesTrain:
 
                 if not (np.isfinite(loss_current) or np.isfinite(loss_current_total)):
                     warnings.warn(f"NaN or Inf loss at cv {cv_idx}, epoch {epoch}.")
-                    return np.nan
+                    return np.inf
 
                 elif loss_previous is None:
                     loss_previous = loss_current
@@ -571,7 +575,7 @@ class CLinesTrain:
             input_list = x_masked + [y]
         else:
             input_list = x_masked
-        
+
         explainer = shap.explainers._gradient._PyTorchGradient(
             self.model,
             input_list,
