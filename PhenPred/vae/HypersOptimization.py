@@ -46,11 +46,11 @@ class OptunaOptimization:
         hypers = self.hypers.copy()
 
         # Optimizer
-        hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
+        hypers["batch_size"] = trial.suggest_int("batch_size", 32, 256)
         hypers["learning_rate"] = trial.suggest_float(
-            "learning_rate", 1e-7, 5e-3, log=True
+            "learning_rate", 1e-7, 1e-4, log=True
         )
-        hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.0, 0.8)
+        # hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.1, 0.6)
         hypers["optimizer_type"] = trial.suggest_categorical(
             "optimizer_type",
             ["adam", "adamw", "rmsprop", "sgd"],
@@ -58,20 +58,20 @@ class OptunaOptimization:
         hypers["w_decay"] = trial.suggest_float("w_decay", 1e-6, 1e-3, log=True)
 
         # Layers
-        hypers["probability"] = trial.suggest_float("probability", 0.0, 0.6)
+        hypers["probability"] = trial.suggest_float("probability", 0.1, 0.6)
 
         # Dimensions
         hypers["view_latent_dim"] = trial.suggest_float("view_latent_dim", 0.01, 0.10)
-        hypers["latent_dim"] = trial.suggest_int("latent_dim", 10, 256)
+        hypers["latent_dim"] = trial.suggest_int("latent_dim", 16, 256)
         hypers["hidden_dims"] = trial.suggest_categorical(
             "hidden_dims", ["0.3", "0.4", "0.5", "0.6", "0.7", "0.7,0.4", "0.6, 0.3"]
         )
 
         # Scheduler
-        hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.5, 0.85)
+        hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.3, 0.85)
 
         # Loss terms weights
-        hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.5)
+        # hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.5)
 
         # GMVAE
         if hypers["model"] == "GMVAE":
