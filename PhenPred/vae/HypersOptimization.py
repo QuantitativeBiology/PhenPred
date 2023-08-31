@@ -48,9 +48,9 @@ class OptunaOptimization:
         # Optimizer
         hypers["batch_size"] = trial.suggest_int("batch_size", 32, 256)
         hypers["learning_rate"] = trial.suggest_float(
-            "learning_rate", 1e-7, 1e-4, log=True
+            "learning_rate", 1e-7, 5e-4, log=True
         )
-        # hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.1, 0.6)
+        hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.1, 0.6)
         hypers["optimizer_type"] = trial.suggest_categorical(
             "optimizer_type",
             ["adam", "adamw", "rmsprop", "sgd"],
@@ -71,7 +71,7 @@ class OptunaOptimization:
         hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.3, 0.85)
 
         # Loss terms weights
-        # hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.5)
+        hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.01)
 
         # GMVAE
         if hypers["model"] == "GMVAE":
@@ -114,7 +114,7 @@ class OptunaOptimization:
 if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
-    hyperparameters["num_epochs"] = 100
+    hyperparameters["num_epochs"] = 10
 
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(

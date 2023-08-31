@@ -159,8 +159,7 @@ class MOVE(nn.Module):
             mask = x_nans[i].int()
             x_hat_i, x_i = (x_hat[i] * mask), (x[i] * mask)
 
-            # TODO: Imbalance in CNV (0>>n), calculate MSE per class and then mean
-            if i == 6:
+            if self.hypers["view_loss_recon_type"][i].lower() == "macro":
                 recon_xi = torch.stack(
                     [
                         self.recon_criterion(
