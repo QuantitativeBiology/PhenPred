@@ -11,6 +11,8 @@ from PhenPred.vae.PlotUtils import GIPlot
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
 from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_samples, calinski_harabasz_score, davies_bouldin_score
 
 
 class LatentSpaceBenchmark:
@@ -367,7 +369,6 @@ class LatentSpaceBenchmark:
         markers=None,
     ):
         self.plot_latent_spaces_aux(method="UMAP", markers=markers)
-        self.plot_latent_spaces_aux(method="PCA", markers=markers)
 
     def plot_latent_spaces_aux(
         self,
@@ -380,6 +381,7 @@ class LatentSpaceBenchmark:
     ):
         samplesheet = self.data.samplesheet["tissue"].fillna("Other tissue")
         centroid_distance_df = []
+        clustering_score_df = {'model': [], 'metric': [], 'score': []}
         for n, z_joint in [
             ("vae", self.latent_space),
             ("mofa", self.mofa_latent["factors"]),
@@ -405,6 +407,14 @@ class LatentSpaceBenchmark:
                 )
             else:
                 raise Exception("Invalid DR method")
+
+            cluster_labels = samplesheet[z_joint.index]
+            clustering_score_df['model'].append(n)
+            clustering_score_df['metric'].append('calinski_harabasz')
+            clustering_score_df['score'].append(calinski_harabasz_score(z_joint, cluster_labels))
+            clustering_score_df['model'].append(n)
+            clustering_score_df['metric'].append('davies_bouldin')
+            clustering_score_df['score'].append(davies_bouldin_score(z_joint, cluster_labels))
 
             # Plot projections by tissue type
             plot_df = pd.concat([z_joint_dr, samplesheet], axis=1)
@@ -446,32 +456,14 @@ class LatentSpaceBenchmark:
                         method=method,
                     )
 
-            # calculate distance to centroid for each tissue for PCA
-            if method == "PCA":
-                centroid_df = plot_df.groupby("tissue").mean()
-                merged_df = pd.merge(
-                    plot_df, centroid_df, on="tissue", suffixes=("", "_centroid")
-                )
-                merged_df["distance_to_centroid"] = np.sqrt(
-                    (merged_df["PCA_1"] - merged_df["PCA_1_centroid"]) ** 2
-                    + (merged_df["PCA_2"] - merged_df["PCA_2_centroid"]) ** 2
-                )
-                merged_df["model"] = n
-                centroid_distance_df.append(merged_df)
-
-        if method == "PCA":
-            centroid_distance_df = pd.concat(centroid_distance_df)
-            print(centroid_distance_df.groupby("model")["distance_to_centroid"].mean())
-            merged_df.to_csv(
-                f"{plot_folder}/files/{self.timestamp}_distance_to_centroid.csv"
-            )
-            _, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=600)
-            sns.barplot(
-                data=centroid_distance_df, x="model", y="distance_to_centroid", ax=ax
-            )
-            PhenPred.save_figure(
-                f"{plot_folder}/latent/{self.timestamp}_distance_to_centroid_barplot"
-            )
+        clustering_score_df = pd.DataFrame(clustering_score_df)
+        _, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=600)
+        sns.barplot(
+            data=clustering_score_df, x="metric", y="score", ax=ax, hue="model"
+        )
+        PhenPred.save_figure(
+            f"{plot_folder}/latent/{self.timestamp}_clustering_score_barplot"
+        )
 
     def plot_latent_continuous(self, plot_df, name, m, method="UMAP"):
         ax = GIPlot.gi_continuous_plot(
