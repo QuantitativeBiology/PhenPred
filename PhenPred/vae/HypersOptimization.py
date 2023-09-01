@@ -10,6 +10,7 @@ if not os.path.exists(proj_dir):
 sys.path.extend([proj_dir])
 
 import json
+import copy
 import torch
 import optuna
 import numpy as np
@@ -52,7 +53,7 @@ class OptunaOptimization:
         return loss_val
 
     def sample_params(self, trial):
-        hypers = self.hypers.deepcopy()
+        hypers = copy.deepcopy(self.hypers)
 
         # Optimizer
         hypers["batch_size"] = trial.suggest_int("batch_size", 32, 256)
