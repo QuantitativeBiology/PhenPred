@@ -38,7 +38,9 @@ class OptunaOptimization:
 
         hypers = self.sample_params(trial)
 
-        loss_val = CLinesTrain(self.data, hypers, early_stop_patience=10).training(cv)
+        loss_val = CLinesTrain(self.data, hypers, early_stop_patience=10).training(
+            cv=cv, drop_last=True
+        )
 
         return loss_val
 
@@ -46,16 +48,15 @@ class OptunaOptimization:
         hypers = self.hypers.copy()
 
         # Optimizer
-        hypers["batch_size"] = trial.suggest_int("batch_size", 32, 256)
+        hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
         hypers["learning_rate"] = trial.suggest_float(
-            "learning_rate", 1e-7, 5e-4, log=True
+            "learning_rate", 1e-7, 5e-3, log=True
         )
         hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.1, 0.6)
         hypers["optimizer_type"] = trial.suggest_categorical(
             "optimizer_type",
             ["adam", "adamw", "rmsprop", "sgd"],
         )
-        hypers["w_decay"] = trial.suggest_float("w_decay", 1e-6, 1e-3, log=True)
 
         # Layers
         hypers["probability"] = trial.suggest_float("probability", 0.1, 0.6)
@@ -114,7 +115,7 @@ class OptunaOptimization:
 if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
-    hyperparameters["num_epochs"] = 10
+    hyperparameters["num_epochs"] = 100
 
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(

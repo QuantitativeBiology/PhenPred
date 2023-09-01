@@ -126,6 +126,7 @@ class MOVE(nn.Module):
             x = x_all[:-1]
             y = x_all[-1]
             zs = [self.encoders[i](torch.cat([x[i], y], dim=1)) for i in range(len(x))]
+
         else:
             x = x_all
             zs = [self.encoders[i](x[i]) for i in range(len(x))]
@@ -136,10 +137,13 @@ class MOVE(nn.Module):
         # Decoder
         if self.hypers["use_conditionals"]:
             x_hat = [self.decoders[i](torch.cat([z, y], dim=1)) for i in range(len(x))]
+
         else:
             x_hat = [self.decoders[i](z) for i in range(len(x))]
+
         if self.only_return_mu:
             return mu
+
         else:
             return dict(
                 x_hat=x_hat,

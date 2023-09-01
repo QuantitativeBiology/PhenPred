@@ -216,7 +216,7 @@ class CLinesTrain:
 
         return cv
 
-    def training(self, cv=None):
+    def training(self, cv=None, drop_last=False):
         cv_idx, epoch = 0, 0
 
         cv = self.cv_strategy() if cv is None else cv
@@ -225,12 +225,18 @@ class CLinesTrain:
             # Train and Test Data
             data_train = torch.utils.data.Subset(self.data, train_idx)
             dataloader_train = DataLoader(
-                data_train, batch_size=self.hypers["batch_size"], shuffle=True
+                data_train,
+                batch_size=self.hypers["batch_size"],
+                shuffle=True,
+                drop_last=drop_last,
             )
 
             data_test = torch.utils.data.Subset(self.data, test_idx)
             dataloader_test = DataLoader(
-                data_test, batch_size=self.hypers["batch_size"], shuffle=False
+                data_test,
+                batch_size=self.hypers["batch_size"],
+                shuffle=False,
+                drop_last=drop_last,
             )
 
             # Initialize Model and Optimizer
