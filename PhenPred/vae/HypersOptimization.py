@@ -12,6 +12,7 @@ sys.path.extend([proj_dir])
 import json
 import torch
 import optuna
+import numpy as np
 from datetime import datetime
 from optuna.trial import TrialState
 from PhenPred.vae import plot_folder
@@ -22,12 +23,15 @@ from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
 
 class OptunaOptimization:
-    def __init__(self, data, hypers, n_splits=1, test_size=0.20, random_state=42):
+    def __init__(
+        self, data, hypers, n_splits=1, test_size=0.20, random_state=42, loss_max=100
+    ):
         self.data = data
         self.hypers = hypers
         self.n_splits = n_splits
         self.test_size = test_size
         self.random_state = random_state
+        self.loss_max = loss_max
 
     def __call__(self, trial):
         cv = StratifiedShuffleSplit(
@@ -42,10 +46,13 @@ class OptunaOptimization:
             cv=cv, drop_last=True
         )
 
+        if not np.isfinite(loss_val) or loss_val is None:
+            loss_val = self.loss_max
+
         return loss_val
 
     def sample_params(self, trial):
-        hypers = self.hypers.copy()
+        hypers = self.hypers.deepcopy()
 
         # Optimizer
         hypers["batch_size"] = trial.suggest_int("batch_size", 32, 256)
