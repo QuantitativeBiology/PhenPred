@@ -301,7 +301,7 @@ class CLinesTrain:
 
                 if not (np.isfinite(loss_current) or np.isfinite(loss_current_total)):
                     warnings.warn(f"NaN or Inf loss at cv {cv_idx}, epoch {epoch}.")
-                    return np.inf
+                    return np.nan
 
                 elif loss_previous is None:
                     loss_previous = loss_current
