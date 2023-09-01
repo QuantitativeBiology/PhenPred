@@ -225,7 +225,7 @@ class CLinesTrain:
             # Train and Test Data
             data_train = torch.utils.data.Subset(self.data, train_idx)
             dataloader_train = DataLoader(
-                data_train, batch_size=self.hypers["batch_size"], shuffle=True
+                data_train, batch_size=self.hypers["batch_size"], shuffle=True, drop_last=True
             )
 
             data_test = torch.utils.data.Subset(self.data, test_idx)
