@@ -11,9 +11,8 @@ from PhenPred.vae.PlotUtils import GIPlot
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
 from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_samples, calinski_harabasz_score, davies_bouldin_score
-
+from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score
+from sklearn.preprocessing import StandardScaler
 
 class LatentSpaceBenchmark:
     def __init__(self, timestamp, data, latent_space, mofa_latent):
@@ -411,10 +410,10 @@ class LatentSpaceBenchmark:
             cluster_labels = samplesheet[z_joint.index]
             clustering_score_df['model'].append(n)
             clustering_score_df['metric'].append('calinski_harabasz')
-            clustering_score_df['score'].append(calinski_harabasz_score(z_joint, cluster_labels))
+            clustering_score_df['score'].append(calinski_harabasz_score(StandardScaler().fit_transform(z_joint), cluster_labels))
             clustering_score_df['model'].append(n)
             clustering_score_df['metric'].append('davies_bouldin')
-            clustering_score_df['score'].append(davies_bouldin_score(z_joint, cluster_labels))
+            clustering_score_df['score'].append(davies_bouldin_score(StandardScaler().fit_transform(z_joint), cluster_labels))
 
             # Plot projections by tissue type
             plot_df = pd.concat([z_joint_dr, samplesheet], axis=1)
