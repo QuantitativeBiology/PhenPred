@@ -73,6 +73,12 @@ class OptunaOptimization:
 
         # Loss terms weights
         hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.01)
+        hypers["contrastive_pos_margin"] = trial.suggest_float(
+            "contrastive_pos_margin", 0.7, 0.95
+        )
+        hypers["contrastive_neg_margin"] = trial.suggest_float(
+            "contrastive_neg_margin", 0.05, 0.3
+        )
 
         # GMVAE
         if hypers["model"] == "GMVAE":
