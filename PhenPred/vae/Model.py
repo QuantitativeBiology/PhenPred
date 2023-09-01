@@ -177,14 +177,18 @@ class MOVE(nn.Module):
                 ).mean()
 
             else:
-                recon_xi = (
-                    self.recon_criterion(
+                mask_sum = mask.sum()
+
+                if mask_sum == 0:
+                    recon_xi = 0
+
+                else:
+                    recon_xi = self.recon_criterion(
                         x_hat_i,
                         x_i,
                         reduction="sum",
                     )
-                    / mask.sum()
-                )
+                    recon_xi /= mask_sum
 
             recon_xi *= view_loss_weights[i]
 
