@@ -48,14 +48,14 @@ class OptunaOptimization:
         hypers = self.hypers.copy()
 
         # Optimizer
-        hypers["batch_size"] = trial.suggest_int("batch_size", 16, 256)
+        hypers["batch_size"] = trial.suggest_int("batch_size", 32, 256)
         hypers["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-7, 5e-3, log=True
         )
         hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.1, 0.6)
         hypers["optimizer_type"] = trial.suggest_categorical(
             "optimizer_type",
-            ["adam", "adamw", "rmsprop", "sgd"],
+            ["adam", "adamw"],
         )
 
         # Layers
@@ -141,7 +141,6 @@ if __name__ == "__main__":
         study_name=study_name,
         load_if_exists=True,
         storage=f"sqlite:///{plot_folder}/files/optuna_{study_name}.db",
-        pruner=optuna.pruners.MedianPruner(n_startup_trials=20, n_warmup_steps=15),
     )
 
     opt.optimize(
@@ -153,7 +152,7 @@ if __name__ == "__main__":
 
     # Filter outlier trials
     value_thres = 10
-    filtered_trials = [t for t in opt.trials if t.value and t.value < value_thres]
+    filtered_trials = [t.params["batch_size"] for t in opt.trials if t.value is None]
     filtered_opt = optuna.create_study(direction="minimize", study_name=study_name)
     filtered_opt.add_trials(filtered_trials)
     print(
