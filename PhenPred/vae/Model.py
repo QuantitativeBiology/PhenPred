@@ -208,8 +208,6 @@ class MOVE(nn.Module):
 
         # Total loss
         loss = recon_loss + kl_loss + c_loss
-        if not (torch.isfinite(recon_loss)):
-            raise ValueError("Loss is not finite.")
 
         return dict(
             total=loss,
