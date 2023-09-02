@@ -160,7 +160,7 @@ if __name__ == "__main__":
 
     # Filter outlier trials
     value_thres = 10
-    filtered_trials = [t.params["batch_size"] for t in opt.trials if t.value is None]
+    filtered_trials = [t for t in opt.trials if t.value and t.value < value_thres]
     filtered_opt = optuna.create_study(direction="minimize", study_name=study_name)
     filtered_opt.add_trials(filtered_trials)
     print(
