@@ -228,7 +228,7 @@ if __name__ == "__main__":
     )
 
     fig = optuna.visualization.plot_contour(
-        filtered_opt, params=["latent_dim", "batch_size"]
+        filtered_opt, params=["learning_rate", "probability"]
     )
     fig.write_image(
         f"{plot_folder}/files/optuna_{filtered_opt.study_name}_contour_plot.pdf"
