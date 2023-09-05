@@ -38,12 +38,12 @@ class MOFABencharmk:
 
         self.clines_db_mofa = CLinesDatasetMOFA()
         self.clines_db_original = CLinesDatasetDepMap23Q2(
-            labels_names=self.hypers["labels"],
             datasets=self.hypers["datasets"],
-            feature_miss_rate_thres=self.hypers["feature_miss_rate_thres"],
+            labels_names=self.hypers["labels"],
             standardize=self.hypers["standardize"],
             filter_features=self.hypers["filter_features"],
             filtered_encoder_only=self.hypers["filtered_encoder_only"],
+            feature_miss_rate_thres=self.hypers["feature_miss_rate_thres"],
         )
 
     def run(self):
