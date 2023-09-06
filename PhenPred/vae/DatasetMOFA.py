@@ -7,7 +7,7 @@ from PhenPred.vae.Hypers import Hypers
 class CLinesDatasetMOFA:
     @staticmethod
     def load_reconstructions(
-        data, mode="nans_only", hypers=None, dfs=None, n_factors=73
+        data, mode="nans_only", hypers=None, dfs=None, n_factors=218
     ):
         """
         Load imputed data and latent space from files. "nans_only" mode, original

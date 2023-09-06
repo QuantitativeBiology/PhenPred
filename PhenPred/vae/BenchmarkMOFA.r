@@ -1,7 +1,7 @@
 library(MOFA2)
 
 ## ---------- Number of factors
-n_factors <- 73
+n_factors <- 218
 
 ## ---------- Model, Data e Info Cell Lines
 
