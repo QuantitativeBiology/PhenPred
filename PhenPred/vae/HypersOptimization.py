@@ -129,7 +129,7 @@ if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
     hyperparameters["num_epochs"] = 100
-    hyperparameters["view_dropout"] = 0.5
+    hyperparameters["view_dropout"] = 0.0
 
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(
