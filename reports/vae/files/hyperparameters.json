@@ -13,7 +13,7 @@
         "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
         "copynumber": "cnv_summary_20230303_matrix.csv"
     },
-    "view_loss_recon_type": ["mse", "mse", "mse", "mse", "mse", "mse", "macro"],
+    "view_loss_recon_type": ["mean", "mean", "mean", "mean", "mean", "mean", "macro"],
     "view_loss_weights": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
     "model": "MOVE",
     "standardize": true,
