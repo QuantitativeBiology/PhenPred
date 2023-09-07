@@ -62,14 +62,14 @@ class OptunaOptimization:
         )
         hypers["optimizer_type"] = trial.suggest_categorical(
             "optimizer_type",
-            ["adam", "adamw"],
+            ["adam", "adamw", "rmsprop", "sgd"],
         )
 
         # Layers
         hypers["probability"] = trial.suggest_float("probability", 0.1, 0.6)
 
         # Dimensions
-        hypers["view_latent_dim"] = trial.suggest_float("view_latent_dim", 0.01, 0.10)
+        hypers["view_latent_dim"] = trial.suggest_float("view_latent_dim", 0.01, 0.20)
         hypers["latent_dim"] = trial.suggest_int("latent_dim", 16, 256)
         hypers["hidden_dims"] = trial.suggest_categorical(
             "hidden_dims", ["0.3", "0.4", "0.5", "0.6", "0.7", "0.7,0.4", "0.6, 0.3"]
