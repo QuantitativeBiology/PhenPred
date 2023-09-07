@@ -60,7 +60,6 @@ class OptunaOptimization:
         hypers["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-7, 5e-3, log=True
         )
-        hypers["view_dropout"] = trial.suggest_float("view_dropout", 0.1, 0.6)
         hypers["optimizer_type"] = trial.suggest_categorical(
             "optimizer_type",
             ["adam", "adamw"],
@@ -130,6 +129,7 @@ if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
     hyperparameters["num_epochs"] = 100
+    hyperparameters["view_dropout"] = 0.5
 
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(
