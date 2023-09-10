@@ -60,6 +60,11 @@ if __name__ == "__main__":
         cv=KFold(n_splits=10, shuffle=True).split(train.data)
     )
 
+    cvtest_datasets = {
+        k: pd.read_csv(f"{plot_folder}/files/{train.timestamp}_{k}_cvtest.csv")
+        for k in hyperparameters["datasets"]
+    }
+
     # Load imputed data
     vae_imputed, vae_latent = train.load_vae_reconstructions()
     vae_predicted, _ = train.load_vae_reconstructions(mode="all")
