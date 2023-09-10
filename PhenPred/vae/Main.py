@@ -4,6 +4,8 @@
 import os
 import sys
 
+from sympy import plot
+
 proj_dir = "/home/scai/PhenPred"
 if not os.path.exists(proj_dir):
     proj_dir = "/Users/emanuel/Projects/PhenPred"
@@ -13,9 +15,12 @@ import json
 import PhenPred
 import argparse
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 from PhenPred.vae import plot_folder
 from PhenPred.vae.Hypers import Hypers
 from PhenPred.vae.Train import CLinesTrain
+from sklearn.model_selection import KFold
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
@@ -50,6 +55,11 @@ if __name__ == "__main__":
 
     train.run(run_timestamp=hyperparameters["load_run"])
 
+    # Make CV predictions
+    _, cvtest_datasets = train.training(
+        cv=KFold(n_splits=10, shuffle=True).split(train.data)
+    )
+
     # Load imputed data
     vae_imputed, vae_latent = train.load_vae_reconstructions()
     vae_predicted, _ = train.load_vae_reconstructions(mode="all")
@@ -60,6 +70,7 @@ if __name__ == "__main__":
     latent_benchmark = LatentSpaceBenchmark(
         train.timestamp, clines_db, vae_latent, mofa_latent
     )
+
     latent_benchmark.plot_latent_spaces(
         markers=clines_db.get_features(
             dict(
@@ -69,7 +80,7 @@ if __name__ == "__main__":
                     "alanine",
                 ],
                 crisprcas9=["FAM50A", "ARF4", "MCL1"],
-                transcriptomics=["VIM", "CDH1", "FDXR"],
+                transcriptomics=["VIM", "CDH1", "FDXR", "NNMT"],
                 copynumber=[
                     "PCM1",
                     "MYC",
@@ -80,6 +91,41 @@ if __name__ == "__main__":
                 proteomics=["MTDH"],
             )
         ),
+    )
+
+    # Correlate features
+    plot_df = clines_db.get_features(
+        dict(
+            metabolomics=[
+                "1-methylnicotinamide",
+            ],
+            transcriptomics=["VIM", "CDH1", "NNMT"],
+            proteomics=["VIM", "CDH1"],
+        )
+    )
+
+    g = sns.clustermap(
+        plot_df.corr(),
+        cmap="RdYlGn",
+        center=0,
+        xticklabels=False,
+        vmin=-1,
+        vmax=1,
+        annot=True,
+        annot_kws={"fontsize": 5},
+        fmt=".2f",
+        linewidths=0.0,
+        cbar_kws={"shrink": 0.5},
+        figsize=(3.0, 1.5),
+    )
+
+    g.ax_cbar.set_ylabel("Pearson\ncorrelation")
+
+    g.ax_heatmap.set_xlabel("")
+    g.ax_heatmap.set_ylabel("")
+
+    PhenPred.save_figure(
+        f"{plot_folder}/selected_features_clustermap",
     )
 
     # Run drug benchmark
