@@ -219,6 +219,8 @@ class CLinesTrain:
     def training(self, cv=None, drop_last=False):
         cv_idx, epoch = 0, 0
 
+        cvtest_datasets = {n: [] for n in self.data.view_names}
+
         cv = self.cv_strategy() if cv is None else cv
 
         for cv_idx, (train_idx, test_idx) in enumerate(cv, start=1):
@@ -299,29 +301,73 @@ class CLinesTrain:
                     "val", "total"
                 ]
 
+                # Check if loss is finite
                 if not (np.isfinite(loss_current) or np.isfinite(loss_current_total)):
                     warnings.warn(f"NaN or Inf loss at cv {cv_idx}, epoch {epoch}.")
-                    return np.nan
-
+                    # return np.nan, cvtest_datasets
                 elif loss_previous is None:
                     loss_previous = loss_current
-
                 elif round(loss_current, 2) < round(loss_previous, 2):
                     loss_counter = 0
                     loss_previous = loss_current
-
                 else:
                     loss_counter += 1
 
                 if loss_counter >= self.early_stop_patience:
                     warnings.warn(f"Early stopping at cv {cv_idx}, epoch {epoch}.")
+                    epoch = self.hypers["num_epochs"]
+
+                # If last epoch, save test predictions
+                if epoch == self.hypers["num_epochs"]:
+                    data_test_all = DataLoader(
+                        data_test, batch_size=len(test_idx), shuffle=False
+                    )
+
+                    for data in data_test_all:
+                        x, y, _, x_mask = data
+
+                        x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
+
+                        if self.hypers["use_conditionals"]:
+                            out_net = model(x_masked + [y])
+                        else:
+                            out_net = model(x_masked)
+
+                        x_hat = out_net["x_hat"]
+
+                        for name, df in zip(self.data.view_names, x_hat):
+                            df_hat = pd.DataFrame(
+                                self.data.view_scalers[name].inverse_transform(
+                                    df.tolist()
+                                ),
+                                index=pd.Series(self.data.samples)
+                                .iloc[test_idx]
+                                .values,
+                                columns=self.data.view_feature_names[name],
+                            )
+
+                            if name in {"copynumber"}:
+                                df_hat = df_hat.round()
+
+                            cvtest_datasets[name].append(df_hat)
+
                     break
 
-                # Learning rate scheduler
-                if scheduler is not None:
-                    self.update_learning_rate(scheduler, optimizer, loss_current, epoch)
+        # Concat test datasets
+        cvtest_datasets = {
+            name: pd.concat(dfs) for name, dfs in cvtest_datasets.items()
+        }
 
-        return self.get_losses(cv_idx, epoch, "type").loc["val", "reconstruction"]
+        for name, df in cvtest_datasets.items():
+            df.round(5).to_csv(
+                f"{plot_folder}/files/{self.timestamp}_imputed_{name}_cvtest.csv.gz",
+                compression="gzip",
+            )
+
+        return (
+            self.get_losses(cv_idx, epoch, "type").loc["val", "reconstruction"],
+            cvtest_datasets,
+        )
 
     def update_learning_rate(self, scheduler, optimizer, loss_current, epoch):
         scheduler.step(loss_current)

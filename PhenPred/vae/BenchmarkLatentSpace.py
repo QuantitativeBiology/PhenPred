@@ -10,9 +10,11 @@ from PhenPred import PALETTE_TTYPE
 from PhenPred.vae.PlotUtils import GIPlot
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
+from scipy.stats import pearsonr, zscore
 from sklearn.decomposition import PCA
-from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score
+
 
 class LatentSpaceBenchmark:
     def __init__(self, timestamp, data, latent_space, mofa_latent):
@@ -79,7 +81,9 @@ class LatentSpaceBenchmark:
                 self.data.dfs["methylation"].mean(1).rename("MeanMethylation")
                 if "methylation" in self.data.dfs
                 else None,
-                self.data.dfs["drugresponse"].mean(1).rename("MeanDrugResponse")
+                zscore(self.data.dfs["drugresponse"], nan_policy="omit")
+                .mean(1)
+                .rename("MeanDrugResponse")
                 if "drugresponse" in self.data.dfs
                 else None,
                 self.df_drug_novel_bin.sum(1).rename("drug_responses").apply(np.log2),
@@ -380,7 +384,7 @@ class LatentSpaceBenchmark:
     ):
         samplesheet = self.data.samplesheet["tissue"].fillna("Other tissue")
         centroid_distance_df = []
-        clustering_score_df = {'model': [], 'metric': [], 'score': []}
+        clustering_score_df = {"model": [], "metric": [], "score": []}
         for n, z_joint in [
             ("vae", self.latent_space),
             ("mofa", self.mofa_latent["factors"]),
@@ -408,12 +412,20 @@ class LatentSpaceBenchmark:
                 raise Exception("Invalid DR method")
 
             cluster_labels = samplesheet[z_joint.index]
-            clustering_score_df['model'].append(n)
-            clustering_score_df['metric'].append('calinski_harabasz')
-            clustering_score_df['score'].append(calinski_harabasz_score(StandardScaler().fit_transform(z_joint), cluster_labels))
-            clustering_score_df['model'].append(n)
-            clustering_score_df['metric'].append('davies_bouldin')
-            clustering_score_df['score'].append(davies_bouldin_score(StandardScaler().fit_transform(z_joint), cluster_labels))
+            clustering_score_df["model"].append(n)
+            clustering_score_df["metric"].append("calinski_harabasz")
+            clustering_score_df["score"].append(
+                calinski_harabasz_score(
+                    StandardScaler().fit_transform(z_joint), cluster_labels
+                )
+            )
+            clustering_score_df["model"].append(n)
+            clustering_score_df["metric"].append("davies_bouldin")
+            clustering_score_df["score"].append(
+                davies_bouldin_score(
+                    StandardScaler().fit_transform(z_joint), cluster_labels
+                )
+            )
 
             # Plot projections by tissue type
             plot_df = pd.concat([z_joint_dr, samplesheet], axis=1)
@@ -457,9 +469,7 @@ class LatentSpaceBenchmark:
 
         clustering_score_df = pd.DataFrame(clustering_score_df)
         _, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=600)
-        sns.barplot(
-            data=clustering_score_df, x="metric", y="score", ax=ax, hue="model"
-        )
+        sns.barplot(data=clustering_score_df, x="metric", y="score", ax=ax, hue="model")
         PhenPred.save_figure(
             f"{plot_folder}/latent/{self.timestamp}_clustering_score_barplot"
         )

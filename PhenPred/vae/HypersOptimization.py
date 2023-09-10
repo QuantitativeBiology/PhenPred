@@ -202,7 +202,21 @@ if __name__ == "__main__":
     )
 
     # Plot results
-    fig = optuna.visualization.plot_param_importances(filtered_opt)
+    fig = optuna.visualization.plot_param_importances(
+        filtered_opt,
+        params=[
+            "learning_rate",
+            "scheduler_factor",
+            "latent_dim",
+            "contrastive_pos_margin",
+            "contrastive_neg_margin",
+            "w_contrastive",
+            "probability",
+            "hidden_dims",
+            "batch_size",
+            "view_latent_dim",
+        ],
+    )
     fig.write_image(
         f"{plot_folder}/files/optuna_{filtered_opt.study_name}_best_param_plot.pdf"
     )

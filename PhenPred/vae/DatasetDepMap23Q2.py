@@ -532,10 +532,13 @@ class CLinesDatasetDepMap23Q2(Dataset):
             .rename(tissue)
         )
 
-    def get_features(self, view_features_dict):
+    def get_features(self, view_features_dict, dfs=None):
+        if dfs is None:
+            dfs = self.dfs
+
         return pd.concat(
             [
-                self.dfs[v].reindex(columns=f).add_suffix(f"_{v}")
+                dfs[v].reindex(columns=f).add_suffix(f"_{v}")
                 for v, f in view_features_dict.items()
             ],
             axis=1,

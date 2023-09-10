@@ -105,6 +105,7 @@ class CRISPRBenchmark:
             x="orig",
             y="vae",
             alpha=0.75,
+            s=5,
             color="#656565",
             ax=ax,
         )
