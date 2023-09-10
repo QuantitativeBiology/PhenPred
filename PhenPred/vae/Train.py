@@ -206,6 +206,8 @@ class CLinesTrain:
         cv = self.cv_strategy() if cv is None else cv
 
         for cv_idx, (train_idx, test_idx) in enumerate(cv, start=1):
+            is_early_stop = False
+
             # Train and Test Data
             data_train = torch.utils.data.Subset(self.data, train_idx)
             dataloader_train = DataLoader(
@@ -300,10 +302,13 @@ class CLinesTrain:
 
                 if loss_counter >= self.early_stop_patience:
                     warnings.warn(f"Early stopping at cv {cv_idx}, epoch {epoch}.")
-                    epoch = self.hypers["num_epochs"]
+                    is_early_stop = True
+
+                if scheduler is not None:
+                    self.update_learning_rate(scheduler, optimizer, loss_current, epoch)
 
                 # If last epoch, save test predictions
-                if epoch == self.hypers["num_epochs"]:
+                if epoch == self.hypers["num_epochs"] or is_early_stop:
                     data_test_all = DataLoader(
                         data_test, batch_size=len(test_idx), shuffle=False
                     )
