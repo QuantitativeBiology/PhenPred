@@ -2,7 +2,7 @@
     "dataname": "depmap23Q2",
     "load_run": null,
     "save_model": false,
-    "skip_cv": false,
+    "skip_cv": true,
     "verbose": 0,
     "datasets": {
         "proteomics": "data/clines//proteomics.csv",
@@ -58,7 +58,7 @@
     "hidden_dims": "0.6",
     "probability": 0.4849751060769385,
     "feature_dropout": 0,
-    "view_dropout": 0.10045436328175321,
+    "view_dropout": 0,
     "w_decay": 0.0005,
     "w_kl": 0.0001,
     "w_rec": 1,

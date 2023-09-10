@@ -34,23 +34,17 @@ class MismatchBenchmark:
         self.drug_response()
 
     def top_reconstructed(self):
-        #
+        # plot_df
         m_true = self.data.dfs["crisprcas9"]
         m_pred = self.vae_predicted["crisprcas9"].reindex(
             index=m_true.index,
             columns=m_true.columns,
         )
 
-        # MSE
         m_mse = (m_true - m_pred) ** 2
-
-        # pearson between m_true and m_pred
         m_pearson = m_true.corrwith(m_pred, axis=0)
-
-        # skew
         m_skew = m_true.skew()
 
-        # scatter
         plot_df = pd.concat(
             [
                 m_mse.mean().rename("mse"),
@@ -63,51 +57,32 @@ class MismatchBenchmark:
             axis=1,
         )
 
-        _, ax = plt.subplots(1, 1, figsize=(3, 3))
+        plot_df["density"] = GIPlot.density_interpolate(
+            plot_df["chronos"].values,
+            plot_df["pearson"].values,
+        )
 
-        sns.scatterplot(
-            x="pearson",
-            y="chronos",
-            size="count",
-            alpha=0.3,
-            color="black",
-            lw=0,
-            data=plot_df.query("ess >= 5"),
+        # MOVE vs Chronos pearson's r
+        _, ax = plt.subplots(1, 1, figsize=(3, 2.5))
+
+        GIPlot.gi_continuous_plot(
+            plot_df=plot_df,
+            x="chronos",
+            y="pearson",
+            z="density",
+            cmap="viridis",
+            mid_point=plot_df["density"].mean(),
             ax=ax,
         )
 
-        # label few selected genes
-        genes = [
-            "MEF2B",
-            "SYK",
-            "CYB561A3",
-            "BCL2",
-            "MET",
-            "POU2AF1",
-            "FLI1",
-            "FLI1",
-            "MET",
-            "WRN",
-            "SPDEF",
-            "JUP",
-        ]
-        texts = [
-            ax.text(
-                plot_df.loc[g, "pearson"],
-                plot_df.loc[g, "chronos"],
-                g,
-                color="red",
-                fontsize=6,
-            )
-            for g in genes
-        ]
-        adjust_text(texts, arrowprops=dict(arrowstyle="-", color="black"))
+        ax.axline((0.5, 0.5), slope=1, color="black", lw=0.5, ls="-", zorder=-1)
 
-        ax.set_xlabel("MOVE predictability (pearson)")
-        ax.set_ylabel("Chronos predictability (best pearson)")
+        ax.set_ylabel("MOVE reconstruction (pearson's r)")
+        ax.set_xlabel("Chronos prediction (best pearson's r)")
+        ax.set_title("CRISPR-Cas9 predictability")
 
         PhenPred.save_figure(
-            f"{plot_folder}/mismatch/{self.timestamp}_mse_skew_scatter",
+            f"{plot_folder}/mismatch/{self.timestamp}_predictability_scatterplot",
         )
 
     def drug_response(self):
