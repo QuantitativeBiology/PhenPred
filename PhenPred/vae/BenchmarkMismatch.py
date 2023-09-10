@@ -45,9 +45,10 @@ class MismatchBenchmark:
         m_pearson = m_true.corrwith(m_pred, axis=0)
         m_skew = m_true.skew()
 
-        plot_df = pd.concat(
+        df = pd.concat(
             [
                 m_mse.mean().rename("mse"),
+                m_true.mean().rename("mean"),
                 m_skew.rename("skew"),
                 m_pearson.rename("pearson"),
                 m_true.count().rename("count"),
@@ -57,21 +58,21 @@ class MismatchBenchmark:
             axis=1,
         )
 
-        plot_df["density"] = GIPlot.density_interpolate(
-            plot_df["chronos"].values,
-            plot_df["pearson"].values,
+        df["density"] = GIPlot.density_interpolate(
+            df["chronos"].values,
+            df["pearson"].values,
         )
 
         # MOVE vs Chronos pearson's r
         _, ax = plt.subplots(1, 1, figsize=(3, 2.5))
 
         GIPlot.gi_continuous_plot(
-            plot_df=plot_df,
+            plot_df=df,
             x="chronos",
             y="pearson",
             z="density",
             cmap="viridis",
-            mid_point=plot_df["density"].mean(),
+            mid_point=df["density"].mean(),
             ax=ax,
         )
 
@@ -83,6 +84,49 @@ class MismatchBenchmark:
 
         PhenPred.save_figure(
             f"{plot_folder}/mismatch/{self.timestamp}_predictability_scatterplot",
+        )
+
+        # Top reconstructed genes
+        plot_df = df.sort_values("pearson", ascending=False).query("ess >= 5")
+        plot_df["index"] = plot_df.reset_index().index
+        plot_df = plot_df.sort_values("skew", ascending=False)
+
+        _, ax = plt.subplots(1, 1, figsize=(3.5, 2.5))
+
+        sns.scatterplot(
+            x=plot_df["index"],
+            y=plot_df["pearson"],
+            hue=plot_df["skew"],
+            alpha=0.5,
+            palette="viridis",
+            linewidth=0,
+            edgecolor=None,
+            s=3,
+        )
+
+        ax.set_xlabel("Genes")
+        ax.set_ylabel("MOVE reconstruction (pearson's r)")
+
+        genes = set(plot_df.query("skew < -3 & ess >= 5").index)
+        genes_label = [
+            ax.text(
+                x=plot_df.loc[g, "index"],
+                y=plot_df.loc[g, "pearson"],
+                s=g,
+                fontsize=5,
+                ha="center",
+                va="center",
+            )
+            for g in genes
+        ]
+        adjust_text(
+            genes_label,
+            arrowprops=dict(arrowstyle="-", color="black", lw=0.5),
+            ax=ax,
+        )
+
+        PhenPred.save_figure(
+            f"{plot_folder}/mismatch/{self.timestamp}_top_reconstructed_scatterplot",
         )
 
     def drug_response(self):
