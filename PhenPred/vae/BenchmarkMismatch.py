@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from PhenPred.vae import plot_folder, data_folder
-from PhenPred.vae.PlotUtils import GIPlot
 from adjustText import adjust_text
+from PhenPred.vae.PlotUtils import GIPlot
+from PhenPred.vae import plot_folder, data_folder
 
 
 class MismatchBenchmark:
