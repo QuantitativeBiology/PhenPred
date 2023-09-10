@@ -176,24 +176,6 @@ class CLinesTrain:
         f_res.update(record_losses)
         self.benchmark_scores.append(f_res)
 
-        # # KRAS CRISPR-Cas9 benchmark
-        # f = "KRAS"
-
-        # crispr_idx = self.data.get_view_feature_index(f, "crisprcas9")
-        # crispr_view_index = self.data.view_names.index("crisprcas9")
-        # crispr_pred = x_hat[crispr_view_index][:, crispr_idx]
-
-        # label_idx = self.data.labels_name.index(f"mut_{f}")
-        # label_true = labels[:, label_idx]
-
-        # f_score = np.nanmedian(
-        #     crispr_pred[label_true != 0].detach().numpy()
-        # ) - np.nanmedian(crispr_pred[label_true == 1].detach().numpy())
-
-        # f_res = dict(benchmark=f, score=f_score)
-        # f_res.update(record_losses)
-        # self.benchmark_scores.append(f_res)
-
     def cv_strategy(self, shuffle_split=False):
         if shuffle_split and self.stratify_cv_by is not None:
             cv = StratifiedShuffleSplit(
@@ -304,12 +286,15 @@ class CLinesTrain:
                 # Check if loss is finite
                 if not (np.isfinite(loss_current) or np.isfinite(loss_current_total)):
                     warnings.warn(f"NaN or Inf loss at cv {cv_idx}, epoch {epoch}.")
-                    # return np.nan, cvtest_datasets
+                    return np.nan, cvtest_datasets
+
                 elif loss_previous is None:
                     loss_previous = loss_current
+
                 elif round(loss_current, 2) < round(loss_previous, 2):
                     loss_counter = 0
                     loss_previous = loss_current
+
                 else:
                     loss_counter += 1
 
