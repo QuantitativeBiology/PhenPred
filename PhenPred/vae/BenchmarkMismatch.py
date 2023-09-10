@@ -1,10 +1,12 @@
 import os
 import PhenPred
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from PhenPred.vae import plot_folder
+from PhenPred.vae import plot_folder, data_folder
 from PhenPred.vae.PlotUtils import GIPlot
+from adjustText import adjust_text
 
 
 class MismatchBenchmark:
@@ -17,8 +19,96 @@ class MismatchBenchmark:
         if not os.path.exists(f"{plot_folder}/mismatch"):
             os.makedirs(f"{plot_folder}/mismatch")
 
+        # DepMap predictability
+        self.chronos_pred = pd.read_csv(
+            f"{data_folder}/Chronos_Combined_predictability_results.csv"
+        )
+        self.chronos_pred["gene"] = self.chronos_pred["gene"].apply(
+            lambda x: x.split(" ")[0]
+        )
+        self.chronos_best_pred = self.chronos_pred.loc[
+            self.chronos_pred["best"]
+        ].set_index("gene")
+
     def run(self):
         self.drug_response()
+
+    def top_reconstructed(self):
+        #
+        m_true = self.data.dfs["crisprcas9"]
+        m_pred = self.vae_predicted["crisprcas9"].reindex(
+            index=m_true.index,
+            columns=m_true.columns,
+        )
+
+        # MSE
+        m_mse = (m_true - m_pred) ** 2
+
+        # pearson between m_true and m_pred
+        m_pearson = m_true.corrwith(m_pred, axis=0)
+
+        # skew
+        m_skew = m_true.skew()
+
+        # scatter
+        plot_df = pd.concat(
+            [
+                m_mse.mean().rename("mse"),
+                m_skew.rename("skew"),
+                m_pearson.rename("pearson"),
+                m_true.count().rename("count"),
+                (m_true < -0.5).sum().rename("ess"),
+                self.chronos_best_pred["pearson"].rename("chronos"),
+            ],
+            axis=1,
+        )
+
+        _, ax = plt.subplots(1, 1, figsize=(3, 3))
+
+        sns.scatterplot(
+            x="pearson",
+            y="chronos",
+            size="count",
+            alpha=0.3,
+            color="black",
+            lw=0,
+            data=plot_df.query("ess >= 5"),
+            ax=ax,
+        )
+
+        # label few selected genes
+        genes = [
+            "MEF2B",
+            "SYK",
+            "CYB561A3",
+            "BCL2",
+            "MET",
+            "POU2AF1",
+            "FLI1",
+            "FLI1",
+            "MET",
+            "WRN",
+            "SPDEF",
+            "JUP",
+        ]
+        texts = [
+            ax.text(
+                plot_df.loc[g, "pearson"],
+                plot_df.loc[g, "chronos"],
+                g,
+                color="red",
+                fontsize=6,
+            )
+            for g in genes
+        ]
+        adjust_text(texts, arrowprops=dict(arrowstyle="-", color="black"))
+
+        ax.set_xlabel("MOVE predictability (pearson)")
+        ax.set_ylabel("Chronos predictability (best pearson)")
+
+        PhenPred.save_figure(
+            f"{plot_folder}/mismatch/{self.timestamp}_mse_skew_scatter",
+        )
 
     def drug_response(self):
         # Drug response
