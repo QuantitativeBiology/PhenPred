@@ -2,7 +2,7 @@
     "dataname": "depmap23Q2",
     "load_run": null,
     "save_model": false,
-    "skip_cv": false,
+    "skip_cv": true,
     "verbose": 0,
     "datasets": {
 	    "proteomics": "proteomics.csv",
