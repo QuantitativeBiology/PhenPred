@@ -61,7 +61,10 @@ if __name__ == "__main__":
     )
 
     cvtest_datasets = {
-        k: pd.read_csv(f"{plot_folder}/files/{train.timestamp}_{k}_cvtest.csv")
+        k: pd.read_csv(
+            f"{plot_folder}/files/{train.timestamp}_imputed_{k}_cvtest.csv.gz",
+            index_col=0,
+        )
         for k in hyperparameters["datasets"]
     }
 
@@ -164,7 +167,9 @@ if __name__ == "__main__":
     )
 
     # Run mismatch benchmark
-    mismatch_benchmark = MismatchBenchmark(train.timestamp, clines_db, vae_predicted)
+    mismatch_benchmark = MismatchBenchmark(
+        train.timestamp, clines_db, vae_predicted, cvtest_datasets
+    )
     mismatch_benchmark.run()
 
     # Write the hyperparameters to json file
