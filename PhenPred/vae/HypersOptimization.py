@@ -60,10 +60,6 @@ class OptunaOptimization:
         hypers["learning_rate"] = trial.suggest_float(
             "learning_rate", 1e-7, 5e-3, log=True
         )
-        hypers["optimizer_type"] = trial.suggest_categorical(
-            "optimizer_type",
-            ["adam", "adamw", "rmsprop", "sgd"],
-        )
 
         # Layers
         hypers["probability"] = trial.suggest_float("probability", 0.1, 0.6)
@@ -79,13 +75,7 @@ class OptunaOptimization:
         hypers["scheduler_factor"] = trial.suggest_float("scheduler_factor", 0.3, 0.85)
 
         # Loss terms weights
-        hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.01)
-        hypers["contrastive_pos_margin"] = trial.suggest_float(
-            "contrastive_pos_margin", 0.7, 0.95
-        )
-        hypers["contrastive_neg_margin"] = trial.suggest_float(
-            "contrastive_neg_margin", 0.05, 0.3
-        )
+        hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.05)
 
         # GMVAE
         if hypers["model"] == "GMVAE":
