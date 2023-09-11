@@ -129,7 +129,7 @@ if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
     hyperparameters["num_epochs"] = 100
-    hyperparameters["view_dropout"] = 0.0
+    hyperparameters["view_dropout"] = 0.5
 
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     )
 
     # Optuna optimization
-    study_name = "MOVE_view_dropout_0"
+    study_name = "MOVE_view_dropout_05"
 
     opt = optuna.create_study(
         direction="minimize",
