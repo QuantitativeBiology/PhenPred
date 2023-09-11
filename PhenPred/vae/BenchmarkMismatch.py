@@ -10,11 +10,12 @@ from PhenPred.vae import plot_folder, data_folder
 
 
 class MismatchBenchmark:
-    def __init__(self, timestamp, data, vae_predicted):
+    def __init__(self, timestamp, data, vae_predicted, cvtest_datasets):
         self.timestamp = timestamp
 
         self.data = data
         self.vae_predicted = vae_predicted
+        self.cvtest_datasets = cvtest_datasets
 
         if not os.path.exists(f"{plot_folder}/mismatch"):
             os.makedirs(f"{plot_folder}/mismatch")
@@ -32,11 +33,77 @@ class MismatchBenchmark:
 
     def run(self):
         self.drug_response()
+        self.top_reconstructed_genes()
+        self.top_reconstructed_drug()
 
-    def top_reconstructed(self):
+    def top_reconstructed_drug(self):
+        # plot_df
+        m_true = self.data.dfs["drugresponse"]
+        m_pred = self.cvtest_datasets["drugresponse"].reindex(
+            index=m_true.index,
+            columns=m_true.columns,
+        )
+
+        m_mse = (m_true - m_pred) ** 2
+        m_pearson = m_true.corrwith(m_pred, axis=0)
+        m_skew = m_true.skew()
+
+        df = pd.concat(
+            [
+                m_mse.mean().rename("mse"),
+                m_true.mean().rename("mean"),
+                m_skew.rename("skew"),
+                m_pearson.rename("pearson"),
+            ],
+            axis=1,
+        )
+
+        # Top reconstructed genes
+        plot_df = df.sort_values("pearson", ascending=False)
+        plot_df["index"] = plot_df.reset_index().index
+        plot_df = plot_df.sort_values("skew", ascending=False)
+
+        _, ax = plt.subplots(1, 1, figsize=(3.5, 2.5))
+
+        sns.scatterplot(
+            x=plot_df["index"],
+            y=plot_df["pearson"],
+            hue=plot_df["skew"],
+            alpha=0.5,
+            palette="viridis",
+            linewidth=0,
+            edgecolor=None,
+            s=3,
+        )
+
+        ax.set_xlabel("Drugs")
+        ax.set_ylabel("MOVE reconstruction (pearson's r)")
+
+        labels = [
+            ax.text(
+                x=plot_df.loc[g, "index"],
+                y=plot_df.loc[g, "pearson"],
+                s=g.split(";")[1],
+                fontsize=5,
+                ha="center",
+                va="center",
+            )
+            for g in plot_df.query("skew < -1.5").index
+        ]
+        adjust_text(
+            labels,
+            arrowprops=dict(arrowstyle="-", color="black", lw=0.5),
+            ax=ax,
+        )
+
+        PhenPred.save_figure(
+            f"{plot_folder}/mismatch/{self.timestamp}_top_reconstructed_scatterplot_drespo",
+        )
+
+    def top_reconstructed_genes(self):
         # plot_df
         m_true = self.data.dfs["crisprcas9"]
-        m_pred = self.vae_predicted["crisprcas9"].reindex(
+        m_pred = self.cvtest_datasets["crisprcas9"].reindex(
             index=m_true.index,
             columns=m_true.columns,
         )
@@ -104,7 +171,7 @@ class MismatchBenchmark:
             s=3,
         )
 
-        ax.set_xlabel("Genes")
+        ax.set_xlabel("CRISPR-Cas9 genes")
         ax.set_ylabel("MOVE reconstruction (pearson's r)")
 
         genes = set(plot_df.query("skew < -3 & ess >= 5").index)
