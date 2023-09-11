@@ -43,7 +43,7 @@ class OptunaOptimization:
 
         hypers = self.sample_params(trial)
 
-        loss_val = CLinesTrain(self.data, hypers, early_stop_patience=10).training(
+        loss_val, _ = CLinesTrain(self.data, hypers, early_stop_patience=10).training(
             cv=cv, drop_last=True
         )
 
