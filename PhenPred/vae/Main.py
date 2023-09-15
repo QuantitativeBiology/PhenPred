@@ -155,7 +155,7 @@ if __name__ == "__main__":
     crispr_benchmark = CRISPRBenchmark(
         train.timestamp, clines_db, vae_imputed, mofa_imputed
     )
-    # crispr_benchmark.run()
+    crispr_benchmark.run()
     crispr_benchmark.gene_skew_correlation()
     crispr_benchmark.plot_associations(
         [
