@@ -56,10 +56,10 @@ if __name__ == "__main__":
     train.run(run_timestamp=hyperparameters["load_run"])
 
     # Make CV predictions
-    _, cvtest_datasets = train.training(
-        cv=KFold(n_splits=10, shuffle=True).split(train.data)
-    )
     if not hyperparameters["skip_cv"]:
+        _, cvtest_datasets = train.training(
+            cv=KFold(n_splits=10, shuffle=True).split(train.data)
+        )
         cvtest_datasets = {
             k: pd.read_csv(
                 f"{plot_folder}/files/{train.timestamp}_imputed_{k}_cvtest.csv.gz",
