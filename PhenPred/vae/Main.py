@@ -59,14 +59,14 @@ if __name__ == "__main__":
     _, cvtest_datasets = train.training(
         cv=KFold(n_splits=10, shuffle=True).split(train.data)
     )
-
-    cvtest_datasets = {
-        k: pd.read_csv(
-            f"{plot_folder}/files/{train.timestamp}_imputed_{k}_cvtest.csv.gz",
-            index_col=0,
-        )
-        for k in hyperparameters["datasets"]
-    }
+    if not hyperparameters["skip_cv"]:
+        cvtest_datasets = {
+            k: pd.read_csv(
+                f"{plot_folder}/files/{train.timestamp}_imputed_{k}_cvtest.csv.gz",
+                index_col=0,
+            )
+            for k in hyperparameters["datasets"]
+        }
 
     # Load imputed data
     vae_imputed, vae_latent = train.load_vae_reconstructions()
@@ -167,10 +167,11 @@ if __name__ == "__main__":
     )
 
     # Run mismatch benchmark
-    mismatch_benchmark = MismatchBenchmark(
-        train.timestamp, clines_db, vae_predicted, cvtest_datasets
-    )
-    mismatch_benchmark.run()
+    if not hyperparameters["skip_cv"]:
+        mismatch_benchmark = MismatchBenchmark(
+            train.timestamp, clines_db, vae_predicted, cvtest_datasets
+        )
+        mismatch_benchmark.run()
 
     # Write the hyperparameters to json file
     json.dump(
