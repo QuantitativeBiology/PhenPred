@@ -58,11 +58,11 @@ class CLinesTrain:
             return
 
         if not self.hypers["skip_cv"]:
-            self.training()
+            self.training(drop_last=True)
             losses_df = self.save_losses()
             self.plot_losses(losses_df)
 
-        self.predictions()
+        self.predictions(drop_last=True)
 
         if self.hypers["save_model"]:
             self.save_model()
@@ -367,14 +367,17 @@ class CLinesTrain:
         if round(current_lr, 4) < round(self.lrs[-1][1], 4):
             self.lrs.append((epoch, current_lr))
 
-    def predictions(self, n_epochs=None):
+    def predictions(self, n_epochs=None, drop_last=False):
         imputed_datasets = dict()
 
         n_epochs = self.hypers["num_epochs"] if n_epochs is None else n_epochs
 
         # Data Loader
         data_all = DataLoader(
-            self.data, batch_size=self.hypers["batch_size"], shuffle=False
+            self.data,
+            batch_size=self.hypers["batch_size"],
+            shuffle=True,
+            drop_last=drop_last,
         )
 
         self.model = self.initialize_model()
