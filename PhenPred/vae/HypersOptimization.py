@@ -132,7 +132,7 @@ if __name__ == "__main__":
     )
 
     # Optuna optimization
-    study_name = "MOVE_view_dropout_05"
+    study_name = "MOVE_view_dropout_05_view_weights"
 
     opt = optuna.create_study(
         direction="minimize",
