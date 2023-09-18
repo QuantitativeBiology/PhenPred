@@ -5,20 +5,46 @@
     "skip_cv": false,
     "verbose": 0,
     "datasets": {
-	    "proteomics": "proteomics.csv",
-        "metabolomics": "metabolomics.csv",
-        "drugresponse": "drugresponse.csv",
-        "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv",
-        "methylation": "methylation.csv",
-        "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
-        "copynumber": "cnv_summary_20230303_matrix.csv"
+        "proteomics": "data/clines//proteomics.csv",
+        "metabolomics": "data/clines//metabolomics.csv",
+        "drugresponse": "data/clines//drugresponse.csv",
+        "crisprcas9": "data/clines//depmap23Q2/CRISPRGeneEffect.csv",
+        "methylation": "data/clines//methylation.csv",
+        "transcriptomics": "data/clines//depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
+        "copynumber": "data/clines//cnv_summary_20230303_matrix.csv"
     },
-    "view_loss_recon_type": ["mean", "mean", "mean", "mean", "mean", "mean", "macro"],
-    "view_loss_weights": [1.2, 1.0, 1.0, 1.2, 1.0, 1.0, 1.0],
+    "view_loss_recon_type": [
+        "mean",
+        "mean",
+        "mean",
+        "mean",
+        "mean",
+        "mean",
+        "macro"
+    ],
+    "view_loss_weights": [
+        1.2,
+        1.0,
+        1.0,
+        1.2,
+        1.0,
+        1.0,
+        1.0
+    ],
     "model": "MOVE",
     "standardize": true,
-    "labels": ["tissue", "mutations", "fussions", "msi", "growth"],
-    "filter_features": ["transcriptomics", "crisprcas9", "methylation"],
+    "labels": [
+        "tissue",
+        "mutations",
+        "fussions",
+        "msi",
+        "growth"
+    ],
+    "filter_features": [
+        "transcriptomics",
+        "crisprcas9",
+        "methylation"
+    ],
     "filtered_encoder_only": true,
     "batch_norm": false,
     "use_conditionals": true,
@@ -28,12 +54,12 @@
     "batch_size": 33,
     "n_folds": 3,
     "view_latent_dim": 0.048404273181065174,
-    "latent_dim": 246,
-    "hidden_dims": [0.7],
+    "latent_dim": 236,
+    "hidden_dims": "0.7",
     "probability": 0.16548662909929135,
     "feature_dropout": 0,
     "view_dropout": 0.5,
-    "w_decay": 5e-4,
+    "w_decay": 0.0005,
     "w_kl": 0.0001,
     "w_rec": 1,
     "w_gauss": 0.0001,
@@ -53,10 +79,8 @@
     "reconstruction_loss": "mse",
     "activation_function": "prelu",
     "scheduler": "plateau",
-    "scheduler_threshold": 1e-4,
+    "scheduler_threshold": 0.0001,
     "scheduler_factor": 0.4392730060737615,
     "scheduler_patience": 7,
-    "scheduler_min_lr": 1e-7
+    "scheduler_min_lr": 1e-07
 }
-
-
