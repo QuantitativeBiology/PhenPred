@@ -28,7 +28,7 @@
     "batch_size": 153,
     "n_folds": 3,
     "view_latent_dim": 0.08,
-    "latent_dim": 100,
+    "latent_dim": 250,
     "hidden_dims": [0.7],
     "probability": 0.4,
     "feature_dropout": 0,
