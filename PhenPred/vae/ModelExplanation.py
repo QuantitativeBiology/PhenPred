@@ -20,7 +20,7 @@ from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 import shap
 
 if __name__ == "__main__":
-    hyperparameters = Hypers.read_hyperparameters()
+    hyperparameters = Hypers.read_hyperparameters(timestamp="20230829_132703")
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -40,4 +40,4 @@ if __name__ == "__main__":
         timestamp=hyperparameters["load_run"]
     )
     train.load_model()
-    train.run_shap()
+    train.run_shap(explain_target="drug_response")

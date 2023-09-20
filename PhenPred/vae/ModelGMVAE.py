@@ -16,7 +16,7 @@ class GMVAE(MOVE):
         views_sizes,
         conditional_size,
         views_sizes_full=None,
-        only_return_mu=False,
+        return_for_shap=False,
     ) -> None:
         super().__init__(
             hypers,
@@ -29,7 +29,7 @@ class GMVAE(MOVE):
         self.k = self.hypers["gmvae_k"]
         self.views_logits = self.hypers["gmvae_views_logits"]
         self.hidden_size = self.hypers["gmvae_hidden_size"]
-        self.only_return_mu = only_return_mu
+        self.return_for_shap = return_for_shap
 
         self.gumbel_temp = self.hypers["gmvae_init_temp"]
         self.hard_gumbel = self.hypers["gmvae_hard_gumbel"]
@@ -96,7 +96,7 @@ class GMVAE(MOVE):
                 self.decoders[i](z) for i, _ in enumerate(self.views_sizes)
             ]
 
-        if self.only_return_mu:
+        if self.return_for_shap:
             return z_mu
         else:
             return dict(
