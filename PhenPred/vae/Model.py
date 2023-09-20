@@ -17,7 +17,7 @@ class MOVE(nn.Module):
         conditional_size,
         views_sizes_full=None,
         lazy_init=False,
-        only_return_mu=False,
+        return_for_shap=None,
     ):
         super().__init__()
 
@@ -35,7 +35,7 @@ class MOVE(nn.Module):
 
         self.recon_criterion = self.hypers["reconstruction_loss"]
         self.activation_function = self.hypers["activation_function"]
-        self.only_return_mu = only_return_mu
+        self.return_for_shap = return_for_shap
 
         if not lazy_init:
             self._build()
@@ -141,9 +141,10 @@ class MOVE(nn.Module):
         else:
             x_hat = [self.decoders[i](z) for i in range(len(x))]
 
-        if self.only_return_mu:
+        if self.return_for_shap == "latent":
             return mu
-
+        elif self.return_for_shap == "drug_response":
+            return x_hat[2] # drug response is hard-coded to be the third view
         else:
             return dict(
                 x_hat=x_hat,
