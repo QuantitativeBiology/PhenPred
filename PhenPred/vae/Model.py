@@ -70,7 +70,9 @@ class MOVE(nn.Module):
             if suffix_layers is not None:
                 layer_sizes += suffix_layers
 
-            layers.append(nn.Dropout(p=self.hypers["feature_dropout"]))
+            if self.hypers["feature_dropout"] > 0:
+                layers.append(nn.Dropout(p=self.hypers["feature_dropout"]))
+
             if self.hypers["view_dropout"] > 0:
                 layers.append(ViewDropout(p=self.hypers["view_dropout"]))
 

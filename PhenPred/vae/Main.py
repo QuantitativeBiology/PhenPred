@@ -55,19 +55,6 @@ if __name__ == "__main__":
 
     train.run(run_timestamp=hyperparameters["load_run"])
 
-    # Make CV predictions
-    if not hyperparameters["skip_cv"]:
-        _, cvtest_datasets = train.training(
-            cv=KFold(n_splits=10, shuffle=True).split(train.data)
-        )
-        cvtest_datasets = {
-            k: pd.read_csv(
-                f"{plot_folder}/files/{train.timestamp}_imputed_{k}_cvtest.csv.gz",
-                index_col=0,
-            )
-            for k in hyperparameters["datasets"]
-        }
-
     # Load imputed data
     vae_imputed, vae_latent = train.load_vae_reconstructions()
     vae_predicted, _ = train.load_vae_reconstructions(mode="all")
@@ -165,6 +152,19 @@ if __name__ == "__main__":
             ("NRAS", "SHOC2", "NRAS_mut"),
         ]
     )
+
+    # Make CV predictions
+    if not hyperparameters["skip_cv"]:
+        _, cvtest_datasets = train.training(
+            cv=KFold(n_splits=10, shuffle=True).split(train.data)
+        )
+        cvtest_datasets = {
+            k: pd.read_csv(
+                f"{plot_folder}/files/{train.timestamp}_imputed_{k}_cvtest.csv.gz",
+                index_col=0,
+            )
+            for k in hyperparameters["datasets"]
+        }
 
     # Run mismatch benchmark
     if not hyperparameters["skip_cv"]:
