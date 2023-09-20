@@ -594,14 +594,21 @@ class CLinesTrain:
             )
         )
 
-    def run_shap(self, n_samples=50, seed=42):
+    def run_shap(self, n_samples=50, seed=42, explain_target="latent"):
         torch.manual_seed(seed)
-        self.model.module.only_return_mu = True
+        self.model.module.return_for_shap = explain_target
+        if explain_target == "latent":
+            batch_size = len(self.data.samples)
+        elif explain_target == "drug_response":
+            batch_size = len(self.data.samples) // 5
+        else:
+            raise ValueError(f"Invalid explain_target {explain_target}")
+
         self.model.eval()
         data_all = DataLoader(
             self.data,
-            batch_size=len(self.data.samples),
-            shuffle=False,
+            batch_size=batch_size,
+            shuffle=False if explain_target == "latent" else True,
         )
         data = next(iter(data_all))
         x, y, x_nans, x_mask = data
@@ -627,7 +634,10 @@ class CLinesTrain:
         shap_values = explainer.shap_values(input_list, nsamples=n_samples)
         pickle.dump(
             shap_values,
-            open(f"{plot_folder}/files/{self.timestamp}_shap_values.pkl", "wb"),
+            open(
+                f"{plot_folder}/files/{self.timestamp}_shap_values_{explain_target}.pkl",
+                "wb",
+            ),
         )
 
     def _plot_lr_rates(self, ax):
