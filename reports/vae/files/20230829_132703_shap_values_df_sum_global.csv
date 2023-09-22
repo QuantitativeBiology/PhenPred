@@ -25,13 +25,13 @@ drugresponse_478;LDN-193189;GDSC1,2.0550207365665103,drugresponse
 copynumber_ETV1,2.0125387636736503,copynumber
 drugresponse_1028;VX-702;GDSC1,2.0060877338841743,drugresponse
 drugresponse_1413;EphB4_9721;GDSC1,1.9715594568871,drugresponse
-drugresponse_1049;PD173074;GDSC1,1.9628791084979036,drugresponse
+drugresponse_1049;PD173074;GDSC1,1.962879108497904,drugresponse
 copynumber_TBL1XR1,1.9577117275962697,copynumber
 metabolomics_1-methylnicotinamide,1.9187552436227788,metabolomics
 metabolomics_niacinamide,1.8908595543058784,metabolomics
 drugresponse_1941;Sepantronium bromide;GDSC2,1.8800536878228784,drugresponse
-drugresponse_1069;EHT-1864;GDSC1,1.8748472449168756,drugresponse
-metabolomics_C16:0 LPC,1.8743421657608037,metabolomics
+drugresponse_1069;EHT-1864;GDSC1,1.874847244916876,drugresponse
+metabolomics_C16:0 LPC,1.874342165760804,metabolomics
 copynumber_PTPRD,1.8709596980719696,copynumber
 metabolomics_threonine,1.8620335421050231,metabolomics
 drugresponse_1382;AZD3514;GDSC1,1.861650149815803,drugresponse
