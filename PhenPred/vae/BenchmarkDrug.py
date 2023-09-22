@@ -207,6 +207,75 @@ class DrugResponseBenchmark:
                 f"{plot_folder}/drugresponse/{self.timestamp}_imputed_{y_var}_barplot"
             )
 
+        # Box plot per drug
+        m_res, s_res, r_res = [], [], []
+        tmp_df = df_new_values.reset_index()
+        tmp_df.columns = ["drug_id", "model_id", "original", "MOFA", "mean", "VAE"]
+        for drug in tmp_df["drug_id"].unique():
+            sub_df = tmp_df[tmp_df["drug_id"] == drug]
+            if sub_df.shape[0] < 5:
+                continue
+
+            mse_dict = {
+                "drug_id": drug,
+                "MOFA": mean_squared_error(sub_df["original"], sub_df["MOFA"]),
+                "mean": mean_squared_error(sub_df["original"], sub_df["mean"]),
+                "VAE": mean_squared_error(sub_df["original"], sub_df["VAE"]),
+            }
+
+            s_dict = {
+                "drug_id": drug,
+                "MOFA": stats.spearmanr(sub_df["original"], sub_df["MOFA"])[0],
+                "VAE": stats.spearmanr(sub_df["original"], sub_df["VAE"])[0],
+            }
+            r_dict = {
+                "drug_id": drug,
+                "MOFA": stats.pearsonr(sub_df["original"], sub_df["MOFA"])[0],
+                "VAE": stats.pearsonr(sub_df["original"], sub_df["VAE"])[0],
+            }
+
+            m_res.append(mse_dict)
+            s_res.append(s_dict)
+            r_res.append(r_dict)
+
+        mse_res_df = pd.DataFrame(m_res).set_index("drug_id")
+        spearman_res_df = pd.DataFrame(s_res).set_index("drug_id")
+        pearson_res_df = pd.DataFrame(r_res).set_index("drug_id")
+        mse_res_df["Metric"] = "MSE"
+        spearman_res_df["Metric"] = "Spearman"
+        pearson_res_df["Metric"] = "Pearson"
+        plot_df = pd.concat([mse_res_df, spearman_res_df, pearson_res_df])
+        plot_df = (
+            pd.melt(plot_df, id_vars=["Metric"], value_vars=["MOFA", "VAE", "mean"])
+            .rename(columns={"variable": "Method", "value": "Value"})
+            .dropna()
+        )
+        for metric in ["MSE", "Spearman", "Pearson"]:
+            plot_df_metric = plot_df[plot_df["Metric"] == metric]
+            _, ax = plt.subplots(1, 1, figsize=(2, 1), dpi=600)
+
+            sns.boxplot(
+                data=plot_df_metric,
+                x='Value',
+                y="Method",
+                orient="h",
+                saturation=0.8,
+                linewidth=0.25,
+                showfliers=True,
+                fliersize=0.25,
+                ax=ax,
+            )
+            ax.set(
+                    title=f"Drug response prediction per Drug",
+                    xlabel=metric,
+                    ylabel="Method",
+                )
+
+            PhenPred.save_figure(
+                f"{plot_folder}/drugresponse/{self.timestamp}_imputed_per_drug_boxplot_{metric}"
+            )
+
+
     def ctd2_parse_drugresponse_dfs(self, drop_duplicates=True):
         # Original GDSC
         drespo_gdsc = self.data.dfs["drugresponse"].copy()
