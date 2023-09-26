@@ -411,7 +411,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         self.samples = set(self.samples.index).intersection(set(self.samplesheet.index))
         self.samples -= {"SIDM00189", "SIDM00650"}
-        self.samples = list(self.samples)
+        self.samples = sorted(list(self.samples))
 
         self.dfs = {n: df.reindex(index=self.samples) for n, df in self.dfs.items()}
 
