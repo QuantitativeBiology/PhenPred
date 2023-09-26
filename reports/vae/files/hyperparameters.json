@@ -23,7 +23,7 @@
     "batch_norm": false,
     "use_conditionals": true,
     "feature_miss_rate_thres": 0.85,
-    "num_epochs": 300,
+    "num_epochs": 500,
     "learning_rate": 0.0005,
     "batch_size": 256,
     "n_folds": 3,
