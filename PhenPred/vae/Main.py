@@ -12,6 +12,8 @@ if not os.path.exists(proj_dir):
 sys.path.extend([proj_dir])
 
 import json
+import torch
+import numpy as np
 import PhenPred
 import argparse
 import pandas as pd
@@ -29,6 +31,9 @@ from PhenPred.vae.BenchmarkMismatch import MismatchBenchmark
 from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
 from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
 
+
+torch.manual_seed(0)
+np.random.seed(0)
 
 if __name__ == "__main__":
     # Class variables - Hyperparameters
