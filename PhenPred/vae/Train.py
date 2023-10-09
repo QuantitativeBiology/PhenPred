@@ -131,11 +131,23 @@ class CLinesTrain:
 
                 if self.hypers["filtered_encoder_only"]:
                     # if filtered_encoder_only, use all data for loss
-                    loss = model.module.loss(x, x_nans, out_net, y, x_mask)
+                    loss = model.module.loss(
+                        x,
+                        x_nans,
+                        out_net,
+                        y,
+                        x_mask,
+                        view_loss_weights=self.hypers["view_loss_weights"],
+                    )
                 else:
                     # otherwise, use only filtered data for loss
                     loss = model.module.loss(
-                        x_masked, x_nans_masked, out_net, y, x_mask
+                        x_masked,
+                        x_nans_masked,
+                        out_net,
+                        y,
+                        x_mask,
+                        view_loss_weights=self.hypers["view_loss_weights"],
                     )
 
                 if model.training:
