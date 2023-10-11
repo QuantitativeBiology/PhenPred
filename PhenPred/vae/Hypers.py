@@ -14,10 +14,10 @@ class Hypers:
     def read_hyperparameters(
         cls, hypers_json=None, parse_torch_functions=True, timestamp=None
     ):
-        if hypers_json is None:
-            hypers_json = f"{plot_folder}/files/hyperparameters.json"
-        elif timestamp is not None:
+        if timestamp is not None:
             hypers_json = f"{plot_folder}/files/{timestamp}_hyperparameters.json"
+        elif hypers_json is None:
+            hypers_json = f"{plot_folder}/files/hyperparameters.json"
 
         hypers = cls.read_json(hypers_json)
 
@@ -45,9 +45,10 @@ class Hypers:
         if hypers["use_conditionals"] is None:
             hypers["use_conditionals"] = True
 
-        hypers["datasets"] = {
-            k: f"{data_folder}/{v}" for k, v in hypers["datasets"].items()
-        }
+        if timestamp is None:  # full path is already stored in previous json config
+            hypers["datasets"] = {
+                k: f"{data_folder}/{v}" for k, v in hypers["datasets"].items()
+            }
         print(f"# ---- Hyperparameters")
         print(json.dumps(hypers, indent=4, sort_keys=True))
 
