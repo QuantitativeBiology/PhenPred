@@ -1,6 +1,6 @@
 {
     "dataname": "depmap23Q2",
-    "load_run": null,
+    "load_run": "20231005_010815",
     "save_model": true,
     "skip_cv": true,
     "verbose": 0,
