@@ -25,7 +25,7 @@ class MOFABencharmk:
                 scale_groups=True,
                 scale_views=True,
                 # factors=self.hypers["latent_dim"],
-                factors=150,
+                factors=175,
                 spikeslab_weights=True,
                 ard_factors=True,
                 ard_weights=True,
