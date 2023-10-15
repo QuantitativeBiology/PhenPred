@@ -32,7 +32,7 @@ class MOFABencharmk:
                 iter=1000,
                 convergence_mode="slow",
                 startELBO=1,
-                freqELBO=1,
+                freqELBO=5,
                 dropR2=True,
                 verbose=False,
             )
