@@ -25,7 +25,7 @@ class MOFABencharmk:
                 scale_groups=True,
                 scale_views=True,
                 # factors=self.hypers["latent_dim"],
-                factors=150,
+                factors=100,
                 spikeslab_weights=True,
                 ard_factors=True,
                 ard_weights=True,
@@ -33,7 +33,7 @@ class MOFABencharmk:
                 convergence_mode="slow",
                 startELBO=1,
                 freqELBO=1,
-                dropR2=False,
+                dropR2=True,
                 verbose=False,
             )
 
