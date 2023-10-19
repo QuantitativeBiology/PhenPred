@@ -24,16 +24,15 @@ class MOFABencharmk:
             self.hypers_mofa = dict(
                 scale_groups=True,
                 scale_views=True,
-                # factors=self.hypers["latent_dim"],
-                factors=100,
+                factors=self.hypers["latent_dim"],
                 spikeslab_weights=True,
-                ard_factors=True,
+                ard_factors=False,
                 ard_weights=True,
                 iter=1000,
                 convergence_mode="slow",
                 startELBO=1,
-                freqELBO=5,
-                dropR2=True,
+                freqELBO=1,
+                dropR2=0.0001,
                 verbose=False,
             )
 
