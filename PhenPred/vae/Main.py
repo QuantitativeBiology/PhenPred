@@ -4,8 +4,6 @@
 import os
 import sys
 
-from sympy import plot
-
 proj_dir = "/home/scai/PhenPred"
 if not os.path.exists(proj_dir):
     proj_dir = "/Users/emanuel/Projects/PhenPred"
@@ -38,7 +36,7 @@ np.random.seed(0)
 if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
-    # hyperparameters = Hypers.read_hyperparameters(timestamp="20230905_195649")
+    # hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_153637")
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
