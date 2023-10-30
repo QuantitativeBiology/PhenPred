@@ -52,6 +52,14 @@ class Hypers:
         print(f"# ---- Hyperparameters")
         print(json.dumps(hypers, indent=4, sort_keys=True))
 
+        # Write the hyperparameters to json file
+        json.dump(
+            hypers,
+            open(f"{plot_folder}/files/{timestamp}_hyperparameters.json", "w"),
+            indent=4,
+            default=lambda o: "<not serializable>",
+        )
+
         if parse_torch_functions:
             hypers = cls.parse_torch_functions(hypers)
 
