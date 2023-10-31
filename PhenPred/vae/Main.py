@@ -169,8 +169,7 @@ if __name__ == "__main__":
             for k in hyperparameters["datasets"]
         }
 
-    # Run mismatch benchmark
-    if not hyperparameters["skip_cv"]:
+        # Run mismatch benchmark
         mismatch_benchmark = MismatchBenchmark(
             train.timestamp, clines_db, vae_predicted, cvtest_datasets
         )
