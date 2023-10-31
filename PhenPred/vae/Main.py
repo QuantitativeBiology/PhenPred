@@ -175,11 +175,3 @@ if __name__ == "__main__":
             train.timestamp, clines_db, vae_predicted, cvtest_datasets
         )
         mismatch_benchmark.run()
-
-    # Write the hyperparameters to json file
-    json.dump(
-        hyperparameters,
-        open(f"{plot_folder}/files/{train.timestamp}_hyperparameters.json", "w"),
-        indent=4,
-        default=lambda o: "<not serializable>",
-    )
