@@ -92,3 +92,14 @@ if __name__ == "__main__":
     ) as writer:
         for k, v in clines_db.features_mask.items():
             pd.Series(v).rename("mask").to_excel(writer, sheet_name=k)
+
+    # --- Supplementary Table 5 ---
+
+    # --- Supplementary Table 6 ---
+    proteomics_corr = pd.read_csv(
+        "/Users/emanuel/Projects/PhenPred/reports/vae/proteomics/20231023_092657_ccle_correlations.csv",
+        index_col=0,
+    )
+    proteomics_corr.to_excel(
+        "reports/vae/SupplementaryTables/SupplementaryTable6.xlsx", index=False
+    )

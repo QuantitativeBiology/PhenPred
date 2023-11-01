@@ -117,7 +117,8 @@ if __name__ == "__main__":
         figsize=(3.0, 1.5),
     )
 
-    g.ax_cbar.set_ylabel("Pearson\ncorrelation")
+    if g.ax_cbar:
+        g.ax_cbar.set_ylabel("Pearson\ncorrelation")
 
     g.ax_heatmap.set_xlabel("")
     g.ax_heatmap.set_ylabel("")
