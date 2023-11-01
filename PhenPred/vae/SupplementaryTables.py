@@ -3,12 +3,6 @@
 
 import os
 import sys
-
-proj_dir = "/home/scai/PhenPred"
-if not os.path.exists(proj_dir):
-    proj_dir = "/Users/emanuel/Projects/PhenPred"
-sys.path.extend([proj_dir])
-
 import json
 import torch
 import numpy as np
@@ -94,6 +88,19 @@ if __name__ == "__main__":
             pd.Series(v).rename("mask").to_excel(writer, sheet_name=k)
 
     # --- Supplementary Table 5 ---
+    cv_test_crispr = pd.read_csv(
+        "reports/vae/mismatch/20231023_092657_crisprcas9_cvtest.csv.gz", index_col=0
+    ).sort_values("pearson", ascending=False)
+
+    cv_test_drug = pd.read_csv(
+        "reports/vae/mismatch/20231023_092657_drugresponse_cvtest.csv.gz", index_col=0
+    ).sort_values("pearson", ascending=False)
+
+    with pd.ExcelWriter(
+        "reports/vae/SupplementaryTables/SupplementaryTable5.xlsx"
+    ) as writer:
+        cv_test_crispr.to_excel(writer, sheet_name="CRISPR-Cas9")
+        cv_test_drug.to_excel(writer, sheet_name="Drug-response")
 
     # --- Supplementary Table 6 ---
     proteomics_corr = pd.read_csv(
@@ -102,4 +109,12 @@ if __name__ == "__main__":
     )
     proteomics_corr.to_excel(
         "reports/vae/SupplementaryTables/SupplementaryTable6.xlsx", index=False
+    )
+
+    # --- Supplementary Table 7 ---
+    crispr_associations = pd.read_csv(
+        "reports/vae/crispr/20231023_092657_genomics_crisprcas9.csv.gz"
+    )
+    crispr_associations.to_excel(
+        "reports/vae/SupplementaryTables/SupplementaryTable7.xlsx", index=False
     )
