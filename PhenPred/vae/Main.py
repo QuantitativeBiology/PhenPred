@@ -35,8 +35,13 @@ np.random.seed(0)
 
 if __name__ == "__main__":
     # Class variables - Hyperparameters
+<<<<<<< HEAD
+    # hyperparameters = Hypers.read_hyperparameters()
+    hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")
+=======
     hyperparameters = Hypers.read_hyperparameters()
     # hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_153637")
+>>>>>>> 924e377d40844b7ed4eb52da1adc4d57173cc2de
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -158,6 +163,7 @@ if __name__ == "__main__":
     )
 
     # Make CV predictions
+    hyperparameters["skip_cv"] = False
     if not hyperparameters["skip_cv"]:
         _, cvtest_datasets = train.training(
             cv=KFold(n_splits=10, shuffle=True).split(train.data)
