@@ -4,8 +4,6 @@
 import os
 import sys
 
-from sympy import plot
-
 proj_dir = "/home/scai/PhenPred"
 if not os.path.exists(proj_dir):
     proj_dir = "/Users/emanuel/Projects/PhenPred"
@@ -37,8 +35,13 @@ np.random.seed(0)
 
 if __name__ == "__main__":
     # Class variables - Hyperparameters
+<<<<<<< HEAD
     # hyperparameters = Hypers.read_hyperparameters()
     hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")
+=======
+    hyperparameters = Hypers.read_hyperparameters()
+    # hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_153637")
+>>>>>>> 924e377d40844b7ed4eb52da1adc4d57173cc2de
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -172,17 +175,8 @@ if __name__ == "__main__":
             for k in hyperparameters["datasets"]
         }
 
-    # Run mismatch benchmark
-    if not hyperparameters["skip_cv"]:
+        # Run mismatch benchmark
         mismatch_benchmark = MismatchBenchmark(
             train.timestamp, clines_db, vae_predicted, cvtest_datasets
         )
         mismatch_benchmark.run()
-
-    # Write the hyperparameters to json file
-    json.dump(
-        hyperparameters,
-        open(f"{plot_folder}/files/{train.timestamp}_hyperparameters.json", "w"),
-        indent=4,
-        default=lambda o: "<not serializable>",
-    )

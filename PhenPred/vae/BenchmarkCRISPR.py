@@ -87,6 +87,7 @@ class CRISPRBenchmark:
 
     def gene_skew_correlation(self):
         original_skew = self.df_original.apply(skew).astype(float).rename("orig")
+        original_ess = (self.df_original < -0.5).sum().rename("orig_ess")
 
         # index not in self.df_original
         vae_only_skew = (
@@ -96,7 +97,11 @@ class CRISPRBenchmark:
             .rename("vae")
         )
 
-        plot_df = pd.concat([original_skew, vae_only_skew], axis=1).dropna()
+        plot_df = (
+            pd.concat([original_skew, vae_only_skew, original_ess], axis=1)
+            .dropna()
+            .sort_values("orig_ess")
+        )
 
         _, ax = plt.subplots(1, 1, figsize=(2, 2), dpi=600)
 
@@ -104,9 +109,11 @@ class CRISPRBenchmark:
             data=plot_df,
             x="orig",
             y="vae",
+            lw=0,
+            hue="orig_ess",
+            size="orig_ess",
+            sizes=(1, 15),
             alpha=0.75,
-            s=5,
-            color="#656565",
             ax=ax,
         )
         sns.regplot(
@@ -145,8 +152,8 @@ class CRISPRBenchmark:
             plot_df["orig"],
             plot_df["vae"],
         )
-        annot_text = f"R={r:.2g}; Rho={s:.2g}; RMSE={rmse:.2f}"
-        ax.text(0.95, 0.05, annot_text, fontsize=6, transform=ax.transAxes, ha="right")
+        annot_text = f"R={r:.2g}; RMSE={rmse:.2f}"
+        ax.text(0.05, 0.95, annot_text, fontsize=6, transform=ax.transAxes, ha="left")
 
         ax.axline((1, 1), slope=1, color="black", lw=0.5, ls="-", zorder=-1)
 
