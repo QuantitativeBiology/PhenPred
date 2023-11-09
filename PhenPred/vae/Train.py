@@ -12,11 +12,12 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from torchinfo import summary
 from datetime import datetime
-from PhenPred.vae import plot_folder
+from PhenPred.vae import plot_folder, shap_folder
 from torch.utils.data import DataLoader
 from PhenPred.vae.Model import MOVE
 from PhenPred.vae.ModelGMVAE import GMVAE
 from PhenPred.vae.Losses import CLinesLosses
+import h5py
 from sklearn.model_selection import (
     KFold,
     StratifiedKFold,
@@ -609,12 +610,12 @@ class CLinesTrain:
     def run_shap(self, n_samples=50, seed=42, explain_target="latent"):
         torch.manual_seed(seed)
         self.model.module.return_for_shap = explain_target
-        if explain_target == "latent":
+        if explain_target in ["latent", "metabolomics"]:
             batch_size = len(self.data.samples)
-        elif explain_target == "drug_response":
+        elif explain_target == "copynumber":
             batch_size = len(self.data.samples) // 5
         else:
-            raise ValueError(f"Invalid explain_target {explain_target}")
+            batch_size = len(self.data.samples) // 10
 
         self.model.eval()
         data_all = DataLoader(
@@ -644,12 +645,42 @@ class CLinesTrain:
             input_list,
         )
         shap_values = explainer.shap_values(input_list, nsamples=n_samples)
-        pickle.dump(
-            shap_values,
-            open(
-                f"{plot_folder}/files/{self.timestamp}_shap_values_{explain_target}.pkl",
-                "wb",
-            ),
+
+        feature_names_all = []
+        for view_name in self.data.view_names:
+            feature_names_all.append(
+                self.data.features_mask[view_name][
+                    self.data.features_mask[view_name] == True
+                ].index.values
+            )
+        feature_names_all.append(self.data.labels_name)
+        view_names = self.data.view_names + ["conditionals"]
+        target_feature_names = self.data.features_mask[explain_target][
+            self.data.features_mask[explain_target] == True
+        ].index.values
+
+        all_shap_df = []
+        for target_idx in range(len(shap_values)):
+            shap_target = shap_values[target_idx]
+            target_dfs = []
+            for i in range(len(view_names)):
+                view_name = view_names[i]
+                feature_names = feature_names_all[i]
+                tmp_df = pd.DataFrame(shap_target[i], columns=feature_names)
+                tmp_df.columns = [f"{view_names[i]}_{c}" for c in tmp_df.columns]
+                target_dfs.append(tmp_df)
+            target_dfs = pd.concat(target_dfs, axis=1)
+            target_dfs["target_name"] = f"{target_feature_names[target_idx]}"
+
+            all_shap_df.append(target_dfs)
+        all_shap_df = pd.concat(all_shap_df, axis=0)
+        cols = all_shap_df.columns.tolist()
+        cols = [cols[-1]] + cols[:-1]
+        all_shap_df = all_shap_df[cols]
+
+        print("Saving files...")
+        all_shap_df.reset_index(drop=True).to_feather(
+            f"{shap_folder}/files/{self.timestamp}_shap_values_{explain_target}.feather"
         )
 
     def _plot_lr_rates(self, ax):
