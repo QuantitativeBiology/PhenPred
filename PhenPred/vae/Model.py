@@ -36,6 +36,15 @@ class MOVE(nn.Module):
         self.recon_criterion = self.hypers["reconstruction_loss"]
         self.activation_function = self.hypers["activation_function"]
         self.return_for_shap = return_for_shap
+        self.layer_idx_map = {
+            "proteomics":0,
+            "metabolomics":1,
+            "drugresponse": 2,
+            "crisprcas9":3,
+            "methylation":4,
+            "transcriptomics":5,
+            "copynumber":6,
+        }
 
         if not lazy_init:
             self._build()
@@ -145,8 +154,8 @@ class MOVE(nn.Module):
 
         if self.return_for_shap == "latent":
             return mu
-        elif self.return_for_shap == "drug_response":
-            return x_hat[2] # drug response is hard-coded to be the third view
+        elif self.return_for_shap is not None:
+            return x_hat[self.layer_idx_map[self.return_for_shap]]
         else:
             return dict(
                 x_hat=x_hat,
