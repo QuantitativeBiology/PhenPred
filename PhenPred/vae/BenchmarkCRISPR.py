@@ -112,7 +112,7 @@ class CRISPRBenchmark:
             lw=0,
             hue="orig_ess",
             size="orig_ess",
-            sizes=(1, 15),
+            sizes=(3, 15),
             alpha=0.75,
             ax=ax,
         )
