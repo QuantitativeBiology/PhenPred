@@ -3,12 +3,6 @@
 
 import os
 import sys
-
-proj_dir = "/home/scai/PhenPred"
-if not os.path.exists(proj_dir):
-    proj_dir = "/Users/emanuel/Projects/PhenPred"
-sys.path.extend([proj_dir])
-
 import json
 import torch
 import numpy as np
@@ -35,8 +29,9 @@ np.random.seed(0)
 
 if __name__ == "__main__":
     # Class variables - Hyperparameters
-    hyperparameters = Hypers.read_hyperparameters()
-    # hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_153637")
+
+    # hyperparameters = Hypers.read_hyperparameters()
+    hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -117,7 +112,8 @@ if __name__ == "__main__":
         figsize=(3.0, 1.5),
     )
 
-    g.ax_cbar.set_ylabel("Pearson\ncorrelation")
+    if g.ax_cbar:
+        g.ax_cbar.set_ylabel("Pearson\ncorrelation")
 
     g.ax_heatmap.set_xlabel("")
     g.ax_heatmap.set_ylabel("")
@@ -157,10 +153,12 @@ if __name__ == "__main__":
     )
 
     # Make CV predictions
+    hyperparameters["skip_cv"] = False
     if not hyperparameters["skip_cv"]:
         _, cvtest_datasets = train.training(
             cv=KFold(n_splits=10, shuffle=True).split(train.data)
         )
+
         cvtest_datasets = {
             k: pd.read_csv(
                 f"{plot_folder}/files/{train.timestamp}_imputed_{k}_cvtest.csv.gz",
@@ -169,8 +167,7 @@ if __name__ == "__main__":
             for k in hyperparameters["datasets"]
         }
 
-    # Run mismatch benchmark
-    if not hyperparameters["skip_cv"]:
+        # Run mismatch benchmark
         mismatch_benchmark = MismatchBenchmark(
             train.timestamp, clines_db, vae_predicted, cvtest_datasets
         )

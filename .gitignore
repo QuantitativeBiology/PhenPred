@@ -137,3 +137,5 @@ data/*
 *_model.pt
 *.pkl
 *.ipynb
+.xls
+.xlsx

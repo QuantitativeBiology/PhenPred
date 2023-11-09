@@ -58,6 +58,8 @@ class MismatchBenchmark:
             axis=1,
         )
 
+        df.to_csv(f"{plot_folder}/mismatch/{self.timestamp}_drugresponse_cvtest.csv.gz")
+
         # Top reconstructed genes
         plot_df = df.sort_values("pearson", ascending=False)
         plot_df["index"] = plot_df.reset_index().index
@@ -124,6 +126,8 @@ class MismatchBenchmark:
             ],
             axis=1,
         )
+
+        df.to_csv(f"{plot_folder}/mismatch/{self.timestamp}_crisprcas9_cvtest.csv.gz")
 
         df["density"] = GIPlot.density_interpolate(
             df["chronos"].values,

@@ -1,11 +1,5 @@
 import os
 import sys
-
-proj_dir = "/home/scai/PhenPred"
-if not os.path.exists(proj_dir):
-    proj_dir = "/Users/emanuel/Projects/PhenPred"
-sys.path.extend([proj_dir])
-
 import h5py
 import numpy as np
 import pandas as pd

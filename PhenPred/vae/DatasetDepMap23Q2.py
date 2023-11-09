@@ -551,23 +551,86 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         nsamples = plot_df.sum(1)
 
-        cmap = sns.color_palette("tab20").as_hex()
+        cmap = sns.color_palette("Set2").as_hex()
         cmap = mpl.colors.LinearSegmentedColormap.from_list(
-            "Custom cmap",
-            [cmap[0], cmap[1]],
+            "Custom map",
+            [cmap[1], cmap[2]],
             2,
         )
 
-        _, ax = plt.subplots(1, 1, figsize=(2, 1.5), dpi=600)
+        _, ax = plt.subplots(
+            1,
+            2,
+            figsize=(2, 1.5),
+            dpi=600,
+            gridspec_kw=dict(width_ratios=[3, 1]),
+        )
 
-        sns.heatmap(plot_df, xticklabels=False, cmap=cmap, cbar=False, ax=ax)
+        # horizontal space between plots
+        plt.subplots_adjust(wspace=0.05)
 
+        sns.heatmap(plot_df, xticklabels=False, cmap=cmap, cbar=False, ax=ax[0])
         for i, c in enumerate(plot_df.index):
-            ax.text(
+            ax[0].text(
                 20, i + 0.5, f"N={nsamples[c]:,}", ha="left", va="center", fontsize=6
             )
 
-        ax.set_title(f"Cancer cell lines multi-omics dataset\n(n={plot_df.shape[1]:,})")
+        ax[0].set_title(
+            f"Synthetically augmented cancer cell lines\nmulti-omics map (N={plot_df.shape[1]:,})"
+        )
+
+        ax[0].legend(
+            handles=[
+                mpl.patches.Patch(color=cmap(1), label="Experimentally measured"),
+                mpl.patches.Patch(color=cmap(0), label="Synthetically augmented"),
+            ],
+            bbox_to_anchor=(0.5, -0.1),
+            loc="upper center",
+            ncol=2,
+            frameon=False,
+            fontsize=6,
+        )
+        ax[0].tick_params(axis="both", which="both", length=0)
+
+        # stacked horizontal barplot with nsamples right with number of samples
+        sns.barplot(
+            x=nsamples + (plot_df.shape[1] - nsamples),
+            y=nsamples.index,
+            color=cmap(0),
+            orient="h",
+            zorder=1,
+            saturation=1,
+            ax=ax[1],
+        )
+
+        sns.barplot(
+            x=nsamples,
+            y=nsamples.index,
+            color=cmap(1),
+            orient="h",
+            zorder=1,
+            saturation=1,
+            ax=ax[1],
+        )
+
+        ax[1].set(
+            title="",
+            xlabel="",
+            ylabel="",
+        )
+
+        ax[1].set_yticklabels([])
+        ax[1].tick_params(axis="both", which="both", length=0)
+        ax[1].set_xticks(np.arange(0, plot_df.shape[1] + 1, 500))
+        ax[1].tick_params(axis="x", labelsize=5)
+        for item in ax[1].get_xticklabels():
+            item.set_rotation(45)
+            item.set_ha("center")
+            item.set_va("top")
+
+        # decrease width of x and y axis lines
+        for axis in ["top", "bottom", "left", "right"]:
+            ax[1].spines[axis].set_linewidth(0.3)
 
         PhenPred.save_figure(
             f"{plot_folder}/datasets_overlap_DepMap23Q2", extensions=["png"]
