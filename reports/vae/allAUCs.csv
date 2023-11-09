@@ -1,0 +1,37 @@
+metric,PPISet,auc,proteomicsType,method
+p-value,corum,0.8099713563817584,og,Pearson's R
+p-value,biogrid,0.6465602997913853,og,Pearson's R
+p-value,stringLow,0.6052740266278706,og,Pearson's R
+p-value,stringMedium,0.6601481455416562,og,Pearson's R
+p-value,stringHigh,0.707702100262874,og,Pearson's R
+p-value,stringHighest,0.7250294212253667,og,Pearson's R
+coef,corum,0.7594383916817534,og,Pearson's R
+coef,biogrid,0.5882373352162839,og,Pearson's R
+coef,stringLow,0.5667712039014488,og,Pearson's R
+coef,stringMedium,0.6351477439839207,og,Pearson's R
+coef,stringHigh,0.6921024540554254,og,Pearson's R
+coef,stringHighest,0.7245493677047575,og,Pearson's R
+coef,corum,0.7692378476090237,VAEv2,Pearson's R
+coef,biogrid,0.6107401414831571,VAEv2,Pearson's R
+coef,stringLow,0.5895568630518297,VAEv2,Pearson's R
+coef,stringMedium,0.6712497537512867,VAEv2,Pearson's R
+coef,stringHigh,0.7348288198033429,VAEv2,Pearson's R
+coef,stringHighest,0.771659314374481,VAEv2,Pearson's R
+p-value,corum,0.7223583250579393,VAEv2,Pearson's R
+p-value,biogrid,0.5965751154070846,VAEv2,Pearson's R
+p-value,stringLow,0.5874152587494931,VAEv2,Pearson's R
+p-value,stringMedium,0.6499315562137272,VAEv2,Pearson's R
+p-value,stringHigh,0.7054415481777996,VAEv2,Pearson's R
+p-value,stringHighest,0.7391924878660109,VAEv2,Pearson's R
+coef,corum,0.8343883201712012,VAEv2,GLM
+coef,biogrid,0.6273234780278384,VAEv2,GLM
+coef,stringLow,0.5925822563064188,VAEv2,GLM
+coef,stringMedium,0.6504168064934684,VAEv2,GLM
+coef,stringHigh,0.6936170248995674,VAEv2,GLM
+coef,stringHighest,0.7164840979391414,VAEv2,GLM
+p-value,corum,0.8630193123417774,VAEv2,GLM
+p-value,biogrid,0.6441199180651479,VAEv2,GLM
+p-value,stringLow,0.6023698626581784,VAEv2,GLM
+p-value,stringMedium,0.6610985816860828,VAEv2,GLM
+p-value,stringHigh,0.7075888121807233,VAEv2,GLM
+p-value,stringHighest,0.7308444793145598,VAEv2,GLM
