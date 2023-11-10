@@ -330,7 +330,8 @@ class CRISPRBenchmark:
                     self.ss["tissue"],
                 ],
                 axis=1,
-            ).dropna(subset=[f"{x_id}_vae", f"{y_id}_vae", z_id])
+            )
+            plot_df = plot_df.dropna(subset=[f"{x_id}_vae", f"{y_id}_vae", z_id])
 
             plot_df[z_id].replace({0: "WT", 1: z_id}, inplace=True)
             plot_df["predicted"] = (
@@ -338,8 +339,8 @@ class CRISPRBenchmark:
             )
             plot_df["predicted"].replace(
                 {
-                    True: f"Predicted (N={plot_df['predicted'].sum()})",
-                    False: f"Observed (N={(~plot_df['predicted']).sum()})",
+                    True: f"Reconstructed (N={plot_df['predicted'].sum()})",
+                    False: f"Measured (N={(~plot_df['predicted']).sum()})",
                 },
                 inplace=True,
             )
@@ -363,8 +364,8 @@ class CRISPRBenchmark:
                 scatter_kws=dict(edgecolor="w", lw=0.1, s=10, alpha=0.75),
             )
 
-            g.ax_joint.set_xlabel(f"{x_id} CRISPR-Cas9 (VAE)")
-            g.ax_joint.set_ylabel(f"{y_id} CRISPR-Cas9 (VAE)")
+            g.ax_joint.set_xlabel(f"{x_id} CRISPR-Cas9 (MOVE)")
+            g.ax_joint.set_ylabel(f"{y_id} CRISPR-Cas9 (MOVE)")
 
             plt.gcf().set_size_inches(2, 2)
 
