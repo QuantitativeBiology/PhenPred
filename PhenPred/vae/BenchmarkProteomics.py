@@ -397,7 +397,7 @@ class ProteomicsBenchmark:
             df["predicted"] = df[f"{protein}_orig"].isnull()
             df["predicted"].replace(
                 {
-                    True: f"Predicted (N={df['predicted'].sum()})",
+                    True: f"Reconstructed (N={df['predicted'].sum()})",
                     False: f"Observed (N={(~df['predicted']).sum()})",
                 },
                 inplace=True,
@@ -422,7 +422,7 @@ class ProteomicsBenchmark:
                 scatter_kws=dict(edgecolor="w", lw=0.1, s=8, alpha=0.7),
             )
 
-            g.ax_joint.set_xlabel(f"{protein} Proteomics (VAE)")
+            g.ax_joint.set_xlabel(f"{protein} Proteomics (MOVE)")
             g.ax_joint.set_ylabel(f"{protein} Transcriptomics (measured)")
 
             plt.gcf().set_size_inches(2, 2)

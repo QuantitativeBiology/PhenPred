@@ -12,7 +12,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from torchinfo import summary
 from datetime import datetime
-from PhenPred.vae import plot_folder, shap_folder
+from PhenPred.vae import (
+    plot_folder,
+)  # from PhenPred.vae import plot_folder, shap_folder
 from torch.utils.data import DataLoader
 from PhenPred.vae.Model import MOVE
 from PhenPred.vae.ModelGMVAE import GMVAE
