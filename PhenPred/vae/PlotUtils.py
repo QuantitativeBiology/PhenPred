@@ -789,7 +789,7 @@ class GIPlot(CrispyPlot):
             bbox_to_anchor=(1, 0.5),
             frameon=False,
         )
-        grid.ax_marg_y.get_legend().get_title().set_fontsize("6")
+        grid.ax_marg_y.get_legend().get_title().set_fontsize("5")
 
         grid.ax_joint.grid(axis="both", lw=0.1, color="#e1e1e1", zorder=0)
 
