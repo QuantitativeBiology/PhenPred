@@ -616,8 +616,10 @@ class CLinesTrain:
             batch_size = len(self.data.samples)
         elif explain_target == "copynumber":
             batch_size = len(self.data.samples) // 5
-        else:
+        elif explain_target == "proteomics":
             batch_size = len(self.data.samples) // 10
+        else:
+            batch_size = len(self.data.samples) // 20
 
         self.model.eval()
         data_all = DataLoader(
