@@ -70,7 +70,7 @@ class MismatchBenchmark:
         sns.scatterplot(
             x=plot_df["index"],
             y=plot_df["pearson"],
-            hue=plot_df["skew"],
+            # hue=plot_df["skew"],
             alpha=0.5,
             palette="viridis",
             linewidth=0,
@@ -167,7 +167,7 @@ class MismatchBenchmark:
         sns.scatterplot(
             x=plot_df["index"],
             y=plot_df["pearson"],
-            hue=plot_df["skew"],
+            # hue=plot_df["skew"],
             alpha=0.5,
             palette="viridis",
             linewidth=0,
@@ -178,7 +178,7 @@ class MismatchBenchmark:
         ax.set_xlabel("CRISPR-Cas9 genes")
         ax.set_ylabel("MOVE reconstruction (pearson's r)")
 
-        genes = set(plot_df.query("skew < -3 & ess >= 5").index)
+        genes = set(plot_df.query("skew < -4 & ess >= 5").index)
         genes_label = [
             ax.text(
                 x=plot_df.loc[g, "index"],
