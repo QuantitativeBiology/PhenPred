@@ -153,7 +153,7 @@ if __name__ == "__main__":
     )
 
     # Make CV predictions
-    hyperparameters["skip_cv"] = False
+    # hyperparameters["skip_cv"] = False
     if not hyperparameters["skip_cv"]:
         _, cvtest_datasets = train.training(
             cv=KFold(n_splits=10, shuffle=True).split(train.data)
