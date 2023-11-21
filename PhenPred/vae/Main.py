@@ -159,7 +159,7 @@ if __name__ == "__main__":
     # )
 
     # Make CV predictions
-    hyperparameters["skip_cv"] = False
+    # hyperparameters["skip_cv"] = False
     if not hyperparameters["skip_cv"]:
         if hyperparameters["load_run"] is None:
             _, cvtest_datasets = train.training(
