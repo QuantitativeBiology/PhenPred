@@ -3,6 +3,12 @@
 
 import os
 import sys
+
+proj_dir = "/home/scai/PhenPred"
+if not os.path.exists(proj_dir):
+    proj_dir = "/Users/emanuel/Projects/PhenPred"
+sys.path.extend([proj_dir])
+
 import json
 import torch
 import numpy as np
@@ -59,105 +65,106 @@ if __name__ == "__main__":
 
     mofa_imputed, mofa_latent = CLinesDatasetMOFA.load_reconstructions(clines_db)
 
-    # Run Latent Spaces Benchmark
-    latent_benchmark = LatentSpaceBenchmark(
-        train.timestamp, clines_db, vae_latent, mofa_latent
-    )
+    # # Run Latent Spaces Benchmark
+    # latent_benchmark = LatentSpaceBenchmark(
+    #     train.timestamp, clines_db, vae_latent, mofa_latent
+    # )
 
-    latent_benchmark.plot_latent_spaces(
-        markers=clines_db.get_features(
-            dict(
-                metabolomics=[
-                    "1-methylnicotinamide",
-                    "uridine",
-                    "alanine",
-                ],
-                crisprcas9=["FAM50A", "ARF4", "MCL1"],
-                transcriptomics=["VIM", "CDH1", "FDXR", "NNMT"],
-                copynumber=[
-                    "PCM1",
-                    "MYC",
-                ],
-                drugresponse=[
-                    "1079;Dasatinib;GDSC2",
-                ],
-                proteomics=["MTDH"],
-            )
-        ),
-    )
+    # latent_benchmark.plot_latent_spaces(
+    #     markers=clines_db.get_features(
+    #         dict(
+    #             metabolomics=[
+    #                 "1-methylnicotinamide",
+    #                 "uridine",
+    #                 "alanine",
+    #             ],
+    #             crisprcas9=["FAM50A", "ARF4", "MCL1"],
+    #             transcriptomics=["VIM", "CDH1", "FDXR", "NNMT"],
+    #             copynumber=[
+    #                 "PCM1",
+    #                 "MYC",
+    #             ],
+    #             drugresponse=[
+    #                 "1079;Dasatinib;GDSC2",
+    #             ],
+    #             proteomics=["MTDH"],
+    #         )
+    #     ),
+    # )
 
-    # Correlate features
-    plot_df = clines_db.get_features(
-        dict(
-            metabolomics=[
-                "1-methylnicotinamide",
-            ],
-            transcriptomics=["VIM", "CDH1", "NNMT"],
-            proteomics=["VIM", "CDH1"],
-        )
-    )
+    # # Correlate features
+    # plot_df = clines_db.get_features(
+    #     dict(
+    #         metabolomics=[
+    #             "1-methylnicotinamide",
+    #         ],
+    #         transcriptomics=["VIM", "CDH1", "NNMT"],
+    #         proteomics=["VIM", "CDH1"],
+    #     )
+    # )
 
-    g = sns.clustermap(
-        plot_df.corr(),
-        cmap="RdYlGn",
-        center=0,
-        xticklabels=False,
-        vmin=-1,
-        vmax=1,
-        annot=True,
-        annot_kws={"fontsize": 5},
-        fmt=".2f",
-        linewidths=0.0,
-        cbar_kws={"shrink": 0.5},
-        figsize=(3.0, 1.5),
-    )
+    # g = sns.clustermap(
+    #     plot_df.corr(),
+    #     cmap="RdYlGn",
+    #     center=0,
+    #     xticklabels=False,
+    #     vmin=-1,
+    #     vmax=1,
+    #     annot=True,
+    #     annot_kws={"fontsize": 5},
+    #     fmt=".2f",
+    #     linewidths=0.0,
+    #     cbar_kws={"shrink": 0.5},
+    #     figsize=(3.0, 1.5),
+    # )
 
-    if g.ax_cbar:
-        g.ax_cbar.set_ylabel("Pearson\ncorrelation")
+    # if g.ax_cbar:
+    #     g.ax_cbar.set_ylabel("Pearson\ncorrelation")
 
-    g.ax_heatmap.set_xlabel("")
-    g.ax_heatmap.set_ylabel("")
+    # g.ax_heatmap.set_xlabel("")
+    # g.ax_heatmap.set_ylabel("")
 
-    PhenPred.save_figure(
-        f"{plot_folder}/selected_features_clustermap",
-    )
+    # PhenPred.save_figure(
+    #     f"{plot_folder}/selected_features_clustermap",
+    # )
 
-    # Run drug benchmark
-    dres_benchmark = DrugResponseBenchmark(
-        train.timestamp, clines_db, vae_imputed, mofa_imputed
-    )
-    dres_benchmark.run()
+    # # Run drug benchmark
+    # dres_benchmark = DrugResponseBenchmark(
+    #     train.timestamp, clines_db, vae_imputed, mofa_imputed
+    # )
+    # dres_benchmark.run()
 
-    # Run proteomics benchmark
-    proteomics_benchmark = ProteomicsBenchmark(
-        train.timestamp, clines_db, vae_imputed, mofa_imputed
-    )
-    proteomics_benchmark.run()
-    proteomics_benchmark.copy_number(
-        proteomics_only=True,
-    )
+    # # Run proteomics benchmark
+    # proteomics_benchmark = ProteomicsBenchmark(
+    #     train.timestamp, clines_db, vae_imputed, mofa_imputed
+    # )
+    # proteomics_benchmark.run()
+    # proteomics_benchmark.copy_number(
+    #     proteomics_only=True,
+    # )
 
-    # Run CRISPR benchmark
-    crispr_benchmark = CRISPRBenchmark(
-        train.timestamp, clines_db, vae_imputed, mofa_imputed
-    )
-    crispr_benchmark.run()
-    crispr_benchmark.gene_skew_correlation()
-    crispr_benchmark.plot_associations(
-        [
-            ("BRAF", "MAPK1", "BRAF_mut"),
-            ("FLI1", "TRIM8", "FLI1_EWSR1_fusion"),
-            ("KRAS", "RAF1", "KRAS_mut"),
-            ("NRAS", "SHOC2", "NRAS_mut"),
-        ]
-    )
+    # # Run CRISPR benchmark
+    # crispr_benchmark = CRISPRBenchmark(
+    #     train.timestamp, clines_db, vae_imputed, mofa_imputed
+    # )
+    # crispr_benchmark.run()
+    # crispr_benchmark.gene_skew_correlation()
+    # crispr_benchmark.plot_associations(
+    #     [
+    #         ("BRAF", "MAPK1", "BRAF_mut"),
+    #         ("FLI1", "TRIM8", "FLI1_EWSR1_fusion"),
+    #         ("KRAS", "RAF1", "KRAS_mut"),
+    #         ("NRAS", "SHOC2", "NRAS_mut"),
+    #     ]
+    # )
 
     # Make CV predictions
     hyperparameters["skip_cv"] = False
     if not hyperparameters["skip_cv"]:
-        _, cvtest_datasets = train.training(
-            cv=KFold(n_splits=10, shuffle=True).split(train.data)
-        )
+        if hyperparameters["load_run"] is None:
+            _, cvtest_datasets = train.training(
+                cv=KFold(n_splits=10, shuffle=True).split(train.data)
+            )
 
         cvtest_datasets = {
             k: pd.read_csv(

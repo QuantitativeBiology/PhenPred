@@ -619,7 +619,7 @@ class CLinesTrain:
         elif explain_target == "proteomics":
             batch_size = len(self.data.samples) // 10
         else:
-            batch_size = len(self.data.samples) // 20
+            batch_size = 50
 
         self.model.eval()
         data_all = DataLoader(
@@ -659,9 +659,7 @@ class CLinesTrain:
             )
         feature_names_all.append(self.data.labels_name)
         view_names = self.data.view_names + ["conditionals"]
-        target_feature_names = self.data.features_mask[explain_target][
-            self.data.features_mask[explain_target] == True
-        ].index.values
+        target_feature_names = self.data.features_mask[explain_target].index.values
 
         all_shap_df = []
         for target_idx in range(len(shap_values)):
