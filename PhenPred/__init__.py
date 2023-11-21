@@ -95,6 +95,17 @@ PALETTE_TTYPE = {
     "Eye": "#ff1493",
 }
 
+OMIC_PALETTE = {
+    "conditionals": "#4c72b0",
+    "copynumber": "#dd8452",
+    "drugresponse": "#55a868",
+    "metabolomics": "#c44e52",
+    "proteomics": "#8172b3",
+    "crisprcas9": "#937860",
+    "transcriptomics": "#da8bc3",
+    "methylation": "#8c8c8c",
+}
+
 
 def save_figure(path, extensions=["png", "pdf"], dpi=300, transparent=False, **kwargs):
     for e in extensions:
