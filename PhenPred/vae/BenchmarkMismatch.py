@@ -215,7 +215,7 @@ class MismatchBenchmark:
         # Study case
         for drug, sample, df in [
             ("2508;Trametinib;GDSC2", "SIDM01134", "drugresponse"),
-            ("1909;Venetoclax;GDSC2", "SIDM00391", "drugresponse"),
+            ("1909;Venetoclax;GDSC2", "SIDM00376", "drugresponse"),
             ("2125;Mcl1_7350;GDSC2", "SIDM00461", "drugresponse"),
         ]:
             # drug, sample, df = "2125;Mcl1_7350;GDSC2", "SIDM00461", "drugresponse"
@@ -261,7 +261,7 @@ class MismatchBenchmark:
             g.ax_marg_x.set_title(drug)
 
             g.ax_joint.set_xlabel("Measured (IC50)")
-            g.ax_joint.set_ylabel("Predicted (IC50)")
+            g.ax_joint.set_ylabel("Reconstructed (IC50)")
 
             plt.gcf().set_size_inches(2, 2)
 
