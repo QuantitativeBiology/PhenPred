@@ -1,9 +1,11 @@
 import os
+from turtle import color
 import PhenPred
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from PhenPred import OMIC_PALETTE
 from adjustText import adjust_text
 from PhenPred.vae.PlotUtils import GIPlot
 from PhenPred.vae import plot_folder, data_folder
@@ -70,7 +72,7 @@ class MismatchBenchmark:
         sns.scatterplot(
             x=plot_df["index"],
             y=plot_df["pearson"],
-            # hue=plot_df["skew"],
+            color=OMIC_PALETTE["drugresponse"],
             alpha=0.5,
             palette="viridis",
             linewidth=0,
@@ -167,7 +169,7 @@ class MismatchBenchmark:
         sns.scatterplot(
             x=plot_df["index"],
             y=plot_df["pearson"],
-            # hue=plot_df["skew"],
+            color=OMIC_PALETTE["crisprcas9"],
             alpha=0.5,
             palette="viridis",
             linewidth=0,
