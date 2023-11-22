@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from PhenPred import OMIC_PALETTE, OMIC_NAMES
 from PhenPred.vae import plot_folder, data_folder
 
 
@@ -122,8 +123,11 @@ if __name__ == "__main__":
 
     # Use different colors for each group!
     GROUPS_SIZE = [len(i[1]) for i in df.groupby("group")]
-    PALETTE = sns.color_palette("Set2", n_colors=len(GROUPS_SIZE)).as_hex()
-    COLORS = [PALETTE[i] for i, size in enumerate(GROUPS_SIZE) for _ in range(size)]
+    COLORS = [
+        OMIC_PALETTE[g]
+        for i, g in enumerate(np.unique(GROUP))
+        for _ in range(GROUPS_SIZE[i])
+    ]
 
     # And finally add the bars.
     # Note again the `ANGLES[IDXS]` to drop some angles that leave the space between bars.
@@ -140,17 +144,10 @@ if __name__ == "__main__":
 
     # add legend middle of the plot
     legend = ax.legend(
-        handles=[plt.Rectangle((0, 0), 1, 1, color=c) for c in PALETTE],
-        labels=[
-            "Conditionals",
-            "Copy number",
-            "Drug response",
-            "Metabolomics",
-            "Proteomics",
-            "Transcriptomics",
-            "CRISPR-Cas9",
-            "Methylomics",
+        handles=[
+            plt.Rectangle((0, 0), 1, 1, color=OMIC_PALETTE[g]) for g in np.unique(GROUP)
         ],
+        labels=[OMIC_NAMES[g] for g in np.unique(GROUP)],
         loc="center",
         bbox_to_anchor=(0.5, 0.5),
         ncol=1,
