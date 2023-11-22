@@ -18,7 +18,7 @@
     "model": "MOVE",
     "standardize": true,
     "labels": ["tissue", "fussions", "msi", "growth"],
-    "filter_features": ["transcriptomics", "crisprcas9", "methylation"],
+    "filter_features": ["transcriptomics", "mutations", "crisprcas9", "methylation"],
     "filtered_encoder_only": true,
     "batch_norm": false,
     "use_conditionals": true,
