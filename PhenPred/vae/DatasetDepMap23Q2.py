@@ -218,9 +218,16 @@ class CLinesDatasetDepMap23Q2(Dataset):
         if "mofa" in self.labels_names:
             self.labels.append(CLinesDatasetMOFA.load_factors())
 
-        # Concatenate
-        self.labels = pd.concat(self.labels, axis=1)
-        self.labels = self.labels.reindex(index=self.samples).fillna(0)
+        if len(self.labels) == 0:
+            # Empty labels
+            self.labels = pd.DataFrame(
+                np.zeros((len(self.samples), 1)), index=self.samples, columns=["ones"]
+            )
+
+        else:
+            # Concatenate
+            self.labels = pd.concat(self.labels, axis=1)
+            self.labels = self.labels.reindex(index=self.samples).fillna(0)
 
         # Props
         self.labels_name = self.labels.columns.tolist()
