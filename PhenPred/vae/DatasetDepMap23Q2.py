@@ -221,7 +221,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         if len(self.labels) == 0:
             # Empty labels
             self.labels = pd.DataFrame(
-                np.zeros((len(self.samples), 1)), index=self.samples, columns=["ones"]
+                np.ones((len(self.samples), 1)), index=self.samples, columns=["ones"]
             )
 
         else:
