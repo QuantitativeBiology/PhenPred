@@ -30,8 +30,8 @@ np.random.seed(0)
 if __name__ == "__main__":
     # Class variables - Hyperparameters
 
-    # hyperparameters = Hypers.read_hyperparameters()
-    hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")
+    hyperparameters = Hypers.read_hyperparameters()
+    # hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
