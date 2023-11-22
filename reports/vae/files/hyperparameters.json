@@ -17,7 +17,7 @@
     "view_loss_weights": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
     "model": "MOVE",
     "standardize": true,
-    "labels": ["tissue", "mutations", "fussions", "msi", "growth"],
+    "labels": [],
     "filter_features": ["transcriptomics", "crisprcas9", "methylation"],
     "filtered_encoder_only": true,
     "batch_norm": false,
