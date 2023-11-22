@@ -37,13 +37,13 @@ class MOVE(nn.Module):
         self.activation_function = self.hypers["activation_function"]
         self.return_for_shap = return_for_shap
         self.layer_idx_map = {
-            "proteomics":0,
-            "metabolomics":1,
+            "proteomics": 0,
+            "metabolomics": 1,
             "drugresponse": 2,
-            "crisprcas9":3,
-            "methylation":4,
-            "transcriptomics":5,
-            "copynumber":6,
+            "crisprcas9": 3,
+            "methylation": 4,
+            "transcriptomics": 5,
+            "copynumber": 6,
         }
 
         if not lazy_init:
@@ -213,14 +213,19 @@ class MOVE(nn.Module):
         kl_loss = CLinesLosses.kl_divergence(mu, logvar) * self.hypers["w_kl"]
 
         # Contrastive loss of joint embeddings
-        loss_func = losses.ContrastiveLoss(
-            distance=CosineSimilarity(),
-            pos_margin=self.hypers["contrastive_pos_margin"],
-            neg_margin=self.hypers["contrastive_neg_margin"],
-        )
+        # TODO: Make this not position dependent; needs to use the labels_name from DatasetDepMap23Q2
+        if len(self.hypers["labels"]) == 0:
+            c_loss = 0
 
-        c_loss = [loss_func(mu, y[:, i]) for i in range(32)]
-        c_loss = torch.stack(c_loss).sum() * self.hypers["w_contrastive"]
+        else:
+            loss_func = losses.ContrastiveLoss(
+                distance=CosineSimilarity(),
+                pos_margin=self.hypers["contrastive_pos_margin"],
+                neg_margin=self.hypers["contrastive_neg_margin"],
+            )
+
+            c_loss = [loss_func(mu, y[:, i]) for i in range(32)]
+            c_loss = torch.stack(c_loss).sum() * self.hypers["w_contrastive"]
 
         # Total loss
         loss = recon_loss + kl_loss + c_loss
