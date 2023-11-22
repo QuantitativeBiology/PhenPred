@@ -106,6 +106,21 @@ OMIC_PALETTE = {
     "methylation": "#8c8c8c",
 }
 
+OMIC_NAMES = dict(
+    copynumber="Copy number",
+    mutations="Mutations",
+    fusions="Fusions",
+    methylation="Methylation",
+    transcriptomics="Transcriptomics",
+    proteomics="Proteomics",
+    phosphoproteomics="Phosphoproteomics",
+    metabolomics="Metabolomics",
+    drugresponse="Drug response",
+    crisprcas9="CRISPR-Cas9",
+    growth="Growth",
+    conditionals="Conditionals",
+)
+
 
 def save_figure(path, extensions=["png", "pdf"], dpi=300, transparent=False, **kwargs):
     for e in extensions:
