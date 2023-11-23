@@ -10,7 +10,7 @@ from PhenPred.vae import plot_folder, data_folder
 def get_label_rotation(angle, offset):
     # Rotation must be specified in degrees :(
     rotation = np.rad2deg(angle + offset)
-    if angle <= np.pi/2 or angle >= 3*np.pi/2:
+    if np.pi / 2 <= angle <= 3 * np.pi / 2:
         alignment = "right"
         rotation = rotation + 180
     else:
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # Determines where to place the first bar.
     # By default, matplotlib starts at 0 (the first bar is horizontal)
     # but here we say we want to start at pi/2 (90 deg)
-    OFFSET = np.pi
+    OFFSET = 0
 
     # Obtaining the right indexes is now a little more complicated
     offset = 0
