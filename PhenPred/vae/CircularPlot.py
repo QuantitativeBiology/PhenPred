@@ -10,7 +10,7 @@ from PhenPred.vae import plot_folder, data_folder
 def get_label_rotation(angle, offset):
     # Rotation must be specified in degrees :(
     rotation = np.rad2deg(angle + offset)
-    if angle <= np.pi:
+    if angle <= np.pi/2 or angle >= 3*np.pi/2:
         alignment = "right"
         rotation = rotation + 180
     else:
@@ -42,7 +42,7 @@ def add_labels(angles, values, labels, offset, ax):
             va="center",
             rotation=rotation,
             rotation_mode="anchor",
-            fontsize=6,
+            fontsize=5,
         )
 
 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # Determines where to place the first bar.
     # By default, matplotlib starts at 0 (the first bar is horizontal)
     # but here we say we want to start at pi/2 (90 deg)
-    OFFSET = np.pi / 2
+    OFFSET = np.pi
 
     # Obtaining the right indexes is now a little more complicated
     offset = 0
@@ -109,15 +109,15 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(figsize=(5, 5), subplot_kw={"projection": "polar"}, dpi=300)
 
     ax.set_theta_offset(OFFSET)
-    ax.set_ylim(-10, 10)
+    ax.set_ylim(-5, 10)
     ax.set_frame_on(False)
 
     ax.xaxis.grid(False)
     ax.set_xticks([])
 
     ax.yaxis.grid(True, color="gray", alpha=0.5, ls="-", lw=0.3, zorder=-1)
-    ax.set_yticks([0, 5, 10])
-    ax.set_yticklabels([0, 5, 10], fontsize=5)
+    ax.set_yticks([0, 5])
+    ax.set_yticklabels([0, 5], fontsize=6)
     # set y tick labels in the horizontal line
     ax.set_rlabel_position(0)
 
@@ -153,9 +153,9 @@ if __name__ == "__main__":
         ncol=1,
         frameon=False,
         fontsize=7,
-    )
+    ).remove()
 
-    for t in legend.get_texts():
-        t.set_ha("center")  # ha is alias for horizontalalignment
+    # for t in legend.get_texts():
+    #     t.set_ha("center")  # ha is alias for horizontalalignment
 
     PhenPred.save_figure(f"{plot_folder}/latent_shap_circular_top10")
