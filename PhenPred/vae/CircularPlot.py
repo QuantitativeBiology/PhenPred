@@ -125,7 +125,7 @@ if __name__ == "__main__":
     GROUPS_SIZE = [len(i[1]) for i in df.groupby("group")]
     COLORS = [
         OMIC_PALETTE[g]
-        for i, g in enumerate(np.unique(GROUP))
+        for i, g in enumerate(df["group"].unique())
         for _ in range(GROUPS_SIZE[i])
     ]
 
