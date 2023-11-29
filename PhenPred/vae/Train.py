@@ -14,7 +14,8 @@ from torchinfo import summary
 from datetime import datetime
 from PhenPred.vae import (
     plot_folder,
-)  # from PhenPred.vae import plot_folder, shap_folder
+)
+from PhenPred.vae import plot_folder, shap_folder
 from torch.utils.data import DataLoader
 from PhenPred.vae.Model import MOVE
 from PhenPred.vae.ModelGMVAE import GMVAE
@@ -43,7 +44,7 @@ class CLinesTrain:
         self.hypers = hypers
         self.stratify_cv_by = stratify_cv_by
         self.verbose = verbose
-
+        
         self.timestamp = (
             datetime.now().strftime("%Y%m%d_%H%M%S") if timestamp is None else timestamp
         )
@@ -55,13 +56,15 @@ class CLinesTrain:
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    def run(self, run_timestamp=None):
+    def run(self, run_timestamp=None, return_val_loss=False):
         if run_timestamp is not None:
             self.timestamp = run_timestamp
             return
 
         if not self.hypers["skip_cv"]:
-            self.training(drop_last=True)
+            self.training(drop_last=True, skip_cv_save=return_val_loss)
+            if return_val_loss:
+                return pd.DataFrame(self.losses)
             losses_df = self.save_losses()
             self.plot_losses(losses_df)
 
@@ -213,7 +216,7 @@ class CLinesTrain:
 
         return cv
 
-    def training(self, cv=None, drop_last=False):
+    def training(self, cv=None, drop_last=False, skip_cv_save=True):
         cv_idx, epoch = 0, 0
 
         cvtest_datasets = {n: [] for n in self.data.view_names}
@@ -362,12 +365,12 @@ class CLinesTrain:
         cvtest_datasets = {
             name: pd.concat(dfs) for name, dfs in cvtest_datasets.items()
         }
-
-        for name, df in cvtest_datasets.items():
-            df.round(5).to_csv(
-                f"{plot_folder}/files/{self.timestamp}_imputed_{name}_cvtest.csv.gz",
-                compression="gzip",
-            )
+        if not skip_cv_save:
+            for name, df in cvtest_datasets.items():
+                df.round(5).to_csv(
+                    f"{plot_folder}/files/{self.timestamp}_imputed_{name}_cvtest.csv.gz",
+                    compression="gzip",
+                )
 
         return (
             self.get_losses(cv_idx, epoch, "type").loc["val", "reconstruction"],
@@ -619,7 +622,7 @@ class CLinesTrain:
         elif explain_target == "proteomics":
             batch_size = len(self.data.samples) // 10
         else:
-            batch_size = 50
+            batch_size = 20
 
         self.model.eval()
         data_all = DataLoader(
