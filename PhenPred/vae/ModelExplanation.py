@@ -51,7 +51,7 @@ if __name__ == "__main__":
     
     # train.run_shap(explain_target="metabolomics")
     # train.run_shap(explain_target="copynumber")
-    train.run_shap(explain_target="proteomics")
+    # train.run_shap(explain_target="proteomics")
     train.run_shap(explain_target="crisprcas9")
     train.run_shap(explain_target="transcriptomics")
     train.run_shap(explain_target="methylation")
