@@ -93,14 +93,18 @@ if __name__ == "__main__":
                 run_timestamp=hyperparameters["load_run"], return_val_loss=True
             )
             val_df = losses_df[losses_df["type"] == "val"]
+
             val_df = val_df.groupby("cv").tail(1)
-            val_drug_loss = val_df[val_df["type"] == "val"]["mse_drugresponse"].mean()
-            val_crispr_loss = val_df[val_df["type"] == "val"]["mse_crisprcas9"].mean()
+            val_drug_loss = val_df["mse_drugresponse"].mean()
+            val_crispr_loss = val_df["mse_crisprcas9"].mean()
+            # val_drug_loss = val_df.groupby("cv").min()["mse_drugresponse"].mean()
+            # val_crispr_loss = val_df.groupby("cv").min()["mse_crisprcas9"].mean()
             loss_records.append(
                 {
                     "dataset": tmp_new_combination,
                     "val_drug_loss": val_drug_loss,
                     "val_crispr_loss": val_crispr_loss,
+                    "total_loss": val_drug_loss + val_crispr_loss,
                 }
             )
             if val_drug_loss + val_crispr_loss < current_best_combination[1]:
