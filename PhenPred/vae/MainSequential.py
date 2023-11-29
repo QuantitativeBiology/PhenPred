@@ -54,11 +54,8 @@ if __name__ == "__main__":
         "copynumber": "macro",
     }
 
-    # selected_datasets = ["drugresponse", "crisprcas9"]
-    selected_datasets = [
-        "drugresponse",
-        "crisprcas9"
-    ]
+    selected_datasets = ["drugresponse", "crisprcas9"]
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     remaining_datasets = [d for d in datasets if d not in selected_datasets]
     loss_records = []
@@ -97,12 +94,8 @@ if __name__ == "__main__":
             )
             val_df = losses_df[losses_df["type"] == "val"]
             val_df = val_df.groupby("cv").tail(1)
-            val_drug_loss = val_df[val_df["type"] == "val"]["mse_drugresponse"].values[
-                -1
-            ]
-            val_crispr_loss = val_df[val_df["type"] == "val"]["mse_crisprcas9"].values[
-                -1
-            ]
+            val_drug_loss = val_df[val_df["type"] == "val"]["mse_drugresponse"].mean()
+            val_crispr_loss = val_df[val_df["type"] == "val"]["mse_crisprcas9"].mean()
             loss_records.append(
                 {
                     "dataset": tmp_new_combination,
