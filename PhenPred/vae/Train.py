@@ -44,7 +44,7 @@ class CLinesTrain:
         self.hypers = hypers
         self.stratify_cv_by = stratify_cv_by
         self.verbose = verbose
-
+        
         self.timestamp = (
             datetime.now().strftime("%Y%m%d_%H%M%S") if timestamp is None else timestamp
         )
