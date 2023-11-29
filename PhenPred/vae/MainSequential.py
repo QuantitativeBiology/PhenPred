@@ -57,11 +57,7 @@ if __name__ == "__main__":
     # selected_datasets = ["drugresponse", "crisprcas9"]
     selected_datasets = [
         "drugresponse",
-        "crisprcas9",
-        "proteomics",
-        "metabolomics",
-        "transcriptomics",
-        "copynumber",
+        "crisprcas9"
     ]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     remaining_datasets = [d for d in datasets if d not in selected_datasets]
