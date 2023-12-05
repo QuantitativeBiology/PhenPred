@@ -78,6 +78,7 @@ class ProteomicsBenchmark:
         self.compare_imputed_ccle()
         self.ccle_compare_by_genes()
         self.ccle_compare_with_vae()
+        self.compare_imputed_cnv()
 
     def proteomics_datasets_dict(self, zscore=True, reindex=None):
         dfs = dict(
@@ -97,6 +98,85 @@ class ProteomicsBenchmark:
             dfs = {k: stats.zscore(df, nan_policy="omit") for k, df in dfs.items()}
 
         return dfs
+
+    def compare_imputed_cnv(self):
+        samples = self.samples.difference(self.samples_without_prot)
+
+        df_imputed = self.proteomics_datasets_dict(
+            reindex=(samples, self.features), zscore=False
+        )
+
+        cnv_map = {
+            -2: "Deletion",
+            -1: "Loss",
+            0: "Neutral",
+            1: "Gain",
+            2: "Amplification",
+        }
+
+        palette = dict(
+            zip(
+                ["Deletion", "Loss", "Neutral", "Gain", "Amplification"],
+                sns.color_palette("RdYlGn", as_cmap=False, n_colors=5).as_hex(),
+            )
+        )
+        palette["Neutral"] = "#d9d9d9"
+
+        features = df_imputed["original"][self.features].isnull().mean()
+        features = features[features < 0.15].index.tolist()
+
+        df = pd.concat(
+            [
+                df_imputed["original"].unstack().rename("original"),
+                df_imputed["vae_imputed"].unstack().rename("vae_imputed"),
+                self.df_cnv.reindex(index=samples, columns=features)
+                .unstack()
+                .replace(cnv_map)
+                .rename("cnv"),
+            ],
+            axis=1,
+        ).dropna(subset=["vae_imputed", "cnv"])
+
+        # boxplot of vae_imputed group and coloured by cnv
+        plot_df = df[df["original"].isnull()].copy()
+
+        _, ax = plt.subplots(1, 1, figsize=(2, 1.5), dpi=600)
+
+        sns.boxplot(
+            data=plot_df,
+            x="vae_imputed",
+            y="cnv",
+            orient="h",
+            order=["Deletion", "Loss", "Neutral", "Gain", "Amplification"],
+            palette=palette,
+            linewidth=0.3,
+            fliersize=1,
+            notch=True,
+            saturation=1.0,
+            showcaps=False,
+            boxprops=dict(linewidth=0.5, edgecolor="black"),
+            whiskerprops=dict(linewidth=0.5, color="black"),
+            flierprops=dict(
+                marker="o",
+                markerfacecolor="black",
+                markersize=1.0,
+                linestyle="none",
+                markeredgecolor="none",
+                alpha=0.6,
+            ),
+            medianprops=dict(linestyle="-", linewidth=0.5, color="#fc8d62"),
+            ax=ax,
+        )
+
+        ax.set(
+            title=f"Proteomics imputed by MOVE\n(N={plot_df.shape[0]:,})",
+            ylabel="Copy number",
+            xlabel=f"Protein abundance",
+        )
+
+        PhenPred.save_figure(
+            f"{plot_folder}/proteomics/{self.timestamp}_imputed_cnv_boxplot",
+        )
 
     def compare_imputed_ccle(self):
         samples = self.samples.difference(self.samples_without_prot)
