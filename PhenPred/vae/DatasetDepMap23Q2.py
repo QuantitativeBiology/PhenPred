@@ -640,7 +640,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
             ax[1].spines[axis].set_linewidth(0.3)
 
         PhenPred.save_figure(
-            f"{plot_folder}/datasets_overlap_DepMap23Q2", extensions=["png"]
+            f"{plot_folder}/datasets_overlap_DepMap23Q2", extensions=["png", 'pdf']
         )
 
     def plot_datasets_missing_values(
