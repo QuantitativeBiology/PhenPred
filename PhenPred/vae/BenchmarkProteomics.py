@@ -60,12 +60,12 @@ class ProteomicsBenchmark:
             .intersection(set(self.df_ccle.index))
         )
 
-        self.features = (
+        self.features = list((
             set(self.df_original.columns)
             .intersection(set(self.df_vae.columns))
             .intersection(set(self.df_mofa.columns))
             .intersection(set(self.df_ccle.columns))
-        )
+        ))
 
         self.samples_without_prot = set(
             self.df_original.index[self.df_original.isnull().all(1)]

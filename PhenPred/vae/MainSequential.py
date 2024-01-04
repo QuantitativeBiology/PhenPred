@@ -3,6 +3,11 @@
 
 import os
 import sys
+
+proj_dir = os.getcwd()
+if proj_dir not in sys.path:
+    sys.path.append(proj_dir)
+    
 import json
 import torch
 import numpy as np
