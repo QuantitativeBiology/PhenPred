@@ -3,6 +3,11 @@
 
 import os
 import sys
+
+proj_dir = os.getcwd()
+if proj_dir not in sys.path:
+    sys.path.append(proj_dir)
+
 import json
 import torch
 import numpy as np
@@ -31,7 +36,7 @@ if __name__ == "__main__":
     # Class variables - Hyperparameters
 
     hyperparameters = Hypers.read_hyperparameters()
-    # hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")
+    # hyperparameters = Hypers.read_hyperparameters(timestamp="20240104_121846")
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -176,7 +181,7 @@ if __name__ == "__main__":
 
     # Write the hyperparameters to json file
     json.dump(
-        hypers,
+        hyperparameters,
         open(f"{plot_folder}/files/{train.timestamp}_hyperparameters.json", "w"),
         indent=4,
         default=lambda o: "<not serializable>",

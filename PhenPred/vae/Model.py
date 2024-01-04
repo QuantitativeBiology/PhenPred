@@ -188,6 +188,15 @@ class MOVE(nn.Module):
                     ]
                 ).mean()
 
+            elif self.hypers["view_loss_recon_type"][i].lower() == "autofocus":
+                gamma = 2
+                mask_sum = mask.sum()
+
+                if mask_sum == 0:
+                    recon_xi = 0
+                else:
+                    recon_xi = torch.sum((x_hat_i - x_i) ** (2 + gamma))
+                    recon_xi /= mask_sum
             else:
                 mask_sum = mask.sum()
 
