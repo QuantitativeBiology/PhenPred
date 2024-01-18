@@ -127,7 +127,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
                 elif n in ["copynumber"]:
                     self.features_mask[n] = (self.dfs[n].abs() == 2).sum() > 3
-
+                elif n in ["transcriptomics", "methylation"]:
+                    top_std_columns = self.dfs[n].std().nlargest(5000).index
+                    self.features_mask[n] = self.dfs[n].columns.isin(top_std_columns)
                 else:
                     thres = self.gaussian_mixture_std(self.dfs[n], plot_name=None)
                     self.features_mask[n] = self.dfs[n].std() > thres
@@ -640,7 +642,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
             ax[1].spines[axis].set_linewidth(0.3)
 
         PhenPred.save_figure(
-            f"{plot_folder}/datasets_overlap_DepMap23Q2", extensions=["png", 'pdf']
+            f"{plot_folder}/datasets_overlap_DepMap23Q2", extensions=["png", "pdf"]
         )
 
     def plot_datasets_missing_values(
