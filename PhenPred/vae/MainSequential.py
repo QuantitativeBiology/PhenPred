@@ -59,7 +59,7 @@ if __name__ == "__main__":
         "copynumber": "macro",
     }
 
-    selected_datasets = ["drugresponse", "crisprcas9"]
+    selected_datasets = ["drugresponse"]
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     remaining_datasets = [d for d in datasets if d not in selected_datasets]
@@ -101,22 +101,22 @@ if __name__ == "__main__":
 
             val_df = val_df.groupby("cv").tail(1)
             val_drug_loss = val_df["mse_drugresponse"].mean()
-            val_crispr_loss = val_df["mse_crisprcas9"].mean()
-            # val_drug_loss = val_df.groupby("cv").min()["mse_drugresponse"].mean()
-            # val_crispr_loss = val_df.groupby("cv").min()["mse_crisprcas9"].mean()
+            # val_crispr_loss = val_df["mse_crisprcas9"].mean()
             loss_records.append(
                 {
                     "dataset": tmp_new_combination,
                     "val_drug_loss": val_drug_loss,
-                    "val_crispr_loss": val_crispr_loss,
-                    "total_loss": val_drug_loss + val_crispr_loss,
+                    # "val_crispr_loss": val_crispr_loss,
+                    "total_loss": val_drug_loss,
                 }
             )
-            if val_drug_loss + val_crispr_loss < current_best_combination[1]:
-                current_best_combination = [
-                    tmp_new_combination,
-                    val_drug_loss + val_crispr_loss,
-                ]
+            if val_drug_loss < current_best_combination[1]:
+                current_best_combination = [tmp_new_combination, val_drug_loss]
+            # if val_drug_loss + val_crispr_loss < current_best_combination[1]:
+            #     current_best_combination = [
+            #         tmp_new_combination,
+            #         val_drug_loss + val_crispr_loss,
+            #     ]
             print(current_best_combination)
         # print(loss_records)
         selected_datasets = current_best_combination[0]

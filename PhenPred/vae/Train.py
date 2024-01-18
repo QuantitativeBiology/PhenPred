@@ -44,7 +44,7 @@ class CLinesTrain:
         self.hypers = hypers
         self.stratify_cv_by = stratify_cv_by
         self.verbose = verbose
-        
+
         self.timestamp = (
             datetime.now().strftime("%Y%m%d_%H%M%S") if timestamp is None else timestamp
         )
@@ -239,8 +239,7 @@ class CLinesTrain:
             dataloader_test = DataLoader(
                 data_test,
                 batch_size=self.hypers["batch_size"],
-                shuffle=False,
-                drop_last=drop_last,
+                shuffle=False
             )
 
             # Initialize Model and Optimizer
@@ -619,7 +618,7 @@ class CLinesTrain:
             batch_size = len(self.data.samples)
         elif explain_target == "copynumber":
             batch_size = len(self.data.samples) // 5
-        elif explain_target == "proteomics":
+        elif explain_target in ["proteomics", "transcriptomics", "methylation"]:
             batch_size = len(self.data.samples) // 10
         else:
             batch_size = 20
