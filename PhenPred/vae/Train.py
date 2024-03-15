@@ -661,7 +661,10 @@ class CLinesTrain:
             )
         feature_names_all.append(self.data.labels_name)
         view_names = self.data.view_names + ["conditionals"]
-        target_feature_names = self.data.features_mask[explain_target].index.values
+        if explain_target != 'latent':
+            target_feature_names = self.data.features_mask[explain_target].index.values
+        else:
+            target_feature_names = [f"Latent_{i+1}" for i in range(len(shap_values))]
 
         all_shap_df = []
         for target_idx in range(len(shap_values)):

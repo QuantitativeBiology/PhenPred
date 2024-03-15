@@ -18,15 +18,19 @@ from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
 from statsmodels.stats.multitest import multipletests
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
+from PhenPred.vae.DatasetMOVE_DIABETES import CLinesDatasetMOVE_DIABETES
 
 
 class DrugResponseBenchmark:
-    def __init__(self, timestamp, data, vae_imputed, mofa_imputed):
+    def __init__(
+        self, timestamp, data, vae_imputed, mofa_imputed, move_diabetes_imputed
+    ):
         self.timestamp = timestamp
 
         self.data = data
         self.vae_imputed = vae_imputed
         self.mofa_imputed = mofa_imputed
+        self.move_diabetes_imputed = move_diabetes_imputed
 
         # New drug response values
         self.drugresponse_new = pd.read_csv(
@@ -52,6 +56,7 @@ class DrugResponseBenchmark:
             .intersection(set(self.drugresponse_new.index))
             .intersection(set(self.drugresponse_vae.index))
             .intersection(set(self.mofa_imputed["drugresponse"].index))
+            .intersection(set(self.move_diabetes_imputed["drugresponse"].index))
             .intersection(set(self.drugresponse_mean.index))
         )
         self.samples = list(self.samples)
@@ -62,6 +67,7 @@ class DrugResponseBenchmark:
             .intersection(set(self.drugresponse_new.columns))
             .intersection(set(self.drugresponse_vae.columns))
             .intersection(set(self.mofa_imputed["drugresponse"].columns))
+            .intersection(set(self.move_diabetes_imputed["drugresponse"].columns))
             .intersection(set(self.drugresponse_mean.columns))
         )
         self.features = list(self.features)
@@ -92,6 +98,10 @@ class DrugResponseBenchmark:
                 .unstack()
                 .loc[df_new_values.index]
                 .rename("MOFA"),
+                self.move_diabetes_imputed["drugresponse"]
+                .unstack()
+                .loc[df_new_values.index]
+                .rename("MOVE_DIABETES"),
                 self.drugresponse_mean.unstack()
                 .loc[df_new_values.index]
                 .rename("mean"),
@@ -102,7 +112,7 @@ class DrugResponseBenchmark:
 
         # Scatter plots
         corr_dict = []
-        for y_var in ["MOFA", "mean", "VAE"]:
+        for y_var in ["MOFA", "MOVE_DIABETES", "mean", "VAE"]:
             plot_df = df_new_values[["original", y_var]].dropna()
 
             _, ax = plt.subplots(1, 1, figsize=(2.5, 2.5), dpi=600)
@@ -190,7 +200,7 @@ class DrugResponseBenchmark:
                 data=plot_df,
                 x=y_var,
                 y="method",
-                order=["VAE", "MOFA", "mean"],
+                order=["VAE", "MOFA", "MOVE_DIABETES", "mean"],
                 orient="h",
                 color="black",
                 saturation=0.8,
@@ -210,7 +220,14 @@ class DrugResponseBenchmark:
         # Box plot per drug
         m_res, s_res, r_res = [], [], []
         tmp_df = df_new_values.reset_index()
-        tmp_df.columns = ["drug_id", "model_id", "original", "MOFA", "mean", "VAE"]
+        tmp_df.columns = [
+            "drug_id",
+            "model_id",
+            "original",
+            "MOFA",
+            "MOVE_DIABETES", "mean",
+            "VAE",
+        ]
         for drug in tmp_df["drug_id"].unique():
             sub_df = tmp_df[tmp_df["drug_id"] == drug]
             if sub_df.shape[0] < 5:
@@ -219,6 +236,9 @@ class DrugResponseBenchmark:
             mse_dict = {
                 "drug_id": drug,
                 "MOFA": mean_squared_error(sub_df["original"], sub_df["MOFA"]),
+                "MOVE_DIABETES": mean_squared_error(
+                    sub_df["original"], sub_df["MOVE_DIABETES"]
+                ),
                 "mean": mean_squared_error(sub_df["original"], sub_df["mean"]),
                 "VAE": mean_squared_error(sub_df["original"], sub_df["VAE"]),
             }
@@ -226,11 +246,17 @@ class DrugResponseBenchmark:
             s_dict = {
                 "drug_id": drug,
                 "MOFA": stats.spearmanr(sub_df["original"], sub_df["MOFA"])[0],
+                "MOVE_DIABETES": stats.spearmanr(
+                    sub_df["original"], sub_df["MOVE_DIABETES"]
+                )[0],
                 "VAE": stats.spearmanr(sub_df["original"], sub_df["VAE"])[0],
             }
             r_dict = {
                 "drug_id": drug,
                 "MOFA": stats.pearsonr(sub_df["original"], sub_df["MOFA"])[0],
+                "MOVE_DIABETES": stats.pearsonr(
+                    sub_df["original"], sub_df["MOVE_DIABETES"]
+                )[0],
                 "VAE": stats.pearsonr(sub_df["original"], sub_df["VAE"])[0],
             }
 
@@ -246,7 +272,7 @@ class DrugResponseBenchmark:
         pearson_res_df["Metric"] = "Pearson"
         plot_df = pd.concat([mse_res_df, spearman_res_df, pearson_res_df])
         plot_df = (
-            pd.melt(plot_df, id_vars=["Metric"], value_vars=["MOFA", "VAE", "mean"])
+            pd.melt(plot_df, id_vars=["Metric"], value_vars=["MOFA", "MOVE_DIABETES", "VAE", "mean"])
             .rename(columns={"variable": "Method", "value": "Value"})
             .dropna()
         )
@@ -256,7 +282,7 @@ class DrugResponseBenchmark:
 
             sns.boxplot(
                 data=plot_df_metric,
-                x='Value',
+                x="Value",
                 y="Method",
                 orient="h",
                 saturation=0.8,
@@ -266,15 +292,14 @@ class DrugResponseBenchmark:
                 ax=ax,
             )
             ax.set(
-                    title=f"Drug response prediction per Drug",
-                    xlabel=metric,
-                    ylabel="Method",
-                )
+                title=f"Drug response prediction per Drug",
+                xlabel=metric,
+                ylabel="Method",
+            )
 
             PhenPred.save_figure(
                 f"{plot_folder}/drugresponse/{self.timestamp}_imputed_per_drug_boxplot_{metric}"
             )
-
 
     def ctd2_parse_drugresponse_dfs(self, drop_duplicates=True):
         # Original GDSC
@@ -302,10 +327,24 @@ class DrugResponseBenchmark:
                 :, ~drespo_mofa.columns.duplicated(keep="last")
             ]
 
+        # MOVE_DIABETES
+        drespo_move_diabetes = self.move_diabetes_imputed["drugresponse"].copy()
+        drespo_move_diabetes.columns = [c.split(";")[1].upper() for c in drespo_move_diabetes]
+        if drop_duplicates:
+            drespo_move_diabetes = drespo_move_diabetes.loc[
+                :, ~drespo_move_diabetes.columns.duplicated(keep="last")
+            ]
+
         # Mean
         drespo_mean = drespo_gdsc.fillna(drespo_gdsc.mean(axis=0))
 
-        return drespo_gdsc, drespo_ctd2, drespo_vae, drespo_mofa, drespo_mean
+        return (
+            drespo_gdsc,
+            drespo_ctd2,
+            drespo_vae,
+            drespo_mofa,
+            drespo_move_diabetes, drespo_mean,
+        )
 
     def correlation_ctd2(self):
         (
@@ -313,6 +352,7 @@ class DrugResponseBenchmark:
             drespo_ctd2,
             drespo_vae,
             drespo_mofa,
+            drespo_move_diabetes,
             drespo_mean,
         ) = self.ctd2_parse_drugresponse_dfs()
 
@@ -333,9 +373,11 @@ class DrugResponseBenchmark:
                         method="pearson",
                         extra_fields=dict(
                             sample=s,
-                            outofsample="Out-of-sample"
-                            if s in samples_without_drug
-                            else "In-sample",
+                            outofsample=(
+                                "Out-of-sample"
+                                if s in samples_without_drug
+                                else "In-sample"
+                            ),
                         ),
                     )
                     for s in samples
@@ -344,6 +386,7 @@ class DrugResponseBenchmark:
             for n, df in [
                 ("VAE", drespo_vae),
                 ("mofa", drespo_mofa),
+                ("move_diabetes", drespo_move_diabetes),
                 ("mean", drespo_mean),
             ]
         }
@@ -490,6 +533,7 @@ class DrugResponseBenchmark:
             drespo_ctd2,
             drespo_vae,
             drespo_mofa,
+            drespo_move_diabetes,
             drespo_mean,
         ) = self.ctd2_parse_drugresponse_dfs()
 
@@ -501,6 +545,7 @@ class DrugResponseBenchmark:
             drespo_gdsc.index.union(drespo_ctd2.index)
             .union(drespo_vae.index)
             .union(drespo_mofa.index)
+            .union(drespo_move_diabetes.index)
             .union(drespo_mean.index)
             .tolist()
         )
@@ -519,6 +564,7 @@ class DrugResponseBenchmark:
                     ("GDSC", drespo_gdsc),
                     ("VAE", drespo_vae),
                     ("mofa", drespo_mofa),
+                    ("move_diabetes", drespo_move_diabetes),
                     ("mean", drespo_mean),
                 ]
             ]
