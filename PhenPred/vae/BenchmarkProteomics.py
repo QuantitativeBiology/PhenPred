@@ -14,7 +14,7 @@ from PhenPred.vae import data_folder, plot_folder
 
 
 class ProteomicsBenchmark:
-    def __init__(self, timestamp, data, vae_imputed, mofa_imputed):
+    def __init__(self, timestamp, data, vae_imputed, mofa_imputed, move_diabetes_imputed):
         self.timestamp = timestamp
 
         self.data = data
@@ -28,6 +28,8 @@ class ProteomicsBenchmark:
         self.df_original = self.data.dfs["proteomics"]
         self.df_vae = self.vae_imputed["proteomics"]
         self.df_mofa = self.mofa_imputed["proteomics"]
+        self.df_move_diabetes = move_diabetes_imputed["proteomics"]
+
         self.df_mean = self.df_original.fillna(self.df_original.mean())
 
         # Other relevant datasets
@@ -57,6 +59,7 @@ class ProteomicsBenchmark:
             set(self.df_original.index)
             .intersection(set(self.df_vae.index))
             .intersection(set(self.df_mofa.index))
+            .intersection(set(self.df_move_diabetes.index))
             .intersection(set(self.df_ccle.index))
         )
 
@@ -64,6 +67,7 @@ class ProteomicsBenchmark:
             set(self.df_original.columns)
             .intersection(set(self.df_vae.columns))
             .intersection(set(self.df_mofa.columns))
+            .intersection(set(self.df_move_diabetes.columns))
             .intersection(set(self.df_ccle.columns))
         ))
 
@@ -85,6 +89,7 @@ class ProteomicsBenchmark:
             original=self.df_original,
             vae_imputed=self.df_vae,
             mofa_imputed=self.df_mofa,
+            move_diabetes_imputed=self.df_move_diabetes,
             mean=self.df_mean,
         )
 
@@ -211,7 +216,7 @@ class ProteomicsBenchmark:
             data=df_corrs,
             x="corr",
             y="impute",
-            order=["original", "vae_imputed", "mofa_imputed", "mean"],
+            order=["original", "vae_imputed", "mofa_imputed", "move_diabetes_imputed", "mean"],
             color="#ababab",
             orient="h",
             linewidth=0.3,
@@ -256,6 +261,7 @@ class ProteomicsBenchmark:
             value_vars=[
                 "mean",
                 "mofa_imputed",
+                "move_diabetes_imputed",
                 "vae_imputed",
             ],
             var_name="impute",
