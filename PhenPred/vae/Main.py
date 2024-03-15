@@ -24,6 +24,7 @@ from PhenPred.vae.Train import CLinesTrain
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import plot_folder, data_folder
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
+from PhenPred.vae.DatasetMOVE_DIABETES import CLinesDatasetMOVE_DIABETES
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
 from PhenPred.vae.BenchmarkMismatch import MismatchBenchmark
@@ -38,8 +39,8 @@ np.random.seed(0)
 if __name__ == "__main__":
     # Class variables - Hyperparameters
 
-    hyperparameters = Hypers.read_hyperparameters()
-    # hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")
+    # hyperparameters = Hypers.read_hyperparameters()
+    hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -66,6 +67,9 @@ if __name__ == "__main__":
     vae_predicted, _ = train.load_vae_reconstructions(mode="all")
 
     mofa_imputed, mofa_latent = CLinesDatasetMOFA.load_reconstructions(clines_db)
+    move_diabetes_imputed, move_diabetes_latent = CLinesDatasetMOVE_DIABETES.load_reconstructions(
+        clines_db
+    )
 
     # Transcriptomics benchmark
     samples_mgexp = ~clines_db.dfs["transcriptomics"].isnull().all(axis=1)
@@ -121,13 +125,13 @@ if __name__ == "__main__":
         ylabel="Sample\nwith transcriptomics",
     )
 
-    PhenPred.save_figure(
-        f"{plot_folder}/{hyperparameters['load_run']}_reconstructed_gexp_correlation_boxplot"
-    )
+    # PhenPred.save_figure(
+    #     f"{plot_folder}/{hyperparameters['load_run']}_reconstructed_gexp_correlation_boxplot"
+    # )
 
     # Run Latent Spaces Benchmark
     latent_benchmark = LatentSpaceBenchmark(
-        train.timestamp, clines_db, vae_latent, mofa_latent
+        train.timestamp, clines_db, vae_latent, mofa_latent, move_diabetes_latent
     )
 
     latent_benchmark.plot_latent_spaces(
@@ -138,16 +142,7 @@ if __name__ == "__main__":
                     "uridine",
                     "alanine",
                 ],
-                crisprcas9=["FAM50A", "ARF4", "MCL1"],
-                transcriptomics=["VIM", "CDH1", "FDXR", "NNMT"],
-                copynumber=[
-                    "PCM1",
-                    "MYC",
-                ],
-                drugresponse=[
-                    "1079;Dasatinib;GDSC2",
-                ],
-                proteomics=["MTDH"],
+                transcriptomics=["VIM"]
             )
         ),
     )
@@ -190,18 +185,20 @@ if __name__ == "__main__":
 
     # Run drug benchmark
     dres_benchmark = DrugResponseBenchmark(
-        train.timestamp, clines_db, vae_imputed, mofa_imputed
+        train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
     )
     dres_benchmark.run()
 
     # Run proteomics benchmark
     proteomics_benchmark = ProteomicsBenchmark(
-        train.timestamp, clines_db, vae_imputed, mofa_imputed
+        train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
     )
     proteomics_benchmark.run()
     proteomics_benchmark.copy_number(
         proteomics_only=True,
     )
+
+    quit()
 
     # Run CRISPR benchmark
     crispr_benchmark = CRISPRBenchmark(

@@ -17,13 +17,14 @@ from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score
 
 
 class LatentSpaceBenchmark:
-    def __init__(self, timestamp, data, latent_space, mofa_latent):
+    def __init__(self, timestamp, data, latent_space, mofa_latent, move_diabetes_latent):
         self.data = data
         self.timestamp = timestamp
 
         self.latent_space = latent_space
 
         self.mofa_latent = mofa_latent
+        self.move_diabetes_latent = move_diabetes_latent
 
         self.ss = data.samplesheet.copy()
 
@@ -388,6 +389,7 @@ class LatentSpaceBenchmark:
         for n, z_joint in [
             ("vae", self.latent_space),
             ("mofa", self.mofa_latent["factors"]),
+            ("move_diabetes", self.move_diabetes_latent["factors"]),
         ]:
             if method == "UMAP":
                 # Get UMAP projections
@@ -454,7 +456,7 @@ class LatentSpaceBenchmark:
             sns.despine(ax=ax, left=True, bottom=True, right=True, top=True)
 
             PhenPred.save_figure(
-                f"{plot_folder}/latent/{self.timestamp}_{method.lower()}_joint{'' if n == 'vae' else '_mofa'}"
+                f"{plot_folder}/latent/{self.timestamp}_{method.lower()}_joint{'' if n == 'vae' else f'_{n}'}"
             )
 
             # Plot projections by marker
