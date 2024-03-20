@@ -11,15 +11,16 @@ from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
 
 class MOFABencharmk:
-    def __init__(self, hypers=None, hypers_mofa=None):
+    def __init__(self, hypers=None, hypers_mofa=None, n_factors=100):
+        self.n_factors = n_factors
+
         self.hypers = Hypers.read_hyperparameters() if hypers is None else hypers
 
         if hypers_mofa is None:
             self.hypers_mofa = dict(
                 scale_groups=True,
                 scale_views=True,
-                # factors=self.hypers["latent_dim"],
-                factors=100,
+                factors=self.n_factors,
                 spikeslab_weights=True,
                 ard_factors=False,
                 ard_weights=True,
@@ -58,7 +59,7 @@ class MOFABencharmk:
     def save_mofa(self, outfile=None):
         if outfile is None:
             self.outfile = f"{data_folder}/mofa/MOFA_{self.hypers['dataname']}"
-            self.outfile += f"_Factors{self.hypers['latent_dim']}"
+            self.outfile += f"_Factors{self.n_factors}"
         else:
             self.outfile = outfile
 
