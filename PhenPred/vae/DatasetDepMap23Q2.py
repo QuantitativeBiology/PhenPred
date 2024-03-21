@@ -89,6 +89,25 @@ class CLinesDatasetDepMap23Q2(Dataset):
             growth="Growth",
         )
 
+        # for JAMIE
+        # for k,df in self.dfs.items():
+        #     print(k, df.shape)
+        #     df.to_csv(f"{data_folder}/processed_data_for_benchmark/{k}_union.csv")
+
+        # for MOVE_DIABETES
+        # total_num_features = 0
+        # for k, df in self.dfs.items():
+        #     print(k, df.shape)
+        #     total_num_features += df.shape[1]
+        #     df.index.name = 'ID'
+        #     df.index.to_series().to_csv(
+        #         f"{data_folder}/processed_data_for_benchmark/depmap_ids.txt",
+        #         sep="\n",
+        #         index=False,
+        #         header=False,
+        #     )
+        #     df.to_csv(f"{data_folder}/processed_data_for_benchmark/depmap_{k}_union.tsv", sep='\t')
+        # print(f"Total number of features: {total_num_features}")
         print(self)
 
     def __str__(self) -> str:
@@ -129,7 +148,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
                     self.features_mask[n] = (self.dfs[n].abs() == 2).sum() > 3
                 elif n in ["transcriptomics", "methylation"]:
                     top_std_columns = self.dfs[n].std().nlargest(5000).index
-                    self.features_mask[n] = self.dfs[n].columns.isin(top_std_columns)
+                    self.features_mask[n] = pd.Series(self.dfs[n].columns.isin(top_std_columns), index=self.dfs[n].columns)
+                    self.features_mask[n].index.name = "GeneSymbol"
                 else:
                     thres = self.gaussian_mixture_std(self.dfs[n], plot_name=None)
                     self.features_mask[n] = self.dfs[n].std() > thres

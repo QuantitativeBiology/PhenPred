@@ -125,9 +125,9 @@ if __name__ == "__main__":
         ylabel="Sample\nwith transcriptomics",
     )
 
-    # PhenPred.save_figure(
-    #     f"{plot_folder}/{hyperparameters['load_run']}_reconstructed_gexp_correlation_boxplot"
-    # )
+    PhenPred.save_figure(
+        f"{plot_folder}/{hyperparameters['load_run']}_reconstructed_gexp_correlation_boxplot"
+    )
 
     # Run Latent Spaces Benchmark
     latent_benchmark = LatentSpaceBenchmark(
@@ -197,8 +197,6 @@ if __name__ == "__main__":
     proteomics_benchmark.copy_number(
         proteomics_only=True,
     )
-
-    quit()
 
     # Run CRISPR benchmark
     crispr_benchmark = CRISPRBenchmark(
