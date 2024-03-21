@@ -7,7 +7,7 @@ from PhenPred.vae.Hypers import Hypers
 class CLinesDatasetMOVE_DIABETES:
     @staticmethod
     def load_reconstructions(
-        data, mode="nans_only", hypers=None, dfs=None, n_factors=200
+        data, mode="nans_only", hypers=None, dfs=None, n_factors=50
     ):
         """
         Load imputed data and latent space from files. "nans_only" mode, original
@@ -70,7 +70,7 @@ class CLinesDatasetMOVE_DIABETES:
         return dfs_imputed, joint_latent
 
     @staticmethod
-    def load_factors(hypers=None, n_factors=100):
+    def load_factors(hypers=None, n_factors=50):
         if hypers is None:
             hypers = Hypers.read_hyperparameters()
         elif isinstance(hypers, str):

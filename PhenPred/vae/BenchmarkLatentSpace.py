@@ -470,6 +470,9 @@ class LatentSpaceBenchmark:
                     )
 
         clustering_score_df = pd.DataFrame(clustering_score_df)
+        clustering_score_df.to_csv(
+            f"{plot_folder}/latent/{self.timestamp}_clustering_score.csv", index=False
+        )
         _, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=600)
         sns.barplot(data=clustering_score_df, x="metric", y="score", ax=ax, hue="model")
         PhenPred.save_figure(
