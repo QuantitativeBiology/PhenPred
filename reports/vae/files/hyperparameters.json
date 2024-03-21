@@ -2,7 +2,7 @@
     "dataname": "depmap23Q2",
     "load_run": null,
     "save_model": false,
-    "skip_cv": true,
+    "skip_cv": false,
     "verbose": 0,
     "datasets": {
 	    "proteomics": "proteomics.csv",
@@ -13,7 +13,7 @@
         "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
         "copynumber": "cnv_summary_20230303_matrix.csv"
     },
-    "view_loss_recon_type": ["mean", "mean", "mean", "autofocus", "mean", "mean", "macro"],
+    "view_loss_recon_type": ["mean", "mean", "mean", "mean", "mean", "mean", "macro"],
     "view_loss_weights": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
     "model": "MOVE",
     "standardize": true,
