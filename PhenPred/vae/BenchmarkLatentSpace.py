@@ -17,7 +17,16 @@ from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score
 
 
 class LatentSpaceBenchmark:
-    def __init__(self, timestamp, data, latent_space, mofa_latent, move_diabetes_latent):
+
+    def __init__(
+        self,
+        timestamp,
+        data,
+        latent_space,
+        mofa_latent,
+        move_diabetes_latent,
+        mixOmics_latent,
+    ):
         self.data = data
         self.timestamp = timestamp
 
@@ -25,6 +34,7 @@ class LatentSpaceBenchmark:
 
         self.mofa_latent = mofa_latent
         self.move_diabetes_latent = move_diabetes_latent
+        self.mixOmics_latent = mixOmics_latent
 
         self.ss = data.samplesheet.copy()
 
@@ -390,6 +400,7 @@ class LatentSpaceBenchmark:
             ("vae", self.latent_space),
             ("mofa", self.mofa_latent["factors"]),
             ("move_diabetes", self.move_diabetes_latent["factors"]),
+            ("mixOmics", self.mixOmics_latent["factors"]),
         ]:
             if method == "UMAP":
                 # Get UMAP projections

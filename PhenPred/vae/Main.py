@@ -25,6 +25,7 @@ from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import plot_folder, data_folder
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 from PhenPred.vae.DatasetMOVE_DIABETES import CLinesDatasetMOVE_DIABETES
+from PhenPred.vae.DatasetMixOmics import CLinesDatasetMixOmics
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
 from PhenPred.vae.BenchmarkMismatch import MismatchBenchmark
@@ -70,6 +71,8 @@ if __name__ == "__main__":
     move_diabetes_imputed, move_diabetes_latent = CLinesDatasetMOVE_DIABETES.load_reconstructions(
         clines_db
     )
+
+    _, mixOmics_latent = CLinesDatasetMixOmics.load_reconstructions(clines_db)
 
     # Transcriptomics benchmark
     samples_mgexp = ~clines_db.dfs["transcriptomics"].isnull().all(axis=1)
@@ -131,7 +134,7 @@ if __name__ == "__main__":
 
     # Run Latent Spaces Benchmark
     latent_benchmark = LatentSpaceBenchmark(
-        train.timestamp, clines_db, vae_latent, mofa_latent, move_diabetes_latent
+        train.timestamp, clines_db, vae_latent, mofa_latent, move_diabetes_latent, mixOmics_latent
     )
 
     latent_benchmark.plot_latent_spaces(
