@@ -4,8 +4,6 @@
 import os
 import sys
 
-from sqlalchemy import column
-
 proj_dir = os.getcwd()
 if proj_dir not in sys.path:
     sys.path.append(proj_dir)
