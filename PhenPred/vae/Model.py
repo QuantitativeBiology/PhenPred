@@ -9,7 +9,7 @@ from pytorch_metric_learning.distances import CosineSimilarity
 from PhenPred.vae.Layers import BottleNeck, Gaussian, ViewDropout
 
 
-class MOVE(nn.Module):
+class MOSA(nn.Module):
     def __init__(
         self,
         hypers,
@@ -49,7 +49,7 @@ class MOVE(nn.Module):
         if not lazy_init:
             self._build()
 
-            print(f"# ---- MOVE")
+            print(f"# ---- MOSA")
             self.total_params = sum(
                 p.numel() for p in self.parameters() if p.requires_grad
             )

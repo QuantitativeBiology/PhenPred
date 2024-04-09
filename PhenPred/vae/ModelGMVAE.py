@@ -4,12 +4,12 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 from PhenPred import vae
-from PhenPred.vae.Model import MOVE
+from PhenPred.vae.Model import MOSA
 from PhenPred.vae.Losses import CLinesLosses
 from PhenPred.vae.Layers import JointInference, ViewDropout
 
 
-class GMVAE(MOVE):
+class GMVAE(MOSA):
     def __init__(
         self,
         hypers,
@@ -114,7 +114,7 @@ class GMVAE(MOVE):
     def loss(self, x, x_nans, out_net, y, x_mask, view_loss_weights=None):
         view_loss_weights = view_loss_weights if view_loss_weights else [1] * len(x)
 
-        # MOVE loss
+        # MOSA loss
         vae_loss = super().loss(
             x, x_nans, out_net, y, x_mask, self.hypers["view_loss_weights"]
         )

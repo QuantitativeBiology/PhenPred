@@ -81,7 +81,7 @@ class MismatchBenchmark:
         )
 
         ax.set_xlabel("Drugs")
-        ax.set_ylabel("MOVE reconstruction (pearson's r)")
+        ax.set_ylabel("MOSA reconstruction (pearson's r)")
 
         labels = [
             ax.text(
@@ -136,7 +136,7 @@ class MismatchBenchmark:
             df["pearson"].values,
         )
 
-        # MOVE vs Chronos pearson's r
+        # MOSA vs Chronos pearson's r
         _, ax = plt.subplots(1, 1, figsize=(3, 2.5))
 
         GIPlot.gi_continuous_plot(
@@ -151,7 +151,7 @@ class MismatchBenchmark:
 
         ax.axline((0.5, 0.5), slope=1, color="black", lw=0.5, ls="-", zorder=-1)
 
-        ax.set_ylabel("MOVE reconstruction (pearson's r)")
+        ax.set_ylabel("MOSA reconstruction (pearson's r)")
         ax.set_xlabel("Chronos prediction (best pearson's r)")
         ax.set_title("CRISPR-Cas9 predictability")
 
@@ -178,7 +178,7 @@ class MismatchBenchmark:
         )
 
         ax.set_xlabel("CRISPR-Cas9 genes")
-        ax.set_ylabel("MOVE reconstruction (pearson's r)")
+        ax.set_ylabel("MOSA reconstruction (pearson's r)")
 
         genes = set(plot_df.query("skew < -4 & ess >= 5").index)
         genes_label = [

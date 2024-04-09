@@ -17,7 +17,7 @@ from PhenPred.vae import (
 )
 from PhenPred.vae import plot_folder, shap_folder
 from torch.utils.data import DataLoader
-from PhenPred.vae.Model import MOVE
+from PhenPred.vae.Model import MOSA
 from PhenPred.vae.ModelGMVAE import GMVAE
 from PhenPred.vae.Losses import CLinesLosses
 import h5py
@@ -80,10 +80,10 @@ class CLinesTrain:
         if self.hypers["filtered_encoder_only"]:
             views_sizes_full = {n: v.shape[1] for n, v in self.data.views.items()}
 
-        assert self.hypers["model"] in ["MOVE", "GMVAE"], "Invalid model"
+        assert self.hypers["model"] in ["MOSA", "GMVAE"], "Invalid model"
 
-        if self.hypers["model"] == "MOVE":
-            model = MOVE(
+        if self.hypers["model"] == "MOSA":
+            model = MOSA(
                 hypers=self.hypers,
                 views_sizes=views_sizes,
                 conditional_size=self.data.labels.shape[1]
