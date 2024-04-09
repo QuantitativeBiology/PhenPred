@@ -8,7 +8,8 @@ This repository presents a bespoke Variational Autoencoder (VAE) that integrates
 
 1. Clone this repository
 2. Run `pip install -r requirements.txt`
-3. Download data files from figshare repository (links to be added)
+3. Run `pip install torch==2.2.1 torchvision==0.17.1 torchaudio==2.2.1 --index-url https://download.pytorch.org/whl/cu118`
+4. Download data files from figshare repository (see links in the manuscript)
 
 ## Usage
 
