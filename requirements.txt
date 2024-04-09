@@ -16,3 +16,7 @@ PyYAML
 umap-learn
 adjustText
 shap
+sqlalchemy
+torchinfo
+pytorch-metric-learning
+h5py
