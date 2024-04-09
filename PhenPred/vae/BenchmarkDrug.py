@@ -134,7 +134,7 @@ class DrugResponseBenchmark:
                 y=y_var,
                 levels=5,
                 color="#fc8d62",
-                linewidths=0.5,
+                lw=0.5,
                 ax=ax,
             )
 
@@ -443,7 +443,7 @@ class DrugResponseBenchmark:
             plot_reg=False,
             plot_df=plot_df,
             discrete_pal=pal,
-            scatter_kws=dict(edgecolor="w", lw=0.1, s=10, alpha=0.75),
+            scatter_kws=dict(edgecolor="w", linewidths=0.1, s=10, alpha=0.75),
         )
 
         g.ax_joint.axline((1, 1), slope=1, color="black", lw=0.5, ls="-", zorder=-1)

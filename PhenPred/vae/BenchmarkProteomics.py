@@ -151,6 +151,8 @@ class ProteomicsBenchmark:
             data=plot_df,
             x="vae_imputed",
             y="cnv",
+            hue="cnv",
+            legend=False,
             orient="h",
             order=["Deletion", "Loss", "Neutral", "Gain", "Amplification"],
             palette=palette,
@@ -174,7 +176,7 @@ class ProteomicsBenchmark:
         )
 
         ax.set(
-            title=f"Proteomics imputed by MOVE\n(N={plot_df.shape[0]:,})",
+            title=f"Proteomics imputed by MOSA\n(N={plot_df.shape[0]:,})",
             ylabel="Copy number",
             xlabel=f"Protein abundance",
         )
@@ -481,10 +483,12 @@ class ProteomicsBenchmark:
             )
 
             df["predicted"] = df[f"{protein}_orig"].isnull()
-            df["predicted"].replace(
+            df.replace(
                 {
-                    True: f"Reconstructed (N={df['predicted'].sum()})",
-                    False: f"Observed (N={(~df['predicted']).sum()})",
+                    "predicted": {
+                        True: f"Reconstructed (N={df['predicted'].sum()})",
+                        False: f"Observed (N={(~df['predicted']).sum()})",
+                    }
                 },
                 inplace=True,
             )
@@ -505,10 +509,10 @@ class ProteomicsBenchmark:
                 discrete_pal=palette,
                 hue_order=list(palette.keys())[::-1],
                 legend_title=f"{protein}",
-                scatter_kws=dict(edgecolor="w", lw=0.1, s=8, alpha=0.7),
+                scatter_kws=dict(edgecolor="w", linewidths=0.1, s=8, alpha=0.7),
             )
 
-            g.ax_joint.set_xlabel(f"{protein} Proteomics (MOVE)")
+            g.ax_joint.set_xlabel(f"{protein} Proteomics (MOSA)")
             g.ax_joint.set_ylabel(f"{protein} Transcriptomics (measured)")
 
             plt.gcf().set_size_inches(2, 2)

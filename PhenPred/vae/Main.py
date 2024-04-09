@@ -99,6 +99,8 @@ if __name__ == "__main__":
         data=gexp_corr,
         x="corr",
         y="with_gexp",
+        hue="with_gexp",
+        legend=False,
         orient="h",
         palette="tab20c",
         linewidth=0.3,
@@ -169,7 +171,7 @@ if __name__ == "__main__":
         annot=True,
         annot_kws={"fontsize": 5},
         fmt=".2f",
-        linewidths=0.0,
+        lw=0.0,
         cbar_kws={"shrink": 0.5},
         figsize=(3.0, 1.5),
     )
@@ -185,12 +187,14 @@ if __name__ == "__main__":
     )
 
     # Run drug benchmark
+    print("Running drug benchmark")
     dres_benchmark = DrugResponseBenchmark(
         train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
     )
     dres_benchmark.run()
 
     # Run proteomics benchmark
+    print("Running proteomics benchmark")
     proteomics_benchmark = ProteomicsBenchmark(
         train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
     )
@@ -200,6 +204,7 @@ if __name__ == "__main__":
     )
 
     # Run CRISPR benchmark
+    print("Running CRISPR benchmark")
     crispr_benchmark = CRISPRBenchmark(
         train.timestamp, clines_db, vae_imputed, mofa_imputed
     )
@@ -217,6 +222,7 @@ if __name__ == "__main__":
     # Make CV predictions
     # hyperparameters["skip_cv"] = False
     if not hyperparameters["skip_cv"]:
+        print("Running mismatch benchmark with CV")
         if hyperparameters["load_run"] is None:
             _, cvtest_datasets = train.training(
                 cv=KFold(n_splits=10, shuffle=True).split(train.data)

@@ -25,7 +25,7 @@ class Hypers:
             hypers["load_run"] = timestamp
 
         if "model" not in hypers:
-            hypers["model"] = "MOVE"
+            hypers["model"] = "MOSA"
 
         if "standardize" not in hypers:
             hypers["standardize"] = False

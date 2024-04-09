@@ -211,7 +211,7 @@ class CrispyPlot:
     MARGINAL_KWS = dict(kde=False, hist_kws={"linewidth": 0})
 
     LINE_KWS = dict(lw=1.0, color=PAL_DBGD[1], alpha=1.0)
-    SCATTER_KWS = dict(edgecolor="w", lw=0.3, s=10, alpha=0.6, color=PAL_DBGD[0])
+    SCATTER_KWS = dict(edgecolor="w", linewidths=0.3, s=10, alpha=0.6, color=PAL_DBGD[0])
     JOINT_KWS = dict(lowess=True, scatter_kws=SCATTER_KWS, line_kws=LINE_KWS)
 
     @staticmethod
@@ -640,9 +640,9 @@ class GIPlot(CrispyPlot):
     @staticmethod
     def _marginal_boxplot(_, xs=None, ys=None, zs=None, vertical=False, **kws):
         if vertical:
-            ax = sns.boxplot(x=zs, y=ys, orient="v", **kws)
+            ax = sns.boxplot(x=zs, y=ys, hue=zs, legend=False, orient="v", **kws)
         else:
-            ax = sns.boxplot(x=xs, y=zs, orient="h", **kws)
+            ax = sns.boxplot(x=xs, y=zs, hue=zs, legend=False, orient="h", **kws)
 
         ax.set_ylabel("")
         ax.set_xlabel("")
@@ -670,7 +670,7 @@ class GIPlot(CrispyPlot):
     ):
         # Defaults
         if scatter_kws is None:
-            scatter_kws = dict(edgecolor="w", lw=0.3, s=8)
+            scatter_kws = dict(edgecolor="w", linewidths=0.3, s=8)
 
         if line_kws is None:
             line_kws = dict(lw=1.0, color=cls.PAL_DBGD[0])
@@ -923,7 +923,7 @@ class GIPlot(CrispyPlot):
                 df[y].values,
                 c=pal[t],
                 marker="o",
-                linewidths=0,
+                lw=0,
                 s=5,
                 label=t,
                 alpha=0.8,
@@ -990,7 +990,7 @@ class GIPlot(CrispyPlot):
             marker="o",
             edgecolor=None,
             s=5,
-            linewidths=0,
+            lw=0,
             cmap=cmap,
             alpha=joint_alpha,
             norm=MidpointNormalize(midpoint=mid_point) if mid_point_norm else None,
