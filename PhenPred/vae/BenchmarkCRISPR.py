@@ -46,7 +46,7 @@ class CRISPRBenchmark:
         self.fusions = self.data.fusions.add_suffix("_fusion")
         self.msi = (
             self.data.ss_cmp["msi_status"]
-            .replace({"MSS": 0, "MSI": 1})
+            .replace({"MSS": "0", "MSI": "1"})
             .astype(float)
             .rename("MSI")
         )
@@ -70,7 +70,9 @@ class CRISPRBenchmark:
             os.makedirs(f"{plot_folder}/crispr")
 
     def run(self, run_associations=True):
-        if run_associations:
+        if run_associations and not os.path.exists(
+            f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz"
+            ):
             self.lm_genomics = self.genomic_associations()
             self.lm_genomics.to_csv(
                 f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz",
@@ -333,17 +335,16 @@ class CRISPRBenchmark:
             )
             plot_df = plot_df.dropna(subset=[f"{x_id}_vae", f"{y_id}_vae", z_id])
 
-            plot_df[z_id].replace({0: "WT", 1: z_id}, inplace=True)
+            plot_df.replace({z_id: {0: "WT", 1: z_id}}, inplace=True)
             plot_df["predicted"] = (
                 plot_df[[f"{y_id}_orig", f"{x_id}_orig"]].isnull().any(axis=1)
             )
-            plot_df["predicted"].replace(
-                {
+
+            plot_df.replace({"predicted":{
                     True: f"Reconstructed (N={plot_df['predicted'].sum()})",
                     False: f"Measured (N={(~plot_df['predicted']).sum()})",
-                },
-                inplace=True,
-            )
+                }},
+                inplace=True,)
 
             pal, pal_order = {
                 z_id: "#fc8d62",
@@ -361,11 +362,11 @@ class CRISPRBenchmark:
                 discrete_pal=pal,
                 hue_order=pal_order,
                 legend_title=f"{z_id}",
-                scatter_kws=dict(edgecolor="w", lw=0.1, s=10, alpha=0.75),
+                scatter_kws=dict(edgecolor="w", linewidths=0.1, s=10, alpha=0.75),
             )
 
-            g.ax_joint.set_xlabel(f"{x_id} CRISPR-Cas9 (MOVE)")
-            g.ax_joint.set_ylabel(f"{y_id} CRISPR-Cas9 (MOVE)")
+            g.ax_joint.set_xlabel(f"{x_id} CRISPR-Cas9 (MOSA)")
+            g.ax_joint.set_ylabel(f"{y_id} CRISPR-Cas9 (MOSA)")
 
             plt.gcf().set_size_inches(2, 2)
 

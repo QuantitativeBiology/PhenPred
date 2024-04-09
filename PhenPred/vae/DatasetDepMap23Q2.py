@@ -71,7 +71,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._build_labels()
 
         self.x_mask = [
-            torch.tensor(self.features_mask[n], dtype=torch.bool) for n in self.views
+            torch.tensor(self.features_mask[n].values, dtype=torch.bool) for n in self.views
         ]
 
         # View names
@@ -89,25 +89,6 @@ class CLinesDatasetDepMap23Q2(Dataset):
             growth="Growth",
         )
 
-        # for JAMIE
-        # for k,df in self.dfs.items():
-        #     print(k, df.shape)
-        #     df.to_csv(f"{data_folder}/processed_data_for_benchmark/{k}_union.csv")
-
-        # for MOVE_DIABETES
-        # total_num_features = 0
-        # for k, df in self.dfs.items():
-        #     print(k, df.shape)
-        #     total_num_features += df.shape[1]
-        #     df.index.name = 'ID'
-        #     df.index.to_series().to_csv(
-        #         f"{data_folder}/processed_data_for_benchmark/depmap_ids.txt",
-        #         sep="\n",
-        #         index=False,
-        #         header=False,
-        #     )
-        #     df.to_csv(f"{data_folder}/processed_data_for_benchmark/depmap_{k}_union.tsv", sep='\t')
-        # print(f"Total number of features: {total_num_features}")
         print(self)
 
     def __str__(self) -> str:
@@ -234,7 +215,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         if "msi" in self.labels_names:
             self.labels.append(
-                self.ss_cmp["msi_status"].replace({"MSS": 0, "MSI": 1}).astype(float)
+                self.ss_cmp["msi_status"].replace({"MSS": "0", "MSI": "1"}).astype(float)
             )
 
         if "mofa" in self.labels_names:
@@ -352,7 +333,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.samplesheet = self.samplesheet.groupby("model_id").first()
 
         # Match tissue names
-        self.samplesheet["tissue"].replace(
+        self.samplesheet.replace({"tissue":
             dict(
                 large_intestine="Large Intestine",
                 lung="Lung",
@@ -360,7 +341,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 upper_aerodigestive_tract="Other tissue",
                 ascites="Other tissue",
                 pleural_effusion="Other tissue",
-            ),
+            )},
             inplace=True,
         )
 
