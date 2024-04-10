@@ -131,7 +131,7 @@ class CRISPRBenchmark:
         ax.set(
             title=f"CRISPR-Cas9 skew (N={plot_df.shape[0]:,})",
             xlabel="Skew original",
-            ylabel=f"Skew VAE",
+            ylabel=f"Skew MOSA",
         )
 
         # same axes limits and step sizes
@@ -189,7 +189,7 @@ class CRISPRBenchmark:
             y_features.loc[(y_features < self.skew_threshold).any(axis=1)].index
         )
 
-        # Genomics ~ CRISPR VAE
+        # Genomics ~ CRISPR MOSA
         samples = list(
             set(self.df_vae.dropna().index)
             .intersection(self.data.mutations.index)
@@ -308,7 +308,7 @@ class CRISPRBenchmark:
         ax.set(
             title=f"CRISPR-Cas9 ~ Genomics associations\n(N={plot_df.shape[0]:,})",
             xlabel="Original log-ratio p-value (-log10)",
-            ylabel="VAE log-ratio p-value (-log10)",
+            ylabel="MOSA log-ratio p-value (-log10)",
         )
 
         PhenPred.save_figure(

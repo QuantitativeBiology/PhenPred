@@ -420,7 +420,7 @@ class ProteomicsBenchmark:
         )
 
         g.set(
-            title=f"Comparison VAE with CCLE\n(Welch's t-test p={ttest_stat[1]:.2e})",
+            title=f"Comparison MOSA with CCLE\n(Welch's t-test p={ttest_stat[1]:.2e})",
             xlabel="Sample correlation (Pearson's r)",
             ylabel=f"Number of cell lines",
         )
