@@ -4,7 +4,7 @@ from PhenPred.vae import data_folder
 from PhenPred.vae.Hypers import Hypers
 
 
-class CLinesDatasetMOVE_DIABETES:
+class CLinesDatasetMOVE:
     @staticmethod
     def load_reconstructions(
         data, mode="nans_only", hypers=None, dfs=None, n_factors=50

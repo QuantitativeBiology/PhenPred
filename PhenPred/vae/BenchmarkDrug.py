@@ -17,8 +17,6 @@ from sklearn.metrics import mean_squared_error
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
 from statsmodels.stats.multitest import multipletests
-from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
-from PhenPred.vae.DatasetMOVE_DIABETES import CLinesDatasetMOVE_DIABETES
 
 
 class DrugResponseBenchmark:
@@ -101,18 +99,18 @@ class DrugResponseBenchmark:
                 self.move_diabetes_imputed["drugresponse"]
                 .unstack()
                 .loc[df_new_values.index]
-                .rename("MOVE_DIABETES"),
+                .rename("MOVE"),
                 self.drugresponse_mean.unstack()
                 .loc[df_new_values.index]
                 .rename("mean"),
-                self.drugresponse_vae.unstack().loc[df_new_values.index].rename("VAE"),
+                self.drugresponse_vae.unstack().loc[df_new_values.index].rename("MOSA"),
             ],
             axis=1,
         )
 
         # Scatter plots
         corr_dict = []
-        for y_var in ["MOFA", "MOVE_DIABETES", "mean", "VAE"]:
+        for y_var in ["MOFA", "MOVE", "mean", "MOSA"]:
             plot_df = df_new_values[["original", y_var]].dropna()
 
             _, ax = plt.subplots(1, 1, figsize=(2.5, 2.5), dpi=600)
@@ -134,7 +132,7 @@ class DrugResponseBenchmark:
                 y=y_var,
                 levels=5,
                 color="#fc8d62",
-                lw=0.5,
+                linewidths=0.5,
                 ax=ax,
             )
 
@@ -200,7 +198,7 @@ class DrugResponseBenchmark:
                 data=plot_df,
                 x=y_var,
                 y="method",
-                order=["VAE", "MOFA", "MOVE_DIABETES", "mean"],
+                order=["MOSA", "MOFA", "MOVE", "mean"],
                 orient="h",
                 color="black",
                 saturation=0.8,
@@ -225,8 +223,8 @@ class DrugResponseBenchmark:
             "model_id",
             "original",
             "MOFA",
-            "MOVE_DIABETES", "mean",
-            "VAE",
+            "MOVE", "mean",
+            "MOSA",
         ]
         for drug in tmp_df["drug_id"].unique():
             sub_df = tmp_df[tmp_df["drug_id"] == drug]
@@ -236,28 +234,28 @@ class DrugResponseBenchmark:
             mse_dict = {
                 "drug_id": drug,
                 "MOFA": mean_squared_error(sub_df["original"], sub_df["MOFA"]),
-                "MOVE_DIABETES": mean_squared_error(
-                    sub_df["original"], sub_df["MOVE_DIABETES"]
+                "MOVE": mean_squared_error(
+                    sub_df["original"], sub_df["MOVE"]
                 ),
                 "mean": mean_squared_error(sub_df["original"], sub_df["mean"]),
-                "VAE": mean_squared_error(sub_df["original"], sub_df["VAE"]),
+                "MOSA": mean_squared_error(sub_df["original"], sub_df["MOSA"]),
             }
 
             s_dict = {
                 "drug_id": drug,
                 "MOFA": stats.spearmanr(sub_df["original"], sub_df["MOFA"])[0],
-                "MOVE_DIABETES": stats.spearmanr(
-                    sub_df["original"], sub_df["MOVE_DIABETES"]
+                "MOVE": stats.spearmanr(
+                    sub_df["original"], sub_df["MOVE"]
                 )[0],
-                "VAE": stats.spearmanr(sub_df["original"], sub_df["VAE"])[0],
+                "MOSA": stats.spearmanr(sub_df["original"], sub_df["MOSA"])[0],
             }
             r_dict = {
                 "drug_id": drug,
                 "MOFA": stats.pearsonr(sub_df["original"], sub_df["MOFA"])[0],
-                "MOVE_DIABETES": stats.pearsonr(
-                    sub_df["original"], sub_df["MOVE_DIABETES"]
+                "MOVE": stats.pearsonr(
+                    sub_df["original"], sub_df["MOVE"]
                 )[0],
-                "VAE": stats.pearsonr(sub_df["original"], sub_df["VAE"])[0],
+                "MOSA": stats.pearsonr(sub_df["original"], sub_df["MOSA"])[0],
             }
 
             m_res.append(mse_dict)
@@ -272,7 +270,7 @@ class DrugResponseBenchmark:
         pearson_res_df["Metric"] = "Pearson"
         plot_df = pd.concat([mse_res_df, spearman_res_df, pearson_res_df])
         plot_df = (
-            pd.melt(plot_df, id_vars=["Metric"], value_vars=["MOFA", "MOVE_DIABETES", "VAE", "mean"])
+            pd.melt(plot_df, id_vars=["Metric"], value_vars=["MOFA", "MOVE", "MOSA", "mean"])
             .rename(columns={"variable": "Method", "value": "Value"})
             .dropna()
         )
@@ -313,7 +311,7 @@ class DrugResponseBenchmark:
         # CTD2
         drespo_ctd2 = self.drugresponse_ctd2.copy()
 
-        # VAE
+        # MOSA
         drespo_vae = self.drugresponse_vae.copy()
         drespo_vae.columns = [c.split(";")[1].upper() for c in drespo_vae]
         if drop_duplicates:
@@ -327,7 +325,7 @@ class DrugResponseBenchmark:
                 :, ~drespo_mofa.columns.duplicated(keep="last")
             ]
 
-        # MOVE_DIABETES
+        # MOVE
         drespo_move_diabetes = self.move_diabetes_imputed["drugresponse"].copy()
         drespo_move_diabetes.columns = [c.split(";")[1].upper() for c in drespo_move_diabetes]
         if drop_duplicates:
@@ -384,7 +382,7 @@ class DrugResponseBenchmark:
                 ]
             )
             for n, df in [
-                ("VAE", drespo_vae),
+                ("MOSA", drespo_vae),
                 ("mofa", drespo_mofa),
                 ("move_diabetes", drespo_move_diabetes),
                 ("mean", drespo_mean),
@@ -392,7 +390,7 @@ class DrugResponseBenchmark:
         }
 
         # Correlation dataframe
-        for name in ["VAE"]:
+        for name in ["MOSA"]:
             df_corrs = df_corrs_methods[name]
 
             ttest_stat = stats.ttest_ind(
@@ -438,8 +436,8 @@ class DrugResponseBenchmark:
 
         g = GIPlot.gi_regression_marginal(
             x=f"mofa_corr",
-            y=f"VAE_corr",
-            z="VAE_outofsample",
+            y=f"MOSA_corr",
+            z="MOSA_outofsample",
             plot_reg=False,
             plot_df=plot_df,
             discrete_pal=pal,
@@ -459,7 +457,7 @@ class DrugResponseBenchmark:
         # Boxplot
         plot_df = plot_df.melt(
             value_vars=[c for c in plot_df if c.endswith("_corr")],
-            id_vars=["VAE_outofsample"],
+            id_vars=["MOSA_outofsample"],
             var_name="method",
             value_name="corr",
         )
@@ -468,7 +466,7 @@ class DrugResponseBenchmark:
 
         sns.boxplot(
             data=plot_df,
-            x="VAE_outofsample",
+            x="MOSA_outofsample",
             y="corr",
             hue="method",
             orient="v",
@@ -506,26 +504,26 @@ class DrugResponseBenchmark:
         )
 
         ttest_stat = stats.ttest_ind(
-            plot_df.query("(VAE_outofsample == 'In-sample') & (method == 'VAE_corr')")[
+            plot_df.query("(MOSA_outofsample == 'In-sample') & (method == 'MOSA_corr')")[
                 "corr"
             ],
-            plot_df.query("(VAE_outofsample == 'In-sample') & (method == 'mofa_corr')")[
+            plot_df.query("(MOSA_outofsample == 'In-sample') & (method == 'mofa_corr')")[
                 "corr"
             ],
             equal_var=False,
         )
-        print(f"VAE vs mofa (in-sample): {ttest_stat}")
+        print(f"MOSA vs mofa (in-sample): {ttest_stat}")
 
         ttest_stat = stats.ttest_ind(
             plot_df.query(
-                "(VAE_outofsample == 'Out-of-sample') & (method == 'VAE_corr')"
+                "(MOSA_outofsample == 'Out-of-sample') & (method == 'MOSA_corr')"
             )["corr"],
             plot_df.query(
-                "(VAE_outofsample == 'Out-of-sample') & (method == 'mofa_corr')"
+                "(MOSA_outofsample == 'Out-of-sample') & (method == 'mofa_corr')"
             )["corr"],
             equal_var=False,
         )
-        print(f"VAE vs mofa (Out-of-sample): {ttest_stat}")
+        print(f"MOSA vs mofa (Out-of-sample): {ttest_stat}")
 
     def compare_drug_predictions(self):
         (
@@ -562,7 +560,7 @@ class DrugResponseBenchmark:
                 for d in drugs
                 for (df_name, df) in [
                     ("GDSC", drespo_gdsc),
-                    ("VAE", drespo_vae),
+                    ("MOSA", drespo_vae),
                     ("mofa", drespo_mofa),
                     ("move_diabetes", drespo_move_diabetes),
                     ("mean", drespo_mean),
