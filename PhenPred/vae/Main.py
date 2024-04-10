@@ -22,7 +22,7 @@ from PhenPred.vae.Train import CLinesTrain
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import plot_folder, data_folder
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
-from PhenPred.vae.DatasetMOVE_DIABETES import CLinesDatasetMOVE_DIABETES
+from PhenPred.vae.DatasetMOVE import CLinesDatasetMOVE
 from PhenPred.vae.DatasetMixOmics import CLinesDatasetMixOmics
 from PhenPred.vae.BenchmarkCRISPR import CRISPRBenchmark
 from PhenPred.vae.BenchmarkDrug import DrugResponseBenchmark
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     vae_predicted, _ = train.load_vae_reconstructions(mode="all")
 
     mofa_imputed, mofa_latent = CLinesDatasetMOFA.load_reconstructions(clines_db)
-    move_diabetes_imputed, move_diabetes_latent = CLinesDatasetMOVE_DIABETES.load_reconstructions(
+    move_diabetes_imputed, move_diabetes_latent = CLinesDatasetMOVE.load_reconstructions(
         clines_db
     )
 
