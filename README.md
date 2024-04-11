@@ -7,9 +7,11 @@ This repository presents a bespoke Variational Autoencoder (VAE) that integrates
 ## Installation
 
 1. Clone this repository
-2. Run `pip install -r requirements.txt`
-3. Run `pip install torch==2.2.1 torchvision==0.17.1 torchaudio==2.2.1 --index-url https://download.pytorch.org/whl/cu118`
-4. Download data files from figshare repository (see links in the manuscript)
+2. Create a python (Python 3.10) environment: e.g. `conda create -n mosa python=3.10`
+3. Activate the python environment: `conda activate mosa`
+4. Run `pip install -r requirements.txt`
+5. Run `pip install torch==2.2.1 torchvision==0.17.1 torchaudio==2.2.1 --index-url https://download.pytorch.org/whl/cu118`
+6. Download data files from figshare repository (see links in the manuscript)
 
 ## Usage
 
