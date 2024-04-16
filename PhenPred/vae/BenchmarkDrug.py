@@ -157,9 +157,9 @@ class DrugResponseBenchmark:
             ax.set_yticks(ax.get_xticks())
 
             ax.set(
-                title=f"Drug response prediction (N={plot_df.shape[0]:,})",
+                # title=f"Drug response prediction (N={plot_df.shape[0]:,})",
                 xlabel="Measured (novel dataset)",
-                ylabel=f"Predicted ({y_var})",
+                ylabel=f"Reconstructed ({y_var})",
             )
 
             mse = mean_squared_error(plot_df["original"], plot_df[y_var])
@@ -179,9 +179,9 @@ class DrugResponseBenchmark:
                     "method": y_var,
                 }
             )
-            annot_text = f"r={r:.2g}; rho={s:.2g}; MSE={mse:.2f}"
+            annot_text = f"Pearson's r={r:.2g}\nSpearman's rho={s:.2g}\nMSE={mse:.2f}"
             ax.text(
-                0.95, 0.05, annot_text, fontsize=6, transform=ax.transAxes, ha="right"
+                0.95, 0.1, annot_text, fontsize=6, transform=ax.transAxes, ha="right"
             )
 
             PhenPred.save_figure(
@@ -413,7 +413,7 @@ class DrugResponseBenchmark:
             )
 
             g.set(
-                title=f"Comparison {name} with CTD2\n(T-test p={ttest_stat[1]:.2e})",
+                title=f"Comparison {name} with CTD2\n(Welch's t-test p={ttest_stat[1]:.2e})",
                 xlabel=f"Cell line correlation (Pearson's r) across {len(drugs)} drugs\nReconstructed (IC50s) vs CTD2 (AUCs)",
                 ylabel=f"Number of cell lines",
             )
