@@ -7,7 +7,7 @@ from PhenPred.vae.Hypers import Hypers
 class CLinesDatasetMOVE:
     @staticmethod
     def load_reconstructions(
-        data, mode="nans_only", hypers=None, dfs=None, n_factors=50
+        data, mode="nans_only", hypers=None, dfs=None, n_factors=200
     ):
         """
         Load imputed data and latent space from files. "nans_only" mode, original
@@ -68,16 +68,3 @@ class CLinesDatasetMOVE:
         )
 
         return dfs_imputed, joint_latent
-
-    @staticmethod
-    def load_factors(hypers=None, n_factors=50):
-        if hypers is None:
-            hypers = Hypers.read_hyperparameters()
-        elif isinstance(hypers, str):
-            hypers = Hypers.read_hyperparameters(hypers)
-
-        ddir = f"{data_folder}/move_diabetes_1000hidden/"
-
-        factors = pd.read_csv(f"{ddir}/latent_space_{n_factors}factor.csv", index_col=0)
-
-        return factors
