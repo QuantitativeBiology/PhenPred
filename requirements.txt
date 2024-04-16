@@ -15,7 +15,6 @@ python-igraph
 PyYAML
 umap-learn
 adjustText
-shap
 sqlalchemy
 torchinfo
 pytorch-metric-learning
