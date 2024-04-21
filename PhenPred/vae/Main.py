@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 
 proj_dir = os.getcwd()
 if proj_dir not in sys.path:
@@ -37,6 +38,7 @@ np.random.seed(0)
 
 if __name__ == "__main__":
     # Class variables - Hyperparameters
+    start_time = time.time()
 
     # hyperparameters = Hypers.read_hyperparameters()
     hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")
@@ -60,6 +62,9 @@ if __name__ == "__main__":
     )
 
     train.run(run_timestamp=hyperparameters["load_run"])
+
+    if hyperparameters["skip_benchmarks"]:
+        sys.exit(0)
 
     # Load imputed data
     vae_imputed, vae_latent = train.load_vae_reconstructions()
@@ -249,3 +254,8 @@ if __name__ == "__main__":
         indent=4,
         default=lambda o: "<not serializable>",
     )
+
+    total_time = time.time() - start_time
+    hours = int(total_time // 3600)
+    minutes = int((total_time % 3600) // 60)
+    print(f"Total time: {hours:02d}:{minutes:02d}")
