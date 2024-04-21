@@ -35,6 +35,15 @@ Although MOSA is specifically designed for analysing the DepMap dataset, the mod
 4. If certain benchmark analysis cannot be run properly, MOSA can be run by setting `skip_benchmarks=true` in the  `hyperparameters.json` to only save the output data, which includes the integrated latent space matrix and reconstructed data for each omics.
 5. To further customise data pre-processing, the user can create their own dataset following the style of `PhenPred/vae/DatasetDepMap23Q2.py`, and the use the custome dataset class in the `Main.py`.
 
+## Reproduction instructions
+### To reproduce the benchmark results
+1. Download the data from [figshare](https://doi.org/10.6084/m9.figshare.24562765)
+2. Place the downloaded files to `reports/vae/files/` 
+3. In the `Main.py`, configure to run MOSA from pre-computed data ` hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")`.
+
+### To reproduce from scratch
+1. Directly run MOSA with the default configurations as described above.
+
 ## Citation
 Cai, Z et al., Synthetic multi-omics augmentation of cancer cell lines using unsupervised deep learning, 2023
 
