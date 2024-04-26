@@ -616,7 +616,7 @@ class CLinesTrain:
         self.model.module.return_for_shap = explain_target
         if explain_target in ["latent", "metabolomics"]:
             batch_size = len(self.data.samples)
-        elif explain_target == "copynumber":
+        elif explain_target in ["copynumber", "drugresponse"]:
             batch_size = len(self.data.samples) // 5
         elif explain_target in ["proteomics", "transcriptomics", "methylation"]:
             batch_size = len(self.data.samples) // 10
