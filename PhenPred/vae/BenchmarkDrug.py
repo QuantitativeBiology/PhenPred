@@ -1,34 +1,28 @@
-import sys
 import os
-
-sys.path.extend(["/home/scai/PhenPred"])
-
 import PhenPred
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import scipy.stats as stats
 import matplotlib.pyplot as plt
-from math import sqrt
-from datetime import datetime
-from scipy.special import stdtr
 from PhenPred.vae.PlotUtils import GIPlot
 from sklearn.metrics import mean_squared_error
 from PhenPred.Utils import two_vars_correlation
 from PhenPred.vae import data_folder, plot_folder
-from statsmodels.stats.multitest import multipletests
 
 
 class DrugResponseBenchmark:
     def __init__(
-        self, timestamp, data, vae_imputed, mofa_imputed, move_diabetes_imputed
+        self, timestamp, data, vae_imputed, mofa_imputed, move_diabetes_imputed=None
     ):
         self.timestamp = timestamp
 
         self.data = data
         self.vae_imputed = vae_imputed
         self.mofa_imputed = mofa_imputed
-        self.move_diabetes_imputed = move_diabetes_imputed
+
+        if move_diabetes_imputed is not None:
+            self.move_diabetes_imputed = move_diabetes_imputed
 
         # New drug response values
         self.drugresponse_new = pd.read_csv(
@@ -54,9 +48,14 @@ class DrugResponseBenchmark:
             .intersection(set(self.drugresponse_new.index))
             .intersection(set(self.drugresponse_vae.index))
             .intersection(set(self.mofa_imputed["drugresponse"].index))
-            .intersection(set(self.move_diabetes_imputed["drugresponse"].index))
             .intersection(set(self.drugresponse_mean.index))
         )
+
+        if move_diabetes_imputed is not None:
+            self.samples.intersection(
+                set(self.move_diabetes_imputed["drugresponse"].index)
+            )
+
         self.samples = list(self.samples)
 
         # Intersection features
@@ -65,10 +64,16 @@ class DrugResponseBenchmark:
             .intersection(set(self.drugresponse_new.columns))
             .intersection(set(self.drugresponse_vae.columns))
             .intersection(set(self.mofa_imputed["drugresponse"].columns))
-            .intersection(set(self.move_diabetes_imputed["drugresponse"].columns))
             .intersection(set(self.drugresponse_mean.columns))
         )
+
+        if move_diabetes_imputed is not None:
+            self.features.intersection(
+                set(self.move_diabetes_imputed["drugresponse"].columns)
+            )
+
         self.features = list(self.features)
+
         if not os.path.exists(f"{plot_folder}/drugresponse"):
             os.makedirs(f"{plot_folder}/drugresponse")
 
@@ -223,7 +228,8 @@ class DrugResponseBenchmark:
             "model_id",
             "original",
             "MOFA",
-            "MOVE", "mean",
+            "MOVE",
+            "mean",
             "MOSA",
         ]
         for drug in tmp_df["drug_id"].unique():
@@ -234,9 +240,7 @@ class DrugResponseBenchmark:
             mse_dict = {
                 "drug_id": drug,
                 "MOFA": mean_squared_error(sub_df["original"], sub_df["MOFA"]),
-                "MOVE": mean_squared_error(
-                    sub_df["original"], sub_df["MOVE"]
-                ),
+                "MOVE": mean_squared_error(sub_df["original"], sub_df["MOVE"]),
                 "mean": mean_squared_error(sub_df["original"], sub_df["mean"]),
                 "MOSA": mean_squared_error(sub_df["original"], sub_df["MOSA"]),
             }
@@ -244,17 +248,13 @@ class DrugResponseBenchmark:
             s_dict = {
                 "drug_id": drug,
                 "MOFA": stats.spearmanr(sub_df["original"], sub_df["MOFA"])[0],
-                "MOVE": stats.spearmanr(
-                    sub_df["original"], sub_df["MOVE"]
-                )[0],
+                "MOVE": stats.spearmanr(sub_df["original"], sub_df["MOVE"])[0],
                 "MOSA": stats.spearmanr(sub_df["original"], sub_df["MOSA"])[0],
             }
             r_dict = {
                 "drug_id": drug,
                 "MOFA": stats.pearsonr(sub_df["original"], sub_df["MOFA"])[0],
-                "MOVE": stats.pearsonr(
-                    sub_df["original"], sub_df["MOVE"]
-                )[0],
+                "MOVE": stats.pearsonr(sub_df["original"], sub_df["MOVE"])[0],
                 "MOSA": stats.pearsonr(sub_df["original"], sub_df["MOSA"])[0],
             }
 
@@ -270,7 +270,9 @@ class DrugResponseBenchmark:
         pearson_res_df["Metric"] = "Pearson"
         plot_df = pd.concat([mse_res_df, spearman_res_df, pearson_res_df])
         plot_df = (
-            pd.melt(plot_df, id_vars=["Metric"], value_vars=["MOFA", "MOVE", "MOSA", "mean"])
+            pd.melt(
+                plot_df, id_vars=["Metric"], value_vars=["MOFA", "MOVE", "MOSA", "mean"]
+            )
             .rename(columns={"variable": "Method", "value": "Value"})
             .dropna()
         )
@@ -327,7 +329,9 @@ class DrugResponseBenchmark:
 
         # MOVE
         drespo_move_diabetes = self.move_diabetes_imputed["drugresponse"].copy()
-        drespo_move_diabetes.columns = [c.split(";")[1].upper() for c in drespo_move_diabetes]
+        drespo_move_diabetes.columns = [
+            c.split(";")[1].upper() for c in drespo_move_diabetes
+        ]
         if drop_duplicates:
             drespo_move_diabetes = drespo_move_diabetes.loc[
                 :, ~drespo_move_diabetes.columns.duplicated(keep="last")
@@ -341,7 +345,8 @@ class DrugResponseBenchmark:
             drespo_ctd2,
             drespo_vae,
             drespo_mofa,
-            drespo_move_diabetes, drespo_mean,
+            drespo_move_diabetes,
+            drespo_mean,
         )
 
     def correlation_ctd2(self):
@@ -504,12 +509,12 @@ class DrugResponseBenchmark:
         )
 
         ttest_stat = stats.ttest_ind(
-            plot_df.query("(MOSA_outofsample == 'In-sample') & (method == 'MOSA_corr')")[
-                "corr"
-            ],
-            plot_df.query("(MOSA_outofsample == 'In-sample') & (method == 'mofa_corr')")[
-                "corr"
-            ],
+            plot_df.query(
+                "(MOSA_outofsample == 'In-sample') & (method == 'MOSA_corr')"
+            )["corr"],
+            plot_df.query(
+                "(MOSA_outofsample == 'In-sample') & (method == 'mofa_corr')"
+            )["corr"],
             equal_var=False,
         )
         print(f"MOSA vs mofa (in-sample): {ttest_stat}")
