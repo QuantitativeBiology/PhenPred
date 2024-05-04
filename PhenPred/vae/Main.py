@@ -4,11 +4,6 @@
 import os
 import sys
 import time
-
-proj_dir = os.getcwd()
-if proj_dir not in sys.path:
-    sys.path.append(proj_dir)
-
 import json
 import torch
 import PhenPred
@@ -71,10 +66,9 @@ if __name__ == "__main__":
     vae_predicted, _ = train.load_vae_reconstructions(mode="all")
 
     mofa_imputed, mofa_latent = CLinesDatasetMOFA.load_reconstructions(clines_db)
-    move_diabetes_imputed, move_diabetes_latent = CLinesDatasetMOVE.load_reconstructions(
-        clines_db
+    move_diabetes_imputed, move_diabetes_latent = (
+        CLinesDatasetMOVE.load_reconstructions(clines_db)
     )
-
     _, mixOmics_latent = CLinesDatasetMixOmics.load_reconstructions(clines_db)
 
     # Transcriptomics benchmark
@@ -98,15 +92,12 @@ if __name__ == "__main__":
         ]
     )
 
-    _, ax = plt.subplots(1, 1, figsize=(2, 0.75), dpi=600)
+    _, ax = plt.subplots(1, 1, figsize=(0.5, 2), dpi=600)
 
     sns.boxplot(
         data=gexp_corr,
-        x="corr",
-        y="with_gexp",
-        hue="with_gexp",
-        legend=False,
-        orient="h",
+        x="with_gexp",
+        y="corr",
         palette="tab20c",
         linewidth=0.3,
         fliersize=1,
@@ -129,8 +120,8 @@ if __name__ == "__main__":
 
     ax.set(
         title=f"",
-        xlabel="Correlation between reconstructed\nand GDSC transcriptomics (Pearson's r)",
-        ylabel="Sample\nwith transcriptomics",
+        ylabel="Correlation between reconstructed\nand GDSC transcriptomics (Pearson's r)",
+        xlabel="Sample with transcriptomics\nduring MOSA training",
     )
 
     PhenPred.save_figure(
@@ -139,7 +130,12 @@ if __name__ == "__main__":
 
     # Run Latent Spaces Benchmark
     latent_benchmark = LatentSpaceBenchmark(
-        train.timestamp, clines_db, vae_latent, mofa_latent, move_diabetes_latent, mixOmics_latent
+        train.timestamp,
+        clines_db,
+        vae_latent,
+        mofa_latent,
+        move_diabetes_latent,
+        mixOmics_latent,
     )
 
     latent_benchmark.plot_latent_spaces(
@@ -150,7 +146,7 @@ if __name__ == "__main__":
                     "uridine",
                     "alanine",
                 ],
-                transcriptomics=["VIM"]
+                transcriptomics=["VIM"],
             )
         ),
     )

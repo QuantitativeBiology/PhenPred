@@ -1,24 +1,16 @@
 import os
+import sys
 
-# Data dir path - INESC-ID server
-data_folder = "/data/benchmarks/clines/"
+proj_dir = os.getcwd()
 
-if not os.path.exists(data_folder):
-    data_folder = "data/clines/"
+if proj_dir not in sys.path:
+    sys.path.append(proj_dir)
 
-# Plot dir path - INESC-ID server
-plot_folder = "/home/egoncalves/PhenPred/reports/vae/"
-
-if not os.path.exists(plot_folder):
-    plot_folder = "reports/vae/"
+files_folder = f"{proj_dir}/data/"
+data_folder = f"{proj_dir}/data/clines/"
+plot_folder = f"{proj_dir}/reports/vae/"
 
 # SHAP dir path - on mounted drive
 shap_folder = "/home/scai/projects/E0160_P01_PhenPred/reports/vae/"
 if not os.path.exists(shap_folder):
     shap_folder = plot_folder
-
-# Files folder path - INESC-ID server
-files_folder = "/home/egoncalves/PhenPred/data/"
-
-if not os.path.exists(files_folder):
-    files_folder = "data/"

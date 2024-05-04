@@ -14,7 +14,9 @@ from PhenPred.vae import data_folder, plot_folder
 
 
 class ProteomicsBenchmark:
-    def __init__(self, timestamp, data, vae_imputed, mofa_imputed, move_diabetes_imputed):
+    def __init__(
+        self, timestamp, data, vae_imputed, mofa_imputed, move_diabetes_imputed=None
+    ):
         self.timestamp = timestamp
 
         self.data = data
@@ -28,7 +30,9 @@ class ProteomicsBenchmark:
         self.df_original = self.data.dfs["proteomics"]
         self.df_vae = self.vae_imputed["proteomics"]
         self.df_mofa = self.mofa_imputed["proteomics"]
-        self.df_move_diabetes = move_diabetes_imputed["proteomics"]
+
+        if move_diabetes_imputed is not None:
+            self.df_move_diabetes = move_diabetes_imputed["proteomics"]
 
         self.df_mean = self.df_original.fillna(self.df_original.mean())
 
@@ -59,17 +63,23 @@ class ProteomicsBenchmark:
             set(self.df_original.index)
             .intersection(set(self.df_vae.index))
             .intersection(set(self.df_mofa.index))
-            .intersection(set(self.df_move_diabetes.index))
             .intersection(set(self.df_ccle.index))
         )
 
-        self.features = list((
+        if move_diabetes_imputed is not None:
+            self.samples = self.samples.intersection(set(self.df_move_diabetes.index))
+
+        self.features = (
             set(self.df_original.columns)
             .intersection(set(self.df_vae.columns))
             .intersection(set(self.df_mofa.columns))
-            .intersection(set(self.df_move_diabetes.columns))
             .intersection(set(self.df_ccle.columns))
-        ))
+        )
+
+        if move_diabetes_imputed is not None:
+            self.features = self.features.intersection(
+                set(self.df_move_diabetes.columns)
+            )
 
         self.samples_without_prot = set(
             self.df_original.index[self.df_original.isnull().all(1)]
@@ -218,7 +228,13 @@ class ProteomicsBenchmark:
             data=df_corrs,
             x="corr",
             y="impute",
-            order=["original", "vae_imputed", "mofa_imputed", "move_diabetes_imputed", "mean"],
+            order=[
+                "original",
+                "vae_imputed",
+                "mofa_imputed",
+                "move_diabetes_imputed",
+                "mean",
+            ],
             color="#ababab",
             orient="h",
             linewidth=0.3,
@@ -385,9 +401,11 @@ class ProteomicsBenchmark:
                     method="pearson",
                     extra_fields=dict(
                         sample=s,
-                        outofsample="Out-of-sample"
-                        if s in self.samples_without_prot
-                        else "In-sample",
+                        outofsample=(
+                            "Out-of-sample"
+                            if s in self.samples_without_prot
+                            else "In-sample"
+                        ),
                     ),
                 )
                 for s in samples

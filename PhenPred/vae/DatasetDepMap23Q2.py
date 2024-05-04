@@ -40,7 +40,11 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.filter_features = filter_features
         self.filtered_encoder_only = filtered_encoder_only
 
-        self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
+        self.dfs = {
+            n: pd.read_csv(f"{data_folder}/{f}", index_col=0)
+            for n, f in self.datasets.items()
+        }
+
         self.dfs = {
             n: df if n in ["crisprcas9", "copynumber"] else df.T
             for n, df in self.dfs.items()
@@ -71,7 +75,8 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self._build_labels()
 
         self.x_mask = [
-            torch.tensor(self.features_mask[n].values, dtype=torch.bool) for n in self.views
+            torch.tensor(self.features_mask[n].values, dtype=torch.bool)
+            for n in self.views
         ]
 
         # View names
@@ -215,7 +220,9 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
         if "msi" in self.labels_names:
             self.labels.append(
-                self.ss_cmp["msi_status"].replace({"MSS": "0", "MSI": "1"}).astype(float)
+                self.ss_cmp["msi_status"]
+                .replace({"MSS": "0", "MSI": "1"})
+                .astype(float)
             )
 
         if "mofa" in self.labels_names:
@@ -333,15 +340,17 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.samplesheet = self.samplesheet.groupby("model_id").first()
 
         # Match tissue names
-        self.samplesheet.replace({"tissue":
-            dict(
-                large_intestine="Large Intestine",
-                lung="Lung",
-                ovary="Ovary",
-                upper_aerodigestive_tract="Other tissue",
-                ascites="Other tissue",
-                pleural_effusion="Other tissue",
-            )},
+        self.samplesheet.replace(
+            {
+                "tissue": dict(
+                    large_intestine="Large Intestine",
+                    lung="Lung",
+                    ovary="Ovary",
+                    upper_aerodigestive_tract="Other tissue",
+                    ascites="Other tissue",
+                    pleural_effusion="Other tissue",
+                )
+            },
             inplace=True,
         )
 
@@ -444,11 +453,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         def solve(m1, m2, std1, std2):
             a = 1 / (2 * std1**2) - 1 / (2 * std2**2)
             b = m2 / (std2**2) - m1 / (std1**2)
-            c = (
-                m1**2 / (2 * std1**2)
-                - m2**2 / (2 * std2**2)
-                - np.log(std2 / std1)
-            )
+            c = m1**2 / (2 * std1**2) - m2**2 / (2 * std2**2) - np.log(std2 / std1)
             return np.roots([a, b, c])
 
         intersections = solve(gm_means[0], gm_means[1], gm_std[0], gm_std[1])
