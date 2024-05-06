@@ -129,10 +129,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
 
                 elif n in ["copynumber"]:
                     self.features_mask[n] = (self.dfs[n].abs() == 2).sum() > 3
-                # elif n in ["transcriptomics", "methylation"]:
-                #     top_std_columns = self.dfs[n].std().nlargest(5000).index
-                #     self.features_mask[n] = pd.Series(self.dfs[n].columns.isin(top_std_columns), index=self.dfs[n].columns)
-                #     self.features_mask[n].index.name = "GeneSymbol"
+
                 else:
                     thres = self.gaussian_mixture_std(self.dfs[n], plot_name=None)
                     self.features_mask[n] = self.dfs[n].std() > thres
