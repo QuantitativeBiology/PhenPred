@@ -40,10 +40,7 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.filter_features = filter_features
         self.filtered_encoder_only = filtered_encoder_only
 
-        self.dfs = {
-            n: pd.read_csv(f"{data_folder}/{f}", index_col=0)
-            for n, f in self.datasets.items()
-        }
+        self.dfs = {n: pd.read_csv(f, index_col=0) for n, f in self.datasets.items()}
 
         self.dfs = {
             n: df if n in ["crisprcas9", "copynumber"] else df.T
