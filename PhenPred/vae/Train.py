@@ -86,9 +86,9 @@ class CLinesTrain:
             model = MOSA(
                 hypers=self.hypers,
                 views_sizes=views_sizes,
-                conditional_size=self.data.labels.shape[1]
-                if self.hypers["use_conditionals"]
-                else 0,
+                conditional_size=(
+                    self.data.labels.shape[1] if self.hypers["use_conditionals"] else 0
+                ),
                 views_sizes_full=views_sizes_full,
             )
         else:
@@ -96,9 +96,9 @@ class CLinesTrain:
                 hypers=self.hypers,
                 views_sizes=views_sizes,
                 views_sizes_full=views_sizes_full,
-                conditional_size=self.data.labels.shape[1]
-                if self.hypers["use_conditionals"]
-                else 0,
+                conditional_size=(
+                    self.data.labels.shape[1] if self.hypers["use_conditionals"] else 0
+                ),
             )
 
         model = nn.DataParallel(model)
@@ -237,9 +237,7 @@ class CLinesTrain:
 
             data_test = torch.utils.data.Subset(self.data, test_idx)
             dataloader_test = DataLoader(
-                data_test,
-                batch_size=self.hypers["batch_size"],
-                shuffle=False
+                data_test, batch_size=self.hypers["batch_size"], shuffle=False
             )
 
             # Initialize Model and Optimizer
@@ -605,11 +603,7 @@ class CLinesTrain:
             raise FileNotFoundError
 
         self.model = self.initialize_model()
-        self.model.load_state_dict(
-            torch.load(
-                f"{plot_folder}/files/{self.timestamp}_model.pt",
-            )
-        )
+        self.model.load_state_dict(torch.load(model_path))
 
     def run_shap(self, n_samples=50, seed=42, explain_target="latent"):
         torch.manual_seed(seed)
@@ -661,7 +655,7 @@ class CLinesTrain:
             )
         feature_names_all.append(self.data.labels_name)
         view_names = self.data.view_names + ["conditionals"]
-        if explain_target != 'latent':
+        if explain_target != "latent":
             target_feature_names = self.data.features_mask[explain_target].index.values
         else:
             target_feature_names = [f"Latent_{i+1}" for i in range(len(shap_values))]
