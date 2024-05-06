@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     train.run(run_timestamp=hyperparameters["load_run"])
 
-    if hyperparameters["skip_benchmarks"]:
+    if "skip_benchmarks" in hyperparameters and hyperparameters["skip_benchmarks"]:
         sys.exit(0)
 
     # Load imputed data
