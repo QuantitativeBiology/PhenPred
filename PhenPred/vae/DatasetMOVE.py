@@ -42,7 +42,7 @@ class CLinesDatasetMOVE:
             hypers = Hypers.read_hyperparameters(hypers)
 
         # Dataset details
-        ddir = f"{data_folder}/move_diabetes_1000hidden/"
+        ddir = f"{data_folder}/move_diabetes/"
 
         if dfs is None:
             dfs = data.dfs
