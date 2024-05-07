@@ -1,22 +1,14 @@
 # This file does not work with the existing SHAP implementation
 # Custom changes are required to accept our input data format
 
-import os
-import sys
 import time
 
-import json
-import PhenPred
-import argparse
-import pandas as pd
-from PhenPred.vae import plot_folder
 from PhenPred.vae.Hypers import Hypers
 from PhenPred.vae.Train import CLinesTrain
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
-import shap
 
 if __name__ == "__main__":
-    hyperparameters = Hypers.read_hyperparameters(timestamp="20240117_170357")
+    hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -41,7 +33,7 @@ if __name__ == "__main__":
     train.load_model()
 
     train.run_shap(explain_target="latent")
-    # train.run_shap(explain_target="drugresponse")
+    train.run_shap(explain_target="drugresponse")
 
     # train.run_shap(explain_target="metabolomics")
     # train.run_shap(explain_target="copynumber")
