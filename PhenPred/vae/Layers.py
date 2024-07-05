@@ -59,9 +59,9 @@ class Gaussian(nn.Module):
 
     def forward(self, x):
         mu = self.mu(x)
-        var = F.softplus(self.var(x))
-        z = self.reparameterize(mu, var)
-        return mu, var, z
+        log_var = F.softplus(self.var(x))
+        z = self.reparameterize(mu, log_var)
+        return mu, log_var, z
 
 
 class GumbelSoftmax(nn.Module):
