@@ -1,0 +1,16 @@
+dataset,val_drug_loss,val_crispr_loss,total_loss
+"['drugresponse', 'crisprcas9', 'proteomics']",0.6672037045160929,0.8586277365684509,1.5258314410845437
+"['drugresponse', 'crisprcas9', 'metabolomics']",0.6644230286280314,0.8137369553248087,1.47815998395284
+"['drugresponse', 'crisprcas9', 'methylation']",0.6762885649998983,0.8746395111083984,1.5509280761082969
+"['drugresponse', 'crisprcas9', 'transcriptomics']",0.6525535186131796,0.8391394019126892,1.4916929205258689
+"['drugresponse', 'crisprcas9', 'copynumber']",0.6775319576263428,0.825850268205007,1.5033822258313498
+"['drugresponse', 'crisprcas9', 'metabolomics', 'proteomics']",0.6343618631362915,0.8485957582791647,1.4829576214154563
+"['drugresponse', 'crisprcas9', 'metabolomics', 'methylation']",0.6683661142985026,0.8604738116264343,1.5288399259249368
+"['drugresponse', 'crisprcas9', 'metabolomics', 'transcriptomics']",0.648618221282959,0.8357794483502706,1.4843976696332297
+"['drugresponse', 'crisprcas9', 'metabolomics', 'copynumber']",0.6102166771888733,0.821626881758372,1.4318435589472451
+"['drugresponse', 'crisprcas9', 'metabolomics', 'copynumber', 'proteomics']",0.62910924355189,0.8460706671079,1.47517991065979
+"['drugresponse', 'crisprcas9', 'metabolomics', 'copynumber', 'methylation']",0.646943211555481,0.8514950275421143,1.4984382390975952
+"['drugresponse', 'crisprcas9', 'metabolomics', 'copynumber', 'transcriptomics']",0.6425135930379232,0.8455445170402527,1.488058110078176
+"['drugresponse', 'crisprcas9', 'metabolomics', 'copynumber', 'proteomics', 'methylation']",0.6598921815554301,0.8614583214124044,1.5213505029678345
+"['drugresponse', 'crisprcas9', 'metabolomics', 'copynumber', 'proteomics', 'transcriptomics']",0.6577708522478739,0.8573452035586039,1.5151160558064778
+"['drugresponse', 'crisprcas9', 'metabolomics', 'copynumber', 'proteomics', 'transcriptomics', 'methylation']",0.6765347520510355,0.8743396798769633,1.5508744319279988
