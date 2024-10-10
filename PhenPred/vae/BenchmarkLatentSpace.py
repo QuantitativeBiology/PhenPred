@@ -25,7 +25,11 @@ class LatentSpaceBenchmark:
         latent_space,
         mofa_latent,
         move_diabetes_latent,
+        jamie_latent,
+        scvaeit_latent,
         mixOmics_latent,
+        iClusterPlus_latent,
+        moCluster_latent,
     ):
         self.data = data
         self.timestamp = timestamp
@@ -34,7 +38,11 @@ class LatentSpaceBenchmark:
 
         self.mofa_latent = mofa_latent
         self.move_diabetes_latent = move_diabetes_latent
+        self.jamie_latent = jamie_latent
+        self.scvaeit_latent = scvaeit_latent
         self.mixOmics_latent = mixOmics_latent
+        self.iClusterPlus_latent = iClusterPlus_latent
+        self.moCluster_latent = moCluster_latent
 
         self.ss = data.samplesheet.copy()
 
@@ -86,17 +94,23 @@ class LatentSpaceBenchmark:
                     "sanger_"
                 ),
                 pd.get_dummies(self.ss["growth_properties_broad"]).add_prefix("broad_"),
-                self.data.dfs["proteomics"].mean(1).rename("MeanProteomics")
-                if "proteomics" in self.data.dfs
-                else None,
-                self.data.dfs["methylation"].mean(1).rename("MeanMethylation")
-                if "methylation" in self.data.dfs
-                else None,
-                zscore(self.data.dfs["drugresponse"], nan_policy="omit")
-                .mean(1)
-                .rename("MeanDrugResponse")
-                if "drugresponse" in self.data.dfs
-                else None,
+                (
+                    self.data.dfs["proteomics"].mean(1).rename("MeanProteomics")
+                    if "proteomics" in self.data.dfs
+                    else None
+                ),
+                (
+                    self.data.dfs["methylation"].mean(1).rename("MeanMethylation")
+                    if "methylation" in self.data.dfs
+                    else None
+                ),
+                (
+                    zscore(self.data.dfs["drugresponse"], nan_policy="omit")
+                    .mean(1)
+                    .rename("MeanDrugResponse")
+                    if "drugresponse" in self.data.dfs
+                    else None
+                ),
                 self.df_drug_novel_bin.sum(1).rename("drug_responses").apply(np.log2),
             ],
             axis=1,
@@ -397,10 +411,14 @@ class LatentSpaceBenchmark:
         centroid_distance_df = []
         clustering_score_df = {"model": [], "metric": [], "score": []}
         for n, z_joint in [
-            ("vae", self.latent_space),
-            ("mofa", self.mofa_latent["factors"]),
-            ("move_diabetes", self.move_diabetes_latent["factors"]),
+            ("MOSA", self.latent_space),
+            ("MOFA", self.mofa_latent["factors"]),
+            ("MOVE", self.move_diabetes_latent["factors"]),
+            ("JAME", self.jamie_latent["factors"]),
+            ("scVAEIT", self.scvaeit_latent["factors"]),
             ("mixOmics", self.mixOmics_latent["factors"]),
+            ("iClusterPlus", self.iClusterPlus_latent["factors"]),
+            ("moCluster", self.moCluster_latent["factors"]),
         ]:
             if method == "UMAP":
                 # Get UMAP projections

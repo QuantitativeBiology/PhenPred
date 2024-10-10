@@ -15,7 +15,13 @@ from PhenPred.vae import data_folder, plot_folder
 
 class ProteomicsBenchmark:
     def __init__(
-        self, timestamp, data, vae_imputed, mofa_imputed, move_diabetes_imputed=None
+        self,
+        timestamp,
+        data,
+        vae_imputed,
+        mofa_imputed,
+        move_diabetes_imputed=None,
+        jamie_imputed=None,
     ):
         self.timestamp = timestamp
 
@@ -33,6 +39,8 @@ class ProteomicsBenchmark:
 
         if move_diabetes_imputed is not None:
             self.df_move_diabetes = move_diabetes_imputed["proteomics"]
+        if jamie_imputed is not None:
+            self.df_jamie = jamie_imputed["proteomics"]
 
         self.df_mean = self.df_original.fillna(self.df_original.mean())
 
@@ -42,7 +50,8 @@ class ProteomicsBenchmark:
         else:
             self.df_cnv = self.data.cnv
 
-        self.df_gexp = self.data.dfs["transcriptomics"]
+        if "transcriptomics" in self.data.dfs:
+            self.df_gexp = self.data.dfs["transcriptomics"]
 
         # Independent proteomics dataset - CCLE
         self.df_ccle = pd.read_csv(f"{data_folder}/proteomics_ccle.csv", index_col=0).T
@@ -68,6 +77,8 @@ class ProteomicsBenchmark:
 
         if move_diabetes_imputed is not None:
             self.samples = self.samples.intersection(set(self.df_move_diabetes.index))
+        if jamie_imputed is not None:
+            self.samples = self.samples.intersection(set(self.df_jamie.index))
 
         self.features = (
             set(self.df_original.columns)
@@ -80,6 +91,8 @@ class ProteomicsBenchmark:
             self.features = self.features.intersection(
                 set(self.df_move_diabetes.columns)
             )
+        if jamie_imputed is not None:
+            self.features = self.features.intersection(set(self.df_jamie.columns))
 
         self.samples_without_prot = set(
             self.df_original.index[self.df_original.isnull().all(1)]
@@ -92,7 +105,8 @@ class ProteomicsBenchmark:
         self.compare_imputed_ccle()
         self.ccle_compare_by_genes()
         self.ccle_compare_with_vae()
-        self.compare_imputed_cnv()
+        if "copynumber" in self.data.dfs:
+            self.compare_imputed_cnv()
 
     def proteomics_datasets_dict(self, zscore=True, reindex=None):
         dfs = dict(
@@ -100,6 +114,7 @@ class ProteomicsBenchmark:
             vae_imputed=self.df_vae,
             mofa_imputed=self.df_mofa,
             move_diabetes_imputed=self.df_move_diabetes,
+            jamie_imputed=self.df_jamie,
             mean=self.df_mean,
         )
 
@@ -233,6 +248,7 @@ class ProteomicsBenchmark:
                 "vae_imputed",
                 "mofa_imputed",
                 "move_diabetes_imputed",
+                "jamie_imputed",
                 "mean",
             ],
             color="#ababab",
@@ -280,6 +296,7 @@ class ProteomicsBenchmark:
                 "mean",
                 "mofa_imputed",
                 "move_diabetes_imputed",
+                "jamie_imputed",
                 "vae_imputed",
             ],
             var_name="impute",

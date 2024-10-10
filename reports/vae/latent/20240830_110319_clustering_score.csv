@@ -1,0 +1,17 @@
+model,metric,score
+MOSA,calinski_harabasz,13.02155121834704
+MOSA,davies_bouldin,2.978183013122301
+MOFA,calinski_harabasz,6.455721522436319
+MOFA,davies_bouldin,3.9733251923369806
+MOVE,calinski_harabasz,7.508574071279703
+MOVE,davies_bouldin,3.6337882104879196
+JAME,calinski_harabasz,7.636642082455973
+JAME,davies_bouldin,3.787699321259635
+scVAEIT,calinski_harabasz,30.1297318352353
+scVAEIT,davies_bouldin,4.863839346857337
+mixOmics,calinski_harabasz,8.441797933556813
+mixOmics,davies_bouldin,3.6331569229900085
+iClusterPlus,calinski_harabasz,6.757866172254366
+iClusterPlus,davies_bouldin,3.857447301504207
+moCluster,calinski_harabasz,3.7363423180243998
+moCluster,davies_bouldin,4.986004109528119

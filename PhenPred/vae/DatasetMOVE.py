@@ -42,7 +42,7 @@ class CLinesDatasetMOVE:
             hypers = Hypers.read_hyperparameters(hypers)
 
         # Dataset details
-        ddir = f"{data_folder}/move_diabetes/"
+        ddir = f"{data_folder}/move_diabetes_200factor_drug_transcriptomics/"
 
         if dfs is None:
             dfs = data.dfs
@@ -64,7 +64,9 @@ class CLinesDatasetMOVE:
 
         # Load latent space
         joint_latent = dict(
-            factors=pd.read_csv(f"{ddir}/latent_space_{n_factors}factor.csv", index_col=0)
+            factors=pd.read_csv(
+                f"{ddir}/latent_space_{n_factors}factor.csv", index_col=0
+            )
         )
 
         return dfs_imputed, joint_latent
