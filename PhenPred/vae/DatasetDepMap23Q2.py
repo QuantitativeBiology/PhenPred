@@ -237,6 +237,12 @@ class CLinesDatasetDepMap23Q2(Dataset):
         self.labels_name = self.labels.columns.tolist()
         self.labels_size = self.labels.shape[1]
 
+        self.labels.index.name = "ID"
+        # self.labels.to_csv(
+        #     f"{data_folder}/processed_data_for_benchmark/proteomics_drugresponse/depmap2omics_labels_union.tsv",
+        #     sep="\t",
+        # )
+
         self.labels = torch.tensor(self.labels.values.astype(float), dtype=torch.float)
 
     def _import_drug_targets(self):
@@ -420,13 +426,32 @@ class CLinesDatasetDepMap23Q2(Dataset):
         ).value_counts()
 
         # Keep only samples that are in at least 2 datasets
-        self.samples = self.samples[self.samples > 1]
+        # self.samples = self.samples[self.samples > 1]
+        self.samples = self.samples[self.samples > 0]
 
         self.samples = set(self.samples.index).intersection(set(self.samplesheet.index))
         self.samples -= {"SIDM00189", "SIDM00650"}
         self.samples = sorted(list(self.samples))
 
         self.dfs = {n: df.reindex(index=self.samples) for n, df in self.dfs.items()}
+
+        # for n, df in self.dfs.items():
+        #     df.to_csv(
+        #         f"{data_folder}/processed_data_for_benchmark/transcriptomics_drugresponse/{n}_union.csv"
+        #     )
+
+        # for n, df in self.dfs.items():
+        #     df.index.name = "ID"
+        #     df.to_csv(
+        #         f"{data_folder}/processed_data_for_benchmark/transcriptomics_drugresponse/depmap2omics_{n}_union.tsv",
+        #         sep="\t",
+        #     )
+        # self.dfs["transcriptomics"].reset_index()[["ID"]].to_csv(
+        #     f"{data_folder}/processed_data_for_benchmark/transcriptomics_drugresponse/depmap2omics_ids.txt",
+        #     sep="\t",
+        #     header=False,
+        #     index=False,
+        # )
 
     def _remove_features_missing_values(self):
         # Remove features with more than 50% of missing values
