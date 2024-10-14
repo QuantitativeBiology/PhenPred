@@ -86,17 +86,23 @@ class LatentSpaceBenchmark:
                     "sanger_"
                 ),
                 pd.get_dummies(self.ss["growth_properties_broad"]).add_prefix("broad_"),
-                self.data.dfs["proteomics"].mean(1).rename("MeanProteomics")
-                if "proteomics" in self.data.dfs
-                else None,
-                self.data.dfs["methylation"].mean(1).rename("MeanMethylation")
-                if "methylation" in self.data.dfs
-                else None,
-                zscore(self.data.dfs["drugresponse"], nan_policy="omit")
-                .mean(1)
-                .rename("MeanDrugResponse")
-                if "drugresponse" in self.data.dfs
-                else None,
+                (
+                    self.data.dfs["proteomics"].mean(1).rename("MeanProteomics")
+                    if "proteomics" in self.data.dfs
+                    else None
+                ),
+                (
+                    self.data.dfs["methylation"].mean(1).rename("MeanMethylation")
+                    if "methylation" in self.data.dfs
+                    else None
+                ),
+                (
+                    zscore(self.data.dfs["drugresponse"], nan_policy="omit")
+                    .mean(1)
+                    .rename("MeanDrugResponse")
+                    if "drugresponse" in self.data.dfs
+                    else None
+                ),
                 self.df_drug_novel_bin.sum(1).rename("drug_responses").apply(np.log2),
             ],
             axis=1,
@@ -169,7 +175,7 @@ class LatentSpaceBenchmark:
         x_order = natsorted(plot_df.columns)
         y_order = natsorted(plot_df.index)
 
-        ticklabelsfs = 4
+        ticklabelsfs = 3
 
         fig, axs = plt.subplots(
             2,
@@ -189,8 +195,8 @@ class LatentSpaceBenchmark:
             xticklabels=False,
             yticklabels=True,
             linewidths=0.0,
-            annot=True,
-            annot_kws={"fontsize": 3},
+            # annot=True,
+            # annot_kws={"fontsize": 3},
             cbar=False,
             fmt=".1f",
             vmin=-1,
@@ -202,8 +208,10 @@ class LatentSpaceBenchmark:
         axs[0, 0].set_ylabel("")
         axs[0, 0].set_title("Correlation (pearson's r)", fontsize=5)
 
-        for tick in axs[0, 0].yaxis.get_major_ticks():
-            tick.label.set_fontsize(ticklabelsfs)
+        axs[0, 0].tick_params(axis="y", labelsize=ticklabelsfs)
+
+        # for tick in axs[0, 0].yaxis.get_major_ticks():
+        #    tick.label.set_fontsize(ticklabelsfs)
 
         # Variance heatmap
         sns.heatmap(
@@ -213,8 +221,8 @@ class LatentSpaceBenchmark:
             yticklabels=False,
             linewidths=0.0,
             cbar=False,
-            annot=True,
-            annot_kws={"fontsize": 3},
+            # annot=True,
+            # annot_kws={"fontsize": 3},
             fmt=".1f",
             ax=axs[0, 1],
         )
@@ -223,8 +231,9 @@ class LatentSpaceBenchmark:
         axs[0, 1].set_xlabel("")
         axs[0, 1].set_title("Variance explained", fontsize=5)
 
-        for tick in axs[0, 1].xaxis.get_major_ticks():
-            tick.label.set_fontsize(ticklabelsfs)
+        axs[0, 1].tick_params(axis="x", labelsize=ticklabelsfs)
+        # for tick in axs[0, 1].xaxis.get_major_ticks():
+        #    tick.label.set_fontsize(ticklabelsfs)
 
         # Covariates heatmap
         sns.heatmap(
@@ -234,8 +243,8 @@ class LatentSpaceBenchmark:
             xticklabels=True,
             yticklabels=True,
             linewidths=0.0,
-            annot=True,
-            annot_kws={"fontsize": 3},
+            # annot=True,
+            # annot_kws={"fontsize": 3},
             cbar=False,
             fmt=".1f",
             vmin=-1,
@@ -246,12 +255,16 @@ class LatentSpaceBenchmark:
         axs[1, 0].set_xlabel("Covariates correlation", fontsize=5)
         axs[1, 0].set_ylabel("")
 
+        """
         for tick in axs[1, 0].xaxis.get_major_ticks():
             tick.label.set_fontsize(ticklabelsfs)
 
         for tick in axs[1, 0].yaxis.get_major_ticks():
             tick.label.set_fontsize(ticklabelsfs)
+        """
 
+        axs[1, 0].tick_params(axis="x", labelsize=ticklabelsfs - 1)
+        axs[1, 0].tick_params(axis="y", labelsize=ticklabelsfs)
         # Change width space
         plt.subplots_adjust(wspace=0.05, hspace=0.05)
 
@@ -303,8 +316,8 @@ class LatentSpaceBenchmark:
             linewidths=0.0,
             xticklabels=True,
             yticklabels=True,
-            annot=True,
-            annot_kws={"fontsize": 3},
+            # annot=True,
+            # annot_kws={"fontsize": 3},
             fmt=".1f",
             col_cluster=False,
             cbar_kws={"shrink": 0.5},
@@ -397,7 +410,7 @@ class LatentSpaceBenchmark:
         centroid_distance_df = []
         clustering_score_df = {"model": [], "metric": [], "score": []}
         for n, z_joint in [
-            ("vae", self.latent_space),
+            ("mosa", self.latent_space),
             ("mofa", self.mofa_latent["factors"]),
             ("move_diabetes", self.move_diabetes_latent["factors"]),
             ("mixOmics", self.mixOmics_latent["factors"]),
