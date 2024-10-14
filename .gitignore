@@ -136,6 +136,5 @@ data/*
 .DS_Store
 *_model.pt
 *.pkl
-*.ipynb
 .xls
 .xlsx
