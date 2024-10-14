@@ -37,13 +37,7 @@ class MOSA(nn.Module):
         self.activation_function = self.hypers["activation_function"]
         self.return_for_shap = return_for_shap
         self.layer_idx_map = {
-            "proteomics": 0,
-            "metabolomics": 1,
-            "drugresponse": 2,
-            "crisprcas9": 3,
-            "methylation": 4,
-            "transcriptomics": 5,
-            "copynumber": 6,
+            key: index for index, key in enumerate(list(self.hypers["datasets"].keys()))
         }
 
         if not lazy_init:
@@ -236,13 +230,35 @@ class MOSA(nn.Module):
             c_loss = [loss_func(mu, y[:, i]) for i in range(32)]
             c_loss = torch.stack(c_loss).sum() * self.hypers["w_contrastive"]
 
-        # Total loss
-        loss = recon_loss + kl_loss + c_loss
+        if self.hypers.get("dip_vae_type") != None:
+            dipvae_loss = CLinesLosses.dip_vae(
+                mu,
+                logvar,
+                self.hypers["lambda_od"],
+                self.hypers["lambda_d"],
+                self.hypers["dip_vae_type"],
+            )
 
-        return dict(
-            total=loss,
-            reconstruction=recon_loss,
-            reconstruction_views=recon_loss_views,
-            kl=kl_loss,
-            contrastive=c_loss,
-        )
+            # Total loss
+            loss = recon_loss + kl_loss + c_loss + dipvae_loss
+
+            return dict(
+                total=loss,
+                reconstruction=recon_loss,
+                reconstruction_views=recon_loss_views,
+                kl=kl_loss,
+                contrastive=c_loss,
+                dipvae=dipvae_loss,
+            )
+
+        else:
+            # Total loss
+            loss = recon_loss + kl_loss + c_loss
+
+            return dict(
+                total=loss,
+                reconstruction=recon_loss,
+                reconstruction_views=recon_loss_views,
+                kl=kl_loss,
+                contrastive=c_loss,
+            )

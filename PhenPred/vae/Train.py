@@ -35,7 +35,7 @@ class CLinesTrain:
         data,
         hypers,
         stratify_cv_by=None,
-        early_stop_patience=20,
+        early_stop_patience=30,
         timestamp=None,
         verbose=0,
     ):
@@ -308,7 +308,7 @@ class CLinesTrain:
                 elif loss_previous is None:
                     loss_previous = loss_current
 
-                elif round(loss_current, 2) < round(loss_previous, 2):
+                elif round(loss_current, 4) < round(loss_previous, 4):
                     loss_counter = 0
                     loss_previous = loss_current
 
@@ -506,14 +506,14 @@ class CLinesTrain:
 
     def register_loss(self, loss, extra_fields=None):
         r = {
-            k: float(v)
+            k: np.round(float(v), 7)
             for k, v in loss.items()
             if type(v) == torch.Tensor and v.numel() == 1
         }
 
         if "reconstruction_views" in loss:
             for i, v in enumerate(loss["reconstruction_views"]):
-                r[f"mse_{self.data.view_names[i]}"] = float(v)
+                r[f"mse_{self.data.view_names[i]}"] = np.round(float(v), 7)
 
         if extra_fields is not None:
             r.update(extra_fields)
@@ -608,9 +608,9 @@ class CLinesTrain:
     def run_shap(self, n_samples=50, seed=42, explain_target="latent"):
         torch.manual_seed(seed)
         self.model.module.return_for_shap = explain_target
-        if explain_target in ["latent", "metabolomics"]:
+        if explain_target in ["latent", "metabolomics", "drugresponse"]:
             batch_size = len(self.data.samples)
-        elif explain_target in ["copynumber", "drugresponse"]:
+        elif explain_target in ["copynumber"]:
             batch_size = len(self.data.samples) // 5
         elif explain_target in ["proteomics", "transcriptomics", "methylation"]:
             batch_size = len(self.data.samples) // 10
@@ -621,7 +621,7 @@ class CLinesTrain:
         data_all = DataLoader(
             self.data,
             batch_size=batch_size,
-            shuffle=False if explain_target == "latent" else True,
+            shuffle=False if batch_size == len(self.data.samples) else True,
         )
         data = next(iter(data_all))
         x, y, x_nans, x_mask = data
@@ -635,17 +635,25 @@ class CLinesTrain:
         ]
         y = y.to(self.device)
 
-        if self.hypers["use_conditionals"]:
-            input_list = x_masked + [y]
-        else:
-            input_list = x_masked
+        input_list = x_masked + [y] if self.hypers["use_conditionals"] else x_masked
 
-        explainer = shap.explainers._gradient._PyTorchGradient(
-            self.model,
-            input_list,
-        )
-        shap_values = explainer.shap_values(input_list, nsamples=n_samples)
+        explainer = shap.explainers._gradient.GradientExplainer(self.model, input_list)
 
+        feature_names_all = []
+        for view_name in self.data.view_names:
+            feature_names_all.append(
+                self.data.features_mask[view_name][
+                    self.data.features_mask[view_name] == True
+                ].index.values
+            )
+        feature_names_all.append(self.data.labels_name)
+
+        explanation = explainer(input_list, nsamples=n_samples)
+        explanation.feature_names = feature_names_all
+
+        return explanation
+
+    def save_shap(self, shap_values, explain_target="latent"):
         feature_names_all = []
         for view_name in self.data.view_names:
             feature_names_all.append(
@@ -658,30 +666,113 @@ class CLinesTrain:
         if explain_target != "latent":
             target_feature_names = self.data.features_mask[explain_target].index.values
         else:
-            target_feature_names = [f"Latent_{i+1}" for i in range(len(shap_values))]
+            target_feature_names = [
+                f"Latent_{i+1}" for i in range(shap_values[0].shape[-1])
+            ]
 
         all_shap_df = []
-        for target_idx in range(len(shap_values)):
-            shap_target = shap_values[target_idx]
+
+        # Iterate through output features
+        for target_idx in range(shap_values[0].shape[-1]):
             target_dfs = []
             for i in range(len(view_names)):
                 view_name = view_names[i]
+                # Feature names of a specific view
                 feature_names = feature_names_all[i]
-                tmp_df = pd.DataFrame(shap_target[i], columns=feature_names)
+                # Dataframe with (#samples, #feature of a specific view)
+                tmp_df = pd.DataFrame(
+                    np.round(shap_values[i][:, :, target_idx], 7), columns=feature_names
+                )
+                # Modify column names to include the omics view name and feature name
                 tmp_df.columns = [f"{view_names[i]}_{c}" for c in tmp_df.columns]
+                # Append all the dataframes obtained from each view
                 target_dfs.append(tmp_df)
+
+            # Convert the list of dataframes to a single dataframe with (#samples, #all omics features)
             target_dfs = pd.concat(target_dfs, axis=1)
+
+            # Add a new column with the output feature the dataframe refers to
             target_dfs["target_name"] = f"{target_feature_names[target_idx]}"
+            target_dfs["Sample ID"] = self.data.samples
 
             all_shap_df.append(target_dfs)
         all_shap_df = pd.concat(all_shap_df, axis=0)
         cols = all_shap_df.columns.tolist()
-        cols = [cols[-1]] + cols[:-1]
+        cols = [cols[-2]] + [cols[-1]] + cols[:-2]
         all_shap_df = all_shap_df[cols]
-
+        
+        '''
         print("Saving files...")
         all_shap_df.reset_index(drop=True).to_feather(
             f"{shap_folder}/files/{self.timestamp}_shap_values_{explain_target}.feather"
+        )
+        '''
+        
+        return all_shap_df
+    
+    def save_shap_top200_features(self, shap_values, explain_target="latent"):
+        feature_names_all = []
+        for view_name in self.data.view_names:
+            feature_names_all.append(
+                self.data.features_mask[view_name][
+                    self.data.features_mask[view_name] == True
+                ].index.values
+            )
+        feature_names_all.append(self.data.labels_name)
+        view_names = self.data.view_names + ["conditionals"]
+        if explain_target != "latent":
+            target_feature_names = self.data.features_mask[explain_target].index.values
+        else:
+            target_feature_names = [
+                f"Latent_{i+1}" for i in range(shap_values[0].shape[-1])
+            ]
+
+        all_shap_df = []
+
+        # Iterate through output features
+        for target_idx in range(shap_values[0].shape[-1]):
+            target_dfs = []
+            for i in range(len(view_names)):
+                view_name = view_names[i]
+                feature_names = feature_names_all[i]
+                # Dataframe with (#samples, #feature of a specific view)
+                tmp_df = pd.DataFrame(
+                    np.round(shap_values[i][:, :, target_idx], 7), columns=feature_names
+                )
+                # Modify column names to include the omics view name and feature name
+                tmp_df.columns = [f"{view_names[i]}_{c}" for c in tmp_df.columns]
+                tmp_df["Sample_ID"] = self.data.samples
+                melted_df = tmp_df.melt(id_vars=['Sample_ID'], var_name='omics_feature', value_name='Shap_value')
+                
+                melted_with_abs_df = melted_df.copy()
+                melted_with_abs_df['abs_Shap_value'] = melted_with_abs_df['Shap_value'].abs()
+                
+                grouped_df = melted_with_abs_df.groupby('omics_feature')['abs_Shap_value'].mean().reset_index()
+                grouped_df.rename(columns={'abs_Shap_value': 'avg_abs_Shap_value'}, inplace=True)
+                
+                # Retain the top 200 features from each omic with highest avg abs shap value
+                ordered_df = grouped_df.sort_values(by='avg_abs_Shap_value', ascending=False)
+                top_200_features = ordered_df.head(200)["omics_feature"]
+                filtered_melted_df = melted_df[melted_df['omics_feature'].isin(top_200_features)]
+
+                # Append all the dataframes obtained from each view
+                target_dfs.append(filtered_melted_df)
+
+            # Convert the list of dataframes to a single dataframe with (#samples, #all omics features)
+            target_dfs_all_views = pd.concat(target_dfs, axis=0)
+
+            # Add a new column with the output feature the dataframe refers to
+            target_dfs_all_views["target_name"] = f"{target_feature_names[target_idx]}"
+            all_shap_df.append(target_dfs_all_views)
+        
+        all_shap_df = pd.concat(all_shap_df, axis=0)
+        cols = all_shap_df.columns.tolist()
+        cols = [cols[0]] + [cols[-1]] + cols[1:3]
+        all_shap_df = all_shap_df[cols]
+
+        print("Saving files...")
+        all_shap_df.to_feather(
+            f"{shap_folder}/files/{self.timestamp}_shap_values_top_features_{explain_target}.feather"
         )
 
     def _plot_lr_rates(self, ax):

@@ -16,7 +16,7 @@ from PhenPred.vae.Hypers import Hypers
 from sklearn.model_selection import KFold
 from PhenPred.vae.Train import CLinesTrain
 from PhenPred.Utils import two_vars_correlation
-from PhenPred.vae import plot_folder, data_folder
+from PhenPred.vae import plot_folder, data_folder, shap_folder
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
 from PhenPred.vae.DatasetMOVE import CLinesDatasetMOVE
 from PhenPred.vae.DatasetMixOmics import CLinesDatasetMixOmics
@@ -27,7 +27,6 @@ from PhenPred.vae.BenchmarkProteomics import ProteomicsBenchmark
 from PhenPred.vae.BenchmarkLatentSpace import LatentSpaceBenchmark
 from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
 
-
 torch.manual_seed(0)
 np.random.seed(0)
 
@@ -35,8 +34,15 @@ if __name__ == "__main__":
     # Class variables - Hyperparameters
     start_time = time.time()
 
-    # hyperparameters = Hypers.read_hyperparameters()
-    hyperparameters = Hypers.read_hyperparameters(timestamp="20231023_092657")
+    timestamp = "20240805_132345"
+    hyperparameters = Hypers.read_hyperparameters(timestamp=timestamp)
+    #hyperparameters = Hypers.read_hyperparameters()
+    #hyperparameters = Hypers.read_hyperparameters(hypers_json=f"{plot_folder}/files/optuna_MOSA_updated_model_weights_hyperparameters.json")
+    
+    # DIP-VAE
+    # hyperparameters["dip_vae_type"] = "ii"
+    # hyperparameters["lambda_d"] = 0.001
+    # hyperparameters["lambda_od"] = 0.001
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -56,7 +62,9 @@ if __name__ == "__main__":
         stratify_cv_by=clines_db.samples_by_tissue("Haematopoietic and Lymphoid"),
     )
 
-    train.run(run_timestamp=hyperparameters["load_run"])
+    # train.run(run_timestamp=hyperparameters["load_run"])
+    train.run(run_timestamp=timestamp)
+    # train.run()
 
     if "skip_benchmarks" in hyperparameters and hyperparameters["skip_benchmarks"]:
         sys.exit(0)
