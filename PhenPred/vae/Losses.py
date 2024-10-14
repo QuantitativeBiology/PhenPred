@@ -164,6 +164,65 @@ class CLinesLosses:
         return -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp()) / len(mu)
 
     @classmethod
+    def dip_vae(cls, mu, log_var, lambda_od=0, lambda_d=0, type=None):
+
+        if type == "i":
+            # expectation of mu
+            E_mu = torch.mean(mu, dim=0)
+
+            # expectation of mu * mu.transpose
+            E_mu_mu_t = torch.mean(mu.unsqueeze(1) * mu.unsqueeze(2), dim=0)
+
+            # cov(mu) = E(mu*mu.T) - E(mu)E(mu.T)
+            cov = E_mu_mu_t - E_mu.unsqueeze(0) * E_mu.unsqueeze(1)
+
+            # diagonal and off-diagonal parts
+            diag_part = torch.diag(cov)
+            off_diag_part = cov - torch.diag_embed(diag_part)
+
+            # regularizers
+            regulariser_od = lambda_od * torch.sum(off_diag_part**2)
+            regulariser_d = lambda_d * torch.sum((diag_part - 1) ** 2)
+
+            # DIP-VAE regularizer
+            dip_vae_regulariser = regulariser_d + regulariser_od
+
+            return dip_vae_regulariser
+
+        elif type == "ii":
+            # Sigma (diagonal covariance matrix)
+            sigma = torch.diag_embed(torch.exp(log_var))
+            E_cov = torch.mean(sigma, dim=0)
+
+            # Expectation of mu
+            E_mu = torch.mean(mu, dim=0)
+
+            # Expectation of mu * mu.T
+            E_mu_mu_t = torch.mean(mu.unsqueeze(1) * mu.unsqueeze(2), dim=0)
+
+            # Covariance of model mean
+            cov_E = E_mu_mu_t - E_mu.unsqueeze(0) * E_mu.unsqueeze(1)
+
+            # Covariance of z
+            cov_z = cov_E + E_cov
+
+            # Diagonal and off-diagonal parts
+            diag_part = torch.diag(cov_z)
+            off_diag_part = cov_z - torch.diag_embed(diag_part)
+
+            # Regularizers
+            regulariser_od = lambda_od * torch.sum(off_diag_part**2)
+            regulariser_d = lambda_d * torch.sum((diag_part - 1) ** 2)
+
+            # DIP-VAE regularizer
+            dip_vae_regulariser = regulariser_d + regulariser_od
+
+            return dip_vae_regulariser
+
+        else:
+            return 0
+
+    @classmethod
     def loss_function(
         cls,
         hypers,

@@ -70,6 +70,7 @@ class OptunaOptimization:
 
         # Loss terms weights
         hypers["w_contrastive"] = trial.suggest_float("w_contrastive", 0, 0.05)
+        hypers["w_kl"] = trial.suggest_float("w_kl", 0.00001, 1)
 
         # GMVAE
         if hypers["model"] == "GMVAE":
@@ -113,7 +114,7 @@ if __name__ == "__main__":
     # Class variables - Hyperparameters
     hyperparameters = Hypers.read_hyperparameters()
     hyperparameters["num_epochs"] = 100
-    hyperparameters["view_dropout"] = 0.5
+    hyperparameters["view_dropout"] = 0.3
 
     # Load dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -126,7 +127,7 @@ if __name__ == "__main__":
     )
 
     # Optuna optimization
-    study_name = "MOVE_view_dropout_05_view_weights"
+    study_name = "MOSA_updated_model_weights"
 
     opt = optuna.create_study(
         direction="minimize",

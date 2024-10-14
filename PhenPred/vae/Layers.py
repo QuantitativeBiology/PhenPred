@@ -47,11 +47,11 @@ class Gaussian(nn.Module):
     def __init__(self, in_dim, z_dim):
         super(Gaussian, self).__init__()
         self.mu = nn.Linear(in_dim, z_dim)
-        self.var = nn.Linear(in_dim, z_dim)
+        self.log_var = nn.Linear(in_dim, z_dim)
 
-    def reparameterize(self, mu, var):
+    def reparameterize(self, mu, log_var):
         if self.training:
-            std = torch.sqrt(var + 1e-10)
+            std = torch.exp(log_var / 2)
             noise = torch.randn_like(std)
             return mu + noise * std
         else:
@@ -59,7 +59,7 @@ class Gaussian(nn.Module):
 
     def forward(self, x):
         mu = self.mu(x)
-        log_var = F.softplus(self.var(x))
+        log_var = self.log_var(x)
         z = self.reparameterize(mu, log_var)
         return mu, log_var, z
 

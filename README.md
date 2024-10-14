@@ -44,6 +44,11 @@ Although MOSA is specifically designed for analysing the DepMap dataset, the mod
 ### To reproduce from scratch
 1. Directly run MOSA with the default configurations as described above.
 
+## Instructions for integrating Disentanglement Learning into MOSA's loss function
+To incorporate disentanglement learning, we introduce additional loss terms, following the approach of Disentangled Inferred Prior Variational Autoencoder (DIP-VAE) as described by [Kumar et al. (2018)](https://arxiv.org/abs/1711.00848):
+$$\max _{\theta, \phi} \operatorname{ELBO}(\theta, \phi)-\lambda_{o d} \sum_{i \neq j}\left[\operatorname{Cov}_{q_\phi(\mathbf{z})}[\mathbf{z}]\right]_{i j}^2-\lambda_d \sum_i\left(\left[\operatorname{Cov}_{q_\phi(\mathbf{z})}[\mathbf{z}]\right]_{i i}-1\right)^2$$
+To use this, update the `hyperparameters.json` file by specifying `dip_vae_type` as either `"i"` or `"ii"`, and define the parameters `lambda_d` and `lambda_od` as float values, which control the diagonal off-diagonal regularization, respectively.
+
 ## Citation
 Cai, Z et al., Synthetic multi-omics augmentation of cancer cell lines using unsupervised deep learning, 2023
 
