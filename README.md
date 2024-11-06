@@ -51,6 +51,9 @@ To incorporate disentanglement learning, two additional terms are included in th
 
 To use this, update the `hyperparameters.json` file by specifying `dip_vae_type` as either `"i"` or `"ii"` (type ii is recommended), and define the parameters `lambda_d` and `lambda_od` as float values, which control the diagonal and off-diagonal regularization, respectively.
 
+## Pre-trained models
+The pre-trained models can be downloaded from the Hugging Face model hub: [MOSA](https://huggingface.co/QuantitativeBiology/MOSA_pretrained)
+
 ## Citation
 Cai, Z et al., Synthetic multi-omics augmentation of cancer cell lines using unsupervised deep learning, 2023
 
