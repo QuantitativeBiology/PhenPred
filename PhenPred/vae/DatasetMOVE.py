@@ -64,7 +64,9 @@ class CLinesDatasetMOVE:
 
         # Load latent space
         joint_latent = dict(
-            factors=pd.read_csv(f"{ddir}/latent_space_{n_factors}factor.csv", index_col=0)
+            factors=pd.read_csv(
+                f"{ddir}/latent_space_{n_factors}factor.csv", index_col=0
+            )
         )
 
         return dfs_imputed, joint_latent

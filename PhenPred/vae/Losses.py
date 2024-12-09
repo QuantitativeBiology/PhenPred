@@ -1,3 +1,4 @@
+import math
 import torch
 import PhenPred
 import numpy as np
@@ -221,6 +222,90 @@ class CLinesLosses:
 
         else:
             return 0
+
+    @classmethod
+    def beta_tcvae(cls, z, mu, logvar, w_tcvae=1.0, beta=6.0, alpha=1.0, gamma=1.0):
+        """
+        Computes the TC term of beta-TCVAE loss (excluding reconstruction loss and standard KL)
+
+        Args:
+            mu: Latent mean with shape [batch_size, latent_dim]
+            log_var: Latent log variance with shape [batch_size, latent_dim]
+            w_tcvae: Weight for total correlation term
+            beta: Unused in this implementation (kept for function signature compatibility)
+            alpha: Weight for mutual information term
+            gamma: Weight for dimension-wise KL term
+        """
+        N, D = z.size()
+
+        # Compute log q(z|x)
+        # q(z|x) is Gaussian: N(z|mu, sigma^2) with sigma^2 = exp(logvar)
+        # log q(z|x) = -0.5 * [D*log(2*pi) + sum_j(logvar_j + (z_j - mu_j)^2/exp(logvar_j))]
+        logqz_condx = -0.5 * (
+            D * math.log(2 * math.pi)
+            + torch.sum(logvar + (z - mu) ** 2 / torch.exp(logvar), dim=1)
+        )
+
+        # Compute log q(z)
+        # Approximate q(z) as average over q(z|x_i) for i=1...N:
+        # log q(z_i) = log( (1/N)*∑_j exp(log q(z_i|x_j)) )
+        z_expand = z.unsqueeze(1)  # (N, 1, D)
+        mu_expand = mu.unsqueeze(0)  # (1, N, D)
+        logvar_expand = logvar.unsqueeze(0)
+
+        # Compute log q(z_i|x_j) for all pairs i,j
+        # shape: (N, N, D)
+        pairwise_logqz_condx = -0.5 * (
+            logvar_expand
+            + (z_expand - mu_expand) ** 2 / torch.exp(logvar_expand)
+            + math.log(2 * math.pi)
+        )
+        # sum over D to get (N, N)
+        pairwise_logqz_condx = torch.sum(pairwise_logqz_condx, dim=2)
+
+        # log q(z_i) = logsumexp_j [log q(z_i|x_j)] - log N
+        logqz = torch.logsumexp(pairwise_logqz_condx, dim=1) - math.log(N)
+
+        # Compute log q(z_j) for each dimension j
+        # q(z_j) ~ average over q(z_j|x)
+        # log q(z_j_i) = log( (1/N)*∑_k exp(log q(z_j_i|x_k)) )
+        # We'll accumulate sum_j log q(z_j_i).
+        logqz_prod = torch.zeros(N, device=z.device)
+        for j in range(D):
+            z_j = z[:, j].unsqueeze(1)  # (N, 1)
+            mu_j = mu[:, j].unsqueeze(0)  # (1, N)
+            logvar_j = logvar[:, j].unsqueeze(0)  # (1, N)
+
+            # Compute q(z_j_i|x_k)
+            # shape: (N, N)
+            logqz_condx_j = -0.5 * (
+                logvar_j
+                + (z_j - mu_j) ** 2 / torch.exp(logvar_j)
+                + math.log(2 * math.pi)
+            )
+
+            # log q(z_j_i) = logsumexp over k - log N
+            logqz_j = torch.logsumexp(logqz_condx_j, dim=1) - math.log(N)
+            logqz_prod += logqz_j
+
+        # Compute log p(z)
+        # p(z) = N(0,I), so log p(z) = -0.5 * ∑_j (z_j^2 + log(2*pi))
+        # sum over j: (z^2) and constant terms
+        logpz = -0.5 * (torch.sum(z**2, dim=1) + D * math.log(2 * math.pi))
+
+        # Mutual Information (MI): E[log q(z|x) - log q(z)]
+        mi_loss = torch.mean(logqz_condx - logqz)
+
+        # Total Correlation (TC): E[log q(z) - sum_j log q(z_j)]
+        tc_loss = torch.mean(logqz - logqz_prod)
+
+        # KL(q(z|x)||p(z)) = E[log q(z|x) - log p(z)]
+        total_kl = torch.mean(logqz_condx - logpz)
+
+        # DWKL = total_kl - MI - TC
+        dwkl_loss = total_kl - mi_loss - tc_loss
+
+        return w_tcvae * (beta * tc_loss + alpha * mi_loss + gamma * dwkl_loss)
 
     @classmethod
     def loss_function(
@@ -479,3 +564,53 @@ class CLinesLosses:
             )
         else:
             return None
+
+    @classmethod
+    def permute_dims(cls, z):
+        """Randomly permutes the sample dimension of z to create a factorial distribution."""
+        batch_size, n_dim = z.shape
+        perm = torch.zeros_like(z)
+
+        for d in range(n_dim):
+            # For each dimension, randomly permute the samples
+            idx = torch.randperm(batch_size)
+            perm[:, d] = z[idx, d]
+
+        return perm
+
+    @classmethod
+    def factor_vae_tc_loss(cls, z, discriminator):
+        """
+        Calculate the Total Correlation penalty using the discriminator.
+        """
+        batch_size = z.size(0)
+
+        # Shuffle dimensions to approximate the product of marginals
+        z_perm = z.clone()
+        for dim in range(z.size(1)):
+            z_perm[:, dim] = z_perm[torch.randperm(batch_size), dim]
+
+        # Discriminator outputs
+        real_scores = discriminator(z)
+        perm_scores = discriminator(z_perm)
+
+        # Logits to probabilities
+        real_probs = torch.softmax(real_scores, dim=1)[:, 0]
+        perm_probs = torch.softmax(perm_scores, dim=1)[:, 1]
+
+        # Total correlation estimate
+        tc_loss = (torch.log(real_probs + 1e-6) - torch.log(perm_probs + 1e-6)).mean()
+        return tc_loss
+
+    @classmethod
+    def permute_dims(cls, z):
+        assert z.dim() == 2
+
+        B, _ = z.size()
+        perm_z = []
+        for z_j in z.split(1, 1):
+            perm = torch.randperm(B).to(z.device)
+            perm_z_j = z_j[perm]
+            perm_z.append(perm_z_j)
+
+        return torch.cat(perm_z, 1)

@@ -7,6 +7,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch.nn as nn
+import torch.nn.functional as F
 import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -90,6 +91,7 @@ class CLinesTrain:
                     self.data.labels.shape[1] if self.hypers["use_conditionals"] else 0
                 ),
                 views_sizes_full=views_sizes_full,
+                device=self.device,
             )
         else:
             model = GMVAE(
@@ -113,9 +115,14 @@ class CLinesTrain:
         optimizer,
         dataloader,
         record_losses=None,
+        epoch_num=None,
     ):
         for data in dataloader:
-            x, y, x_nans, x_mask = data
+            if self.hypers.get("w_factorvae") is None:
+                x, y, x_nans, x_mask = data
+            else:
+                x, y, x_nans, x_mask = data[0]
+                x2, y2, x_nans2, x_mask2 = data[1]
 
             x = [m.to(self.device) for m in x]
             x_nans = [m.to(self.device) for m in x_nans]
@@ -126,39 +133,86 @@ class CLinesTrain:
             ]
 
             y = y.to(self.device)
+            if self.hypers.get("w_factorvae") is not None:
+                x2 = [m.to(self.device) for m in x2]
+                x_nans2 = [m.to(self.device) for m in x_nans2]
 
-            optimizer.zero_grad()
+                x_masked_2 = [
+                    m[:, x_mask2[i][0]].to(self.device) for i, m in enumerate(x2)
+                ]
 
             with torch.set_grad_enabled(model.training):
-                if self.hypers["use_conditionals"]:
-                    out_net = model(x_masked + [y])
-                else:
-                    out_net = model(x_masked)
+                out_net = (
+                    model(x_masked + [y])
+                    if self.hypers["use_conditionals"]
+                    else model(x_masked)
+                )
 
-                if self.hypers["filtered_encoder_only"]:
-                    # if filtered_encoder_only, use all data for loss
-                    loss = model.module.loss(
-                        x,
-                        x_nans,
-                        out_net,
-                        y,
-                        x_mask,
-                        view_loss_weights=self.hypers["view_loss_weights"],
-                    )
-                else:
-                    # otherwise, use only filtered data for loss
-                    loss = model.module.loss(
-                        x_masked,
-                        x_nans_masked,
-                        out_net,
-                        y,
-                        x_mask,
-                        view_loss_weights=self.hypers["view_loss_weights"],
-                    )
+                loss = model.module.loss(
+                    x if self.hypers["filtered_encoder_only"] else x_masked,
+                    x_nans if self.hypers["filtered_encoder_only"] else x_nans_masked,
+                    out_net,
+                    y,
+                    x_mask,
+                    view_loss_weights=self.hypers["view_loss_weights"],
+                    optimizer=optimizer,
+                )
 
                 if model.training:
-                    loss["total"].backward()
-                    optimizer.step()
+                    if self.hypers.get("w_factorvae") is None:
+                        optimizer.zero_grad()
+                        loss["total"].backward()
+                        optimizer.step()
+                    else:
+                        optimizer.zero_grad()
+                        D_z = model.module.discriminator(out_net["z"])
+                        logD_z = F.log_softmax(D_z, dim=1)
+                        vae_tc_loss = (
+                            self.hypers["w_factorvae"]
+                            * (logD_z[:, 0] - logD_z[:, 1]).mean()
+                        )
+
+                        if epoch_num is not None and epoch_num > 80:
+                            loss["total"] += vae_tc_loss
+                        loss["tc"] = vae_tc_loss
+                        loss["total"].backward()
+                        optimizer.step()
+                        if epoch_num is not None and epoch_num > 50:
+                            out_net2 = (
+                                model(x_masked_2 + [y2])
+                                if self.hypers["use_conditionals"]
+                                else model(x_masked_2)
+                            )
+                            z_prime = out_net2["z"]
+                            batch_size = z_prime.size(0)
+                            z_pperm = CLinesLosses.permute_dims(z_prime).detach()
+
+                            D_z = model.module.discriminator(out_net["z"].detach())
+                            D_z_pperm = model.module.discriminator(z_pperm)
+
+                            D_tc_loss = 0.5 * (
+                                F.cross_entropy(
+                                    D_z,
+                                    torch.zeros(
+                                        batch_size,
+                                        dtype=torch.long,
+                                        device=self.device,
+                                    ),
+                                )
+                                + F.cross_entropy(
+                                    D_z_pperm,
+                                    torch.ones(
+                                        batch_size,
+                                        dtype=torch.long,
+                                        device=self.device,
+                                    ),
+                                )
+                            )
+
+                            model.module.d_optimizer.zero_grad()
+                            D_tc_loss.backward()
+                            model.module.d_optimizer.step()
+                            loss["Dtc"] = D_tc_loss
 
             if record_losses is not None:
                 self.register_loss(loss, record_losses)
@@ -262,6 +316,7 @@ class CLinesTrain:
                         type="train",
                         lr=optimizer.param_groups[0]["lr"],
                     ),
+                    epoch_num=epoch,
                 )
 
                 # Test
@@ -276,6 +331,7 @@ class CLinesTrain:
                         type="val",
                         lr=optimizer.param_groups[0]["lr"],
                     ),
+                    epoch_num=epoch,
                 )
 
                 if self.hypers["model"] == "GMVAE" and self.hypers["gmvae_decay_temp"]:
@@ -329,7 +385,10 @@ class CLinesTrain:
                     )
 
                     for data in data_test_all:
-                        x, y, _, x_mask = data
+                        if self.hypers.get("w_factorvae") is None:
+                            x, y, _, x_mask = data
+                        else:
+                            x, y, _, x_mask = data[0]
 
                         x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
 
@@ -401,11 +460,7 @@ class CLinesTrain:
         for e in range(1, n_epochs + 1):
             self.model.train()
             print(f"Epoch {e:03}")
-            self.epoch(
-                self.model,
-                optimizer,
-                data_all,
-            )
+            self.epoch(self.model, optimizer, data_all, epoch_num=e)
 
         # Make predictions and latent spaces
         data_all = DataLoader(
@@ -415,7 +470,10 @@ class CLinesTrain:
         self.model.eval()
         with torch.no_grad():
             for data in data_all:
-                x, y, _, x_mask = data
+                if self.hypers.get("w_factorvae") is None:
+                    x, y, _, x_mask = data
+                else:
+                    x, y, _, x_mask = data[0]
 
                 x_masked = [m[:, x_mask[i][0]] for i, m in enumerate(x)]
 
@@ -700,16 +758,16 @@ class CLinesTrain:
         cols = all_shap_df.columns.tolist()
         cols = [cols[-2]] + [cols[-1]] + cols[:-2]
         all_shap_df = all_shap_df[cols]
-        
-        '''
+
+        """
         print("Saving files...")
         all_shap_df.reset_index(drop=True).to_feather(
             f"{shap_folder}/files/{self.timestamp}_shap_values_{explain_target}.feather"
         )
-        '''
-        
+        """
+
         return all_shap_df
-    
+
     def save_shap_top200_features(self, shap_values, explain_target="latent"):
         feature_names_all = []
         for view_name in self.data.view_names:
@@ -742,18 +800,34 @@ class CLinesTrain:
                 # Modify column names to include the omics view name and feature name
                 tmp_df.columns = [f"{view_names[i]}_{c}" for c in tmp_df.columns]
                 tmp_df["Sample_ID"] = self.data.samples
-                melted_df = tmp_df.melt(id_vars=['Sample_ID'], var_name='omics_feature', value_name='Shap_value')
-                
+                melted_df = tmp_df.melt(
+                    id_vars=["Sample_ID"],
+                    var_name="omics_feature",
+                    value_name="Shap_value",
+                )
+
                 melted_with_abs_df = melted_df.copy()
-                melted_with_abs_df['abs_Shap_value'] = melted_with_abs_df['Shap_value'].abs()
-                
-                grouped_df = melted_with_abs_df.groupby('omics_feature')['abs_Shap_value'].mean().reset_index()
-                grouped_df.rename(columns={'abs_Shap_value': 'avg_abs_Shap_value'}, inplace=True)
-                
+                melted_with_abs_df["abs_Shap_value"] = melted_with_abs_df[
+                    "Shap_value"
+                ].abs()
+
+                grouped_df = (
+                    melted_with_abs_df.groupby("omics_feature")["abs_Shap_value"]
+                    .mean()
+                    .reset_index()
+                )
+                grouped_df.rename(
+                    columns={"abs_Shap_value": "avg_abs_Shap_value"}, inplace=True
+                )
+
                 # Retain the top 200 features from each omic with highest avg abs shap value
-                ordered_df = grouped_df.sort_values(by='avg_abs_Shap_value', ascending=False)
+                ordered_df = grouped_df.sort_values(
+                    by="avg_abs_Shap_value", ascending=False
+                )
                 top_200_features = ordered_df.head(200)["omics_feature"]
-                filtered_melted_df = melted_df[melted_df['omics_feature'].isin(top_200_features)]
+                filtered_melted_df = melted_df[
+                    melted_df["omics_feature"].isin(top_200_features)
+                ]
 
                 # Append all the dataframes obtained from each view
                 target_dfs.append(filtered_melted_df)
@@ -764,7 +838,7 @@ class CLinesTrain:
             # Add a new column with the output feature the dataframe refers to
             target_dfs_all_views["target_name"] = f"{target_feature_names[target_idx]}"
             all_shap_df.append(target_dfs_all_views)
-        
+
         all_shap_df = pd.concat(all_shap_df, axis=0)
         cols = all_shap_df.columns.tolist()
         cols = [cols[0]] + [cols[-1]] + cols[1:3]
