@@ -1,3 +1,4 @@
+import random
 import torch
 import PhenPred
 import numpy as np
@@ -706,3 +707,13 @@ class CLinesDatasetDepMap23Q2(Dataset):
                 f"{plot_folder}/datasets_missing_values_DepMap23Q2_{n}",
                 extensions=["png"],
             )
+
+
+class CLinesDatasetDepMap23Q2_FactorVAE(CLinesDatasetDepMap23Q2):
+    def __getitem__(self, idx):
+        index2 = random.choice(range(len(self.samples)))
+        x, y, x_nans, x_mask = super().__getitem__(idx)
+        x2, _, x2_nans, x2_mask = super().__getitem__(index2)
+        data1 = (x, y, x_nans, x_mask)
+        data2 = (x2, y, x2_nans, x2_mask)
+        return data1, data2

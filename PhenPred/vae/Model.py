@@ -2,6 +2,7 @@ import torch
 import PhenPred
 import numpy as np
 import torch.nn as nn
+import torch.nn.init as init
 from pytorch_metric_learning import losses
 from PhenPred.vae.Losses import CLinesLosses
 from pytorch_metric_learning.reducers import DoNothingReducer
@@ -18,10 +19,12 @@ class MOSA(nn.Module):
         views_sizes_full=None,
         lazy_init=False,
         return_for_shap=None,
+        device="cuda",
     ):
         super().__init__()
 
         self.hypers = hypers
+        self.device = device
 
         self.views_sizes = views_sizes
         self.views_sizes_full = views_sizes_full
@@ -49,6 +52,16 @@ class MOSA(nn.Module):
             )
             print(f"Total parameters: {self.total_params:,d}")
             print(self)
+
+        # Add discriminator for FactorVAE
+        self.discriminator = Discriminator(self.hypers["latent_dim"]).to(self.device)
+
+        # Add discriminator optimizer
+        self.d_optimizer = torch.optim.Adam(
+            self.discriminator.parameters(),
+            lr=1e-4,
+            # betas=(0.5, 0.9),
+        )
 
     def _build(self):
         self._build_encoders()
@@ -158,7 +171,9 @@ class MOSA(nn.Module):
                 log_var=log_var,
             )
 
-    def loss(self, x, x_nans, out_net, y, x_mask, view_loss_weights=None):
+    def loss(
+        self, x, x_nans, out_net, y, x_mask, view_loss_weights=None, optimizer=None
+    ):
         view_loss_weights = view_loss_weights if view_loss_weights else [1] * len(x)
 
         # Reconstruction loss
@@ -251,6 +266,27 @@ class MOSA(nn.Module):
                 dipvae=dipvae_loss,
             )
 
+        elif self.hypers.get("w_tcvae") != None:
+            z = out_net["z"]
+            beta_tcvae_loss = CLinesLosses.beta_tcvae(
+                z,
+                mu,
+                logvar,
+                w_tcvae=self.hypers["w_tcvae"],
+            )
+
+            # Total loss
+            loss = recon_loss + kl_loss + c_loss + beta_tcvae_loss
+
+            return dict(
+                total=loss,
+                reconstruction=recon_loss,
+                reconstruction_views=recon_loss_views,
+                kl=kl_loss,
+                contrastive=c_loss,
+                betatcvae=beta_tcvae_loss,
+            )
+
         else:
             # Total loss
             loss = recon_loss + kl_loss + c_loss
@@ -262,3 +298,55 @@ class MOSA(nn.Module):
                 kl=kl_loss,
                 contrastive=c_loss,
             )
+
+
+class Discriminator(nn.Module):
+    def __init__(self, z_dim, hidden_dim=128):  # Reduced from 1000
+        """Simplified Discriminator network for FactorVAE.
+
+        Args:
+            z_dim: Dimension of the latent space
+            hidden_dim: Dimension of hidden layers (default 256, reduced from 1000)
+        """
+        super().__init__()
+
+        # Reduced to 3 layers from 6, with smaller hidden dimensions
+        self.net = nn.Sequential(
+            nn.Linear(z_dim, hidden_dim),
+            nn.LeakyReLU(0.2, True),
+            nn.Linear(hidden_dim, 2),  # Output logits for real/permuted
+        )
+        # self.weight_init()
+
+    def weight_init(self, mode="kaiming"):
+        if mode == "kaiming":
+            initializer = self.kaiming_init
+        elif mode == "normal":
+            initializer = self.normal_init
+
+        for block in self._modules:
+            for m in self._modules[block]:
+                initializer(m)
+
+    def kaiming_init(self, m):
+        if isinstance(m, (nn.Linear)):
+            init.kaiming_normal_(m.weight)
+            if m.bias is not None:
+                m.bias.data.fill_(0)
+        elif isinstance(m, (nn.BatchNorm1d)):
+            m.weight.data.fill_(1)
+            if m.bias is not None:
+                m.bias.data.fill_(0)
+
+    def normal_init(self, m):
+        if isinstance(m, (nn.Linear)):
+            init.normal_(m.weight, 0, 0.02)
+            if m.bias is not None:
+                m.bias.data.fill_(0)
+        elif isinstance(m, (nn.BatchNorm1d)):
+            m.weight.data.fill_(1)
+            if m.bias is not None:
+                m.bias.data.fill_(0)
+
+    def forward(self, z):
+        return self.net(z).squeeze()

@@ -31,7 +31,7 @@
     "use_conditionals": true,
     "feature_miss_rate_thres": 0.85,
     "num_epochs": 500,
-    "learning_rate": 0.0003,
+    "learning_rate": 0.0002,
     "batch_size": 256,
     "n_folds": 3,
     "view_latent_dim": 0.25,

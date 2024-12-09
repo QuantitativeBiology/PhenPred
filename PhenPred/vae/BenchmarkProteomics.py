@@ -137,7 +137,7 @@ class ProteomicsBenchmark:
         )
         palette["Neutral"] = "#d9d9d9"
 
-        features = df_imputed["original"][self.features].isnull().mean()
+        features = df_imputed["original"][list(self.features)].isnull().mean()
         features = features[features < 0.15].index.tolist()
 
         df = pd.concat(
@@ -198,9 +198,11 @@ class ProteomicsBenchmark:
     def compare_imputed_ccle(self):
         samples = self.samples.difference(self.samples_without_prot)
 
-        df_imputed = self.proteomics_datasets_dict(reindex=(samples, self.features))
+        df_imputed = self.proteomics_datasets_dict(
+            reindex=(samples, list(self.features))
+        )
 
-        df_ccle = self.df_ccle.reindex(index=samples, columns=self.features)
+        df_ccle = self.df_ccle.reindex(index=samples, columns=list(self.features))
         df_ccle = stats.zscore(df_ccle, nan_policy="omit")
 
         # Correlation dataframe
