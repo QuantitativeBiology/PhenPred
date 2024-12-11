@@ -17,7 +17,7 @@ from PhenPred.vae import (
 )
 from PhenPred.vae import plot_folder, shap_folder
 from torch.utils.data import DataLoader
-from PhenPred.vae.Model import MOSA
+from PhenPred.vae.Model import MOSA, DiffusionMOSA, DiffusionScheduler
 from PhenPred.vae.ModelGMVAE import GMVAE
 from PhenPred.vae.Losses import CLinesLosses
 import h5py
@@ -80,7 +80,11 @@ class CLinesTrain:
         if self.hypers["filtered_encoder_only"]:
             views_sizes_full = {n: v.shape[1] for n, v in self.data.views.items()}
 
-        assert self.hypers["model"] in ["MOSA", "GMVAE"], "Invalid model"
+        assert self.hypers["model"] in [
+            "MOSA",
+            "GMVAE",
+            "DiffusionMOSA",
+        ], "Invalid model"
 
         if self.hypers["model"] == "MOSA":
             model = MOSA(
@@ -90,6 +94,23 @@ class CLinesTrain:
                     self.data.labels.shape[1] if self.hypers["use_conditionals"] else 0
                 ),
                 views_sizes_full=views_sizes_full,
+            )
+        elif self.hypers["model"] == "DiffusionMOSA":
+            base_mosa = MOSA(
+                hypers=self.hypers,
+                views_sizes=views_sizes,
+                conditional_size=(
+                    self.data.labels.shape[1] if self.hypers["use_conditionals"] else 0
+                ),
+                views_sizes_full=views_sizes_full,
+            )
+            model = DiffusionMOSA(
+                base_mosa,
+                DiffusionScheduler(
+                    num_timesteps=self.hypers.get("diffusion_steps", 1000),
+                    beta_start=self.hypers.get("beta_start", 1e-4),
+                    beta_end=self.hypers.get("beta_end", 0.02),
+                ),
             )
         else:
             model = GMVAE(
@@ -135,25 +156,36 @@ class CLinesTrain:
                 else:
                     out_net = model(x_masked)
 
-                if self.hypers["filtered_encoder_only"]:
-                    # if filtered_encoder_only, use all data for loss
+                if self.hypers["model"] != "DiffusionMOSA":
                     loss = model.module.loss(
-                        x,
-                        x_nans,
+                        x if self.hypers["filtered_encoder_only"] else x_masked,
+                        (
+                            x_nans
+                            if self.hypers["filtered_encoder_only"]
+                            else x_nans_masked
+                        ),
                         out_net,
                         y,
                         x_mask,
                         view_loss_weights=self.hypers["view_loss_weights"],
                     )
                 else:
-                    # otherwise, use only filtered data for loss
-                    loss = model.module.loss(
-                        x_masked,
-                        x_nans_masked,
+                    vae_loss = model.module.base_mosa.loss(
+                        x if self.hypers["filtered_encoder_only"] else x_masked,
+                        (
+                            x_nans
+                            if self.hypers["filtered_encoder_only"]
+                            else x_nans_masked
+                        ),
                         out_net,
                         y,
                         x_mask,
                         view_loss_weights=self.hypers["view_loss_weights"],
+                    )
+                    loss = model.module.combined_loss(
+                        out_net,
+                        vae_loss,
+                        diffusion_weight=self.hypers.get("diffusion_weight", 1.0),
                     )
 
                 if model.training:
@@ -700,16 +732,16 @@ class CLinesTrain:
         cols = all_shap_df.columns.tolist()
         cols = [cols[-2]] + [cols[-1]] + cols[:-2]
         all_shap_df = all_shap_df[cols]
-        
-        '''
+
+        """
         print("Saving files...")
         all_shap_df.reset_index(drop=True).to_feather(
             f"{shap_folder}/files/{self.timestamp}_shap_values_{explain_target}.feather"
         )
-        '''
-        
+        """
+
         return all_shap_df
-    
+
     def save_shap_top200_features(self, shap_values, explain_target="latent"):
         feature_names_all = []
         for view_name in self.data.view_names:
@@ -742,18 +774,34 @@ class CLinesTrain:
                 # Modify column names to include the omics view name and feature name
                 tmp_df.columns = [f"{view_names[i]}_{c}" for c in tmp_df.columns]
                 tmp_df["Sample_ID"] = self.data.samples
-                melted_df = tmp_df.melt(id_vars=['Sample_ID'], var_name='omics_feature', value_name='Shap_value')
-                
+                melted_df = tmp_df.melt(
+                    id_vars=["Sample_ID"],
+                    var_name="omics_feature",
+                    value_name="Shap_value",
+                )
+
                 melted_with_abs_df = melted_df.copy()
-                melted_with_abs_df['abs_Shap_value'] = melted_with_abs_df['Shap_value'].abs()
-                
-                grouped_df = melted_with_abs_df.groupby('omics_feature')['abs_Shap_value'].mean().reset_index()
-                grouped_df.rename(columns={'abs_Shap_value': 'avg_abs_Shap_value'}, inplace=True)
-                
+                melted_with_abs_df["abs_Shap_value"] = melted_with_abs_df[
+                    "Shap_value"
+                ].abs()
+
+                grouped_df = (
+                    melted_with_abs_df.groupby("omics_feature")["abs_Shap_value"]
+                    .mean()
+                    .reset_index()
+                )
+                grouped_df.rename(
+                    columns={"abs_Shap_value": "avg_abs_Shap_value"}, inplace=True
+                )
+
                 # Retain the top 200 features from each omic with highest avg abs shap value
-                ordered_df = grouped_df.sort_values(by='avg_abs_Shap_value', ascending=False)
+                ordered_df = grouped_df.sort_values(
+                    by="avg_abs_Shap_value", ascending=False
+                )
                 top_200_features = ordered_df.head(200)["omics_feature"]
-                filtered_melted_df = melted_df[melted_df['omics_feature'].isin(top_200_features)]
+                filtered_melted_df = melted_df[
+                    melted_df["omics_feature"].isin(top_200_features)
+                ]
 
                 # Append all the dataframes obtained from each view
                 target_dfs.append(filtered_melted_df)
@@ -764,7 +812,7 @@ class CLinesTrain:
             # Add a new column with the output feature the dataframe refers to
             target_dfs_all_views["target_name"] = f"{target_feature_names[target_idx]}"
             all_shap_df.append(target_dfs_all_views)
-        
+
         all_shap_df = pd.concat(all_shap_df, axis=0)
         cols = all_shap_df.columns.tolist()
         cols = [cols[0]] + [cols[-1]] + cols[1:3]

@@ -34,15 +34,15 @@ if __name__ == "__main__":
     # Class variables - Hyperparameters
     start_time = time.time()
 
-    timestamp = "20240805_132345"
-    hyperparameters = Hypers.read_hyperparameters(timestamp=timestamp)
-    #hyperparameters = Hypers.read_hyperparameters()
-    #hyperparameters = Hypers.read_hyperparameters(hypers_json=f"{plot_folder}/files/optuna_MOSA_updated_model_weights_hyperparameters.json")
-    
+    # timestamp = "20240805_132345"
+    # hyperparameters = Hypers.read_hyperparameters(timestamp=timestamp)
+    hyperparameters = Hypers.read_hyperparameters()
+    # hyperparameters = Hypers.read_hyperparameters(hypers_json=f"{plot_folder}/files/optuna_MOSA_updated_model_weights_hyperparameters.json")
+
     # DIP-VAE
-    # hyperparameters["dip_vae_type"] = "ii"
-    # hyperparameters["lambda_d"] = 0.001
-    # hyperparameters["lambda_od"] = 0.001
+    # hyperparameters["dip_vae_type"] = "i"
+    # hyperparameters["lambda_d"] = 0.1
+    # hyperparameters["lambda_od"] = 0.01
 
     # Load the first dataset
     clines_db = CLinesDatasetDepMap23Q2(
@@ -63,8 +63,8 @@ if __name__ == "__main__":
     )
 
     # train.run(run_timestamp=hyperparameters["load_run"])
-    train.run(run_timestamp=timestamp)
-    # train.run()
+    # train.run(run_timestamp=timestamp)
+    train.run()
 
     if "skip_benchmarks" in hyperparameters and hyperparameters["skip_benchmarks"]:
         sys.exit(0)
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     )
 
     PhenPred.save_figure(
-        f"{plot_folder}/{hyperparameters['load_run']}_reconstructed_gexp_correlation_boxplot"
+        f"{plot_folder}/{train.timestamp}_reconstructed_gexp_correlation_boxplot"
     )
 
     # Run Latent Spaces Benchmark
@@ -146,13 +146,13 @@ if __name__ == "__main__":
         mixOmics_latent,
     )
 
+    latent_benchmark.plot_method_correlations()
+
     latent_benchmark.plot_latent_spaces(
         markers=clines_db.get_features(
             dict(
                 metabolomics=[
                     "1-methylnicotinamide",
-                    "uridine",
-                    "alanine",
                 ],
                 transcriptomics=["VIM"],
             )

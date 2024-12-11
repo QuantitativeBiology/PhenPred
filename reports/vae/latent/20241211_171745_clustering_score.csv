@@ -1,0 +1,9 @@
+model,metric,score
+mosa,calinski_harabasz,10.323103229976237
+mosa,davies_bouldin,3.340379862177367
+mofa,calinski_harabasz,7.2216877679196445
+mofa,davies_bouldin,3.7287883481658883
+move_diabetes,calinski_harabasz,6.813589316639595
+move_diabetes,davies_bouldin,3.8377202569890136
+mixOmics,calinski_harabasz,8.441797933556813
+mixOmics,davies_bouldin,3.6331569229900085

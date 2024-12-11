@@ -522,3 +522,38 @@ class LatentSpaceBenchmark:
         PhenPred.save_figure(
             f"{plot_folder}/latent/{self.timestamp}_{method.lower()}_by_marker_{name}_{m}"
         )
+
+    def plot_method_correlations(self):
+        """Compare mean absolute correlations between latent dimensions across methods"""
+        # Collect available latent spaces
+        method_latents = {
+            "MOSA": self.latent_space,
+            "MOFA": self.mofa_latent["factors"],
+            "MOVE": self.move_diabetes_latent["factors"],
+            "mixOmics": self.mixOmics_latent["factors"],
+        }
+
+        # Calculate correlations
+        corr_results = []
+        for method, latent in method_latents.items():
+            if latent is not None:  # Only process available methods
+                corr_matrix = latent.corr().abs()
+                upper_tri = np.triu(corr_matrix.values, k=1)
+                mean_corr = np.mean(upper_tri[upper_tri != 0])
+
+                corr_results.append({"method": method, "mean_correlation": mean_corr})
+
+        # Plot results
+        corr_df = pd.DataFrame(corr_results)
+
+        _, ax = plt.subplots(1, 1, figsize=(4, 3), dpi=600)
+        sns.barplot(data=corr_df, x="method", y="mean_correlation", ax=ax)
+
+        ax.set_title("Mean Absolute Correlations\nBetween Latent Dimensions")
+        ax.set_ylabel("Mean |Correlation|")
+        ax.set_xlabel("")
+        plt.xticks(rotation=45)
+
+        PhenPred.save_figure(
+            f"{plot_folder}/latent/{self.timestamp}_method_correlations"
+        )
