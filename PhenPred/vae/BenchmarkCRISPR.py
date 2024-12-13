@@ -16,6 +16,7 @@ from sklearn.metrics import mean_squared_error
 from PhenPred.vae import data_folder, plot_folder
 from statsmodels.stats.multitest import multipletests
 from PhenPred.vae.Utils import two_vars_correlation, LModel
+from sklearn.decomposition import PCA
 
 
 class CRISPRBenchmark:
@@ -63,6 +64,10 @@ class CRISPRBenchmark:
         )
         self.genomics = self.genomics.loc[:, self.genomics.sum() >= self.min_obs]
 
+        # Transcriptomics
+        self.transcriptomics = self.data.dfs["transcriptomics"].dropna(how="all")
+        # self.transcriptomics = self.vae_imputed["transcriptomics"]
+
         # Sample sheet
         self.ss = data.samplesheet.copy()
 
@@ -70,19 +75,34 @@ class CRISPRBenchmark:
             os.makedirs(f"{plot_folder}/crispr")
 
     def run(self, run_associations=True):
-        if run_associations and not os.path.exists(
-            f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz"
-            ):
-            self.lm_genomics = self.genomic_associations()
-            self.lm_genomics.to_csv(
-                f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz",
-                compression="gzip",
-                index=False,
-            )
-        else:
-            self.lm_genomics = pd.read_csv(
+        if run_associations:
+            if not os.path.exists(
                 f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz"
-            )
+            ):
+                self.lm_genomics = self.genomic_associations()
+                self.lm_genomics.to_csv(
+                    f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz",
+                    compression="gzip",
+                    index=False,
+                )
+            else:
+                self.lm_genomics = pd.read_csv(
+                    f"{plot_folder}/crispr/{self.timestamp}_genomics_crisprcas9.csv.gz"
+                )
+
+            if not os.path.exists(
+                f"{plot_folder}/crispr/{self.timestamp}_transcriptomics_crisprcas9.csv.gz"
+            ):
+                self.lm_transcriptomics = self.transcriptomics_associations()
+                self.lm_transcriptomics.to_csv(
+                    f"{plot_folder}/crispr/{self.timestamp}_transcriptomics_crisprcas9.csv.gz",
+                    compression="gzip",
+                    index=False,
+                )
+            else:
+                self.lm_transcriptomics = pd.read_csv(
+                    f"{plot_folder}/crispr/{self.timestamp}_transcriptomics_crisprcas9.csv.gz"
+                )
 
         self.associations_scatter_pvals(self.lm_genomics)
         self.gene_skew_correlation()
@@ -246,6 +266,143 @@ class CRISPRBenchmark:
 
         return lm_genomics
 
+    def transcriptomics_associations(self):
+        # Covariates
+        covs = pd.concat(
+            [
+                self.ss["growth_properties_sanger"]
+                .str.get_dummies()
+                .add_prefix("sanger_"),
+                self.ss["growth_properties_broad"]
+                .str.get_dummies()
+                .add_prefix("broad_"),
+                pd.get_dummies(
+                    self.ss["tissue"].apply(
+                        lambda x: (
+                            x
+                            if x in ["Haematopoietic and Lymphoid", "Lung"]
+                            else "Other"
+                        )
+                    )
+                ),
+            ],
+            axis=1,
+        )
+        cas9_measured_samples = self.df_original.index
+        gexp_measured_samples = self.transcriptomics.index
+        covs["cas9"] = covs.index.isin(
+            list(set(cas9_measured_samples) - set(gexp_measured_samples))
+        ).astype(int)
+        covs["gexp"] = covs.index.isin(
+            list(set(gexp_measured_samples) - set(cas9_measured_samples))
+        ).astype(int)
+        covs["cas9_gexp"] = covs.index.isin(
+            list(set(cas9_measured_samples).intersection(gexp_measured_samples))
+        ).astype(int)
+
+        covs = covs.loc[:, covs.std() > 0]
+
+        y_features = pd.concat(
+            [
+                self.df_vae.apply(skew).astype(float).rename("vae"),
+                self.df_original.apply(skew).astype(float).rename("orig"),
+            ],
+            axis=1,
+        )
+        y_features = list(
+            y_features.loc[(y_features < self.skew_threshold).any(axis=1)].index
+        )
+
+        # Transcriptomics ~ CRISPR MOSA
+        samples = list(
+            set(self.df_vae.dropna().index)
+            .intersection(self.vae_imputed["transcriptomics"].index)
+            .intersection(covs.reindex(index=self.df_vae.index).dropna().index)
+        )
+
+        x = self.vae_imputed["transcriptomics"].loc[samples]
+        x_features = x.var().sort_values(ascending=False).index[:5000]
+
+        # select top 5000 variable genes from x
+        x = x.loc[:, x_features]
+
+        cov_vae = covs.loc[samples].copy()
+        # add first 10 principal components from gexp data as covariates
+        pca = PCA(n_components=5).fit(x)
+        cov_vae = pd.concat(
+            [
+                cov_vae,
+                pd.DataFrame(
+                    pca.transform(x),
+                    index=samples,
+                    columns=[f"PC{i}" for i in range(1, 6)],
+                ),
+            ],
+            axis=1,
+        )
+
+        lm_transcriptomics_vae = LModel(
+            Y=self.df_vae.loc[samples, y_features],
+            X=x.loc[samples],
+            M=cov_vae.loc[samples],
+        ).fit_matrix()
+
+        lm_transcriptomics_vae = LModel.multipletests(
+            lm_transcriptomics_vae, idx_cols=["x_id"]
+        ).sort_values("fdr")
+        lm_transcriptomics_vae = lm_transcriptomics_vae.set_index(["y_id", "x_id"])
+
+        # Transcriptomics ~ CRISPR original
+        samples = list(
+            set(self.df_original.dropna().index)
+            .intersection(self.transcriptomics.index)
+            .intersection(covs.reindex(index=self.df_vae.index).dropna().index)
+        )
+
+        x = self.transcriptomics.loc[samples]
+        x = x.loc[:, x_features]
+
+        cov_orig = covs.loc[samples].copy()
+        # add first 10 principal components from gexp data as covariates
+        pca = PCA(n_components=5).fit(x)
+        cov_orig = pd.concat(
+            [
+                cov_orig,
+                pd.DataFrame(
+                    pca.transform(x),
+                    index=samples,
+                    columns=[f"PC{i}" for i in range(1, 6)],
+                ),
+            ],
+            axis=1,
+        )
+
+        lm_transcriptomics_orig = LModel(
+            Y=self.df_original.loc[samples],
+            X=x.loc[samples],
+            M=cov_orig.loc[samples],
+        ).fit_matrix()
+
+        lm_transcriptomics_orig = LModel.multipletests(
+            lm_transcriptomics_orig, idx_cols=["x_id"]
+        ).sort_values("fdr")
+        lm_transcriptomics_orig = lm_transcriptomics_orig.set_index(["y_id", "x_id"])
+
+        # Concatenate
+        lm_transcriptomics = (
+            pd.concat(
+                [
+                    lm_transcriptomics_orig.add_suffix("_orig"),
+                    lm_transcriptomics_vae.add_suffix("_vae"),
+                ],
+                axis=1,
+            )
+            .dropna()
+            .reset_index()
+        )
+
+        return lm_transcriptomics
+
     def associations_scatter_pvals(self, lm_genomics):
         plot_df = lm_genomics.query("fdr_orig < 0.05 | fdr_vae < 0.05").copy()
 
@@ -340,11 +497,15 @@ class CRISPRBenchmark:
                 plot_df[[f"{y_id}_orig", f"{x_id}_orig"]].isnull().any(axis=1)
             )
 
-            plot_df.replace({"predicted":{
-                    True: f"Reconstructed (N={plot_df['predicted'].sum()})",
-                    False: f"Measured (N={(~plot_df['predicted']).sum()})",
-                }},
-                inplace=True,)
+            plot_df.replace(
+                {
+                    "predicted": {
+                        True: f"Reconstructed (N={plot_df['predicted'].sum()})",
+                        False: f"Measured (N={(~plot_df['predicted']).sum()})",
+                    }
+                },
+                inplace=True,
+            )
 
             pal, pal_order = {
                 z_id: "#fc8d62",
