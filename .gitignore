@@ -140,3 +140,5 @@ data/*
 .xlsx
 *.feather
 *shap_values*csv
+
+reports/vae/crispr/*.csv
