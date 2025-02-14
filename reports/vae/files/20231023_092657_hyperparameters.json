@@ -2,16 +2,16 @@
     "dataname": "depmap23Q2",
     "load_run": "20231023_092657",
     "save_model": true,
-    "skip_cv": false,
+    "skip_cv": true,
     "verbose": 0,
     "datasets": {
-        "proteomics": "proteomics.csv",
-        "metabolomics": "metabolomics.csv",
-        "drugresponse": "drugresponse.csv",
-        "crisprcas9": "depmap23Q2/CRISPRGeneEffect.csv",
-        "methylation": "methylation.csv",
-        "transcriptomics": "depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
-        "copynumber": "cnv_summary_20230303_matrix.csv"
+        "proteomics": "data/clines//proteomics.csv",
+        "metabolomics": "data/clines//metabolomics.csv",
+        "drugresponse": "data/clines//drugresponse.csv",
+        "crisprcas9": "data/clines//depmap23Q2/CRISPRGeneEffect.csv",
+        "methylation": "data/clines//methylation.csv",
+        "transcriptomics": "data/clines//depmap23Q2/OmicsExpressionGenesExpectedCountProfileVoom.csv",
+        "copynumber": "data/clines//cnv_summary_20230303_matrix.csv"
     },
     "view_loss_recon_type": [
         "mean",
