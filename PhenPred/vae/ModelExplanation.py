@@ -17,7 +17,7 @@ np.random.seed(0)
 if __name__ == "__main__":
     # 20240805_131847 all datasets, lambda_d = lambda_od = 0.001
     # 20240805_132345 all datasets without disentanglement
-    timestamp = "20240805_132345"
+    timestamp = "20241210_000556"
     hyperparameters = Hypers.read_hyperparameters(timestamp=timestamp)
 
     # Load the first dataset
@@ -42,8 +42,8 @@ if __name__ == "__main__":
 
     train.load_model()
 
-    explain_target = "drugresponse"
-    # explain_target="latent"
+    # explain_target = "drugresponse"
+    explain_target = "latent"
     # explain_target="metabolomics"
     # explain_target="copynumber"
     # explain_target="proteomics"
@@ -62,7 +62,9 @@ if __name__ == "__main__":
     )
 
     # Save shap values in dataframe format
-    train.save_shap_top200_features(explanation.values, explain_target) #only top 200 features per omic
+    train.save_shap_top200_features(
+        explanation.values, explain_target
+    )  # only top 200 features per omic
     train.save_shap(explanation.values, explain_target)
 
     # Save Explanation object

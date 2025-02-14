@@ -138,3 +138,5 @@ data/*
 *.pkl
 .xls
 .xlsx
+*.feather
+*shap_values*csv

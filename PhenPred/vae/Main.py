@@ -34,9 +34,10 @@ if __name__ == "__main__":
     # Class variables - Hyperparameters
     start_time = time.time()
 
-    # timestamp = "20240805_132345"
-    # hyperparameters = Hypers.read_hyperparameters(timestamp=timestamp)
-    hyperparameters = Hypers.read_hyperparameters()
+    # timestamp = "20231023_092657"
+    timestamp = "20241211_171745"
+    hyperparameters = Hypers.read_hyperparameters(timestamp=timestamp)
+    # hyperparameters = Hypers.read_hyperparameters()
     # hyperparameters = Hypers.read_hyperparameters(hypers_json=f"{plot_folder}/files/optuna_MOSA_updated_model_weights_hyperparameters.json")
 
     # DIP-VAE
@@ -63,8 +64,8 @@ if __name__ == "__main__":
     )
 
     # train.run(run_timestamp=hyperparameters["load_run"])
-    # train.run(run_timestamp=timestamp)
-    train.run()
+    train.run(run_timestamp=timestamp)
+    # train.run()
 
     if "skip_benchmarks" in hyperparameters and hyperparameters["skip_benchmarks"]:
         sys.exit(0)
@@ -79,143 +80,143 @@ if __name__ == "__main__":
     )
     _, mixOmics_latent = CLinesDatasetMixOmics.load_reconstructions(clines_db)
 
-    # Transcriptomics benchmark
-    samples_mgexp = ~clines_db.dfs["transcriptomics"].isnull().all(axis=1)
+    # # Transcriptomics benchmark
+    # samples_mgexp = ~clines_db.dfs["transcriptomics"].isnull().all(axis=1)
 
-    gexp_gdsc = pd.read_csv(f"{data_folder}/transcriptomics.csv", index_col=0).T
-    gexp_move = vae_imputed["transcriptomics"]
+    # gexp_gdsc = pd.read_csv(f"{data_folder}/transcriptomics.csv", index_col=0).T
+    # gexp_move = vae_imputed["transcriptomics"]
 
-    samples = set(gexp_gdsc.index).intersection(gexp_move.index)
-    genes = list(set(gexp_gdsc.columns).intersection(gexp_move.columns))
+    # samples = set(gexp_gdsc.index).intersection(gexp_move.index)
+    # genes = list(set(gexp_gdsc.columns).intersection(gexp_move.columns))
 
-    gexp_corr = pd.DataFrame(
-        [
-            two_vars_correlation(
-                gexp_gdsc.loc[s, genes],
-                gexp_move.loc[s, genes],
-                method="pearson",
-                extra_fields=dict(sample=s, with_gexp=samples_mgexp.loc[s]),
-            )
-            for s in samples
-        ]
-    )
+    # gexp_corr = pd.DataFrame(
+    #     [
+    #         two_vars_correlation(
+    #             gexp_gdsc.loc[s, genes],
+    #             gexp_move.loc[s, genes],
+    #             method="pearson",
+    #             extra_fields=dict(sample=s, with_gexp=samples_mgexp.loc[s]),
+    #         )
+    #         for s in samples
+    #     ]
+    # )
 
-    _, ax = plt.subplots(1, 1, figsize=(0.5, 2), dpi=600)
+    # _, ax = plt.subplots(1, 1, figsize=(0.5, 2), dpi=600)
 
-    sns.boxplot(
-        data=gexp_corr,
-        x="with_gexp",
-        y="corr",
-        palette="tab20c",
-        linewidth=0.3,
-        fliersize=1,
-        notch=True,
-        saturation=1.0,
-        showcaps=False,
-        boxprops=dict(linewidth=0.5, edgecolor="black"),
-        whiskerprops=dict(linewidth=0.5, color="black"),
-        flierprops=dict(
-            marker="o",
-            markerfacecolor="black",
-            markersize=1.0,
-            linestyle="none",
-            markeredgecolor="none",
-            alpha=0.6,
-        ),
-        medianprops=dict(linestyle="-", linewidth=0.5),
-        ax=ax,
-    )
+    # sns.boxplot(
+    #     data=gexp_corr,
+    #     x="with_gexp",
+    #     y="corr",
+    #     palette="tab20c",
+    #     linewidth=0.3,
+    #     fliersize=1,
+    #     notch=True,
+    #     saturation=1.0,
+    #     showcaps=False,
+    #     boxprops=dict(linewidth=0.5, edgecolor="black"),
+    #     whiskerprops=dict(linewidth=0.5, color="black"),
+    #     flierprops=dict(
+    #         marker="o",
+    #         markerfacecolor="black",
+    #         markersize=1.0,
+    #         linestyle="none",
+    #         markeredgecolor="none",
+    #         alpha=0.6,
+    #     ),
+    #     medianprops=dict(linestyle="-", linewidth=0.5),
+    #     ax=ax,
+    # )
 
-    ax.set(
-        title=f"",
-        ylabel="Correlation between reconstructed\nand GDSC transcriptomics (Pearson's r)",
-        xlabel="Sample with transcriptomics\nduring MOSA training",
-    )
+    # ax.set(
+    #     title=f"",
+    #     ylabel="Correlation between reconstructed\nand GDSC transcriptomics (Pearson's r)",
+    #     xlabel="Sample with transcriptomics\nduring MOSA training",
+    # )
 
-    PhenPred.save_figure(
-        f"{plot_folder}/{train.timestamp}_reconstructed_gexp_correlation_boxplot"
-    )
+    # PhenPred.save_figure(
+    #     f"{plot_folder}/{train.timestamp}_reconstructed_gexp_correlation_boxplot"
+    # )
 
-    # Run Latent Spaces Benchmark
-    latent_benchmark = LatentSpaceBenchmark(
-        train.timestamp,
-        clines_db,
-        vae_latent,
-        mofa_latent,
-        move_diabetes_latent,
-        mixOmics_latent,
-    )
+    # # Run Latent Spaces Benchmark
+    # latent_benchmark = LatentSpaceBenchmark(
+    #     train.timestamp,
+    #     clines_db,
+    #     vae_latent,
+    #     mofa_latent,
+    #     move_diabetes_latent,
+    #     mixOmics_latent,
+    # )
 
-    latent_benchmark.plot_method_correlations()
+    # latent_benchmark.plot_method_correlations()
 
-    latent_benchmark.plot_latent_spaces(
-        markers=clines_db.get_features(
-            dict(
-                metabolomics=[
-                    "1-methylnicotinamide",
-                ],
-                transcriptomics=["VIM"],
-            )
-        ),
-    )
+    # latent_benchmark.plot_latent_spaces(
+    #     markers=clines_db.get_features(
+    #         dict(
+    #             metabolomics=[
+    #                 "1-methylnicotinamide",
+    #             ],
+    #             transcriptomics=["VIM"],
+    #         )
+    #     ),
+    # )
 
-    # Correlate features
-    plot_df = clines_db.get_features(
-        dict(
-            metabolomics=[
-                "1-methylnicotinamide",
-            ],
-            transcriptomics=["VIM", "CDH1", "NNMT"],
-            proteomics=["VIM", "CDH1"],
-        )
-    )
+    # # Correlate features
+    # plot_df = clines_db.get_features(
+    #     dict(
+    #         metabolomics=[
+    #             "1-methylnicotinamide",
+    #         ],
+    #         transcriptomics=["VIM", "CDH1", "NNMT"],
+    #         proteomics=["VIM", "CDH1"],
+    #     )
+    # )
 
-    g = sns.clustermap(
-        plot_df.corr(),
-        cmap="RdYlGn",
-        center=0,
-        xticklabels=False,
-        vmin=-1,
-        vmax=1,
-        annot=True,
-        annot_kws={"fontsize": 5},
-        fmt=".2f",
-        lw=0.0,
-        cbar_kws={"shrink": 0.5},
-        figsize=(3.0, 1.5),
-    )
+    # g = sns.clustermap(
+    #     plot_df.corr(),
+    #     cmap="RdYlGn",
+    #     center=0,
+    #     xticklabels=False,
+    #     vmin=-1,
+    #     vmax=1,
+    #     annot=True,
+    #     annot_kws={"fontsize": 5},
+    #     fmt=".2f",
+    #     lw=0.0,
+    #     cbar_kws={"shrink": 0.5},
+    #     figsize=(3.0, 1.5),
+    # )
 
-    if g.ax_cbar:
-        g.ax_cbar.set_ylabel("Pearson\ncorrelation")
+    # if g.ax_cbar:
+    #     g.ax_cbar.set_ylabel("Pearson\ncorrelation")
 
-    g.ax_heatmap.set_xlabel("")
-    g.ax_heatmap.set_ylabel("")
+    # g.ax_heatmap.set_xlabel("")
+    # g.ax_heatmap.set_ylabel("")
 
-    PhenPred.save_figure(
-        f"{plot_folder}/selected_features_clustermap",
-    )
+    # PhenPred.save_figure(
+    #     f"{plot_folder}/selected_features_clustermap",
+    # )
 
-    # Run drug benchmark
-    print("Running drug benchmark")
-    dres_benchmark = DrugResponseBenchmark(
-        train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
-    )
-    dres_benchmark.run()
+    # # Run drug benchmark
+    # print("Running drug benchmark")
+    # dres_benchmark = DrugResponseBenchmark(
+    #     train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
+    # )
+    # dres_benchmark.run()
 
-    # Run proteomics benchmark
-    print("Running proteomics benchmark")
-    proteomics_benchmark = ProteomicsBenchmark(
-        train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
-    )
-    proteomics_benchmark.run()
-    proteomics_benchmark.copy_number(
-        proteomics_only=True,
-    )
+    # # Run proteomics benchmark
+    # print("Running proteomics benchmark")
+    # proteomics_benchmark = ProteomicsBenchmark(
+    #     train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
+    # )
+    # proteomics_benchmark.run()
+    # proteomics_benchmark.copy_number(
+    #     proteomics_only=True,
+    # )
 
     # Run CRISPR benchmark
     print("Running CRISPR benchmark")
     crispr_benchmark = CRISPRBenchmark(
-        train.timestamp, clines_db, vae_imputed, mofa_imputed
+        train.timestamp, clines_db, vae_imputed, mofa_imputed, skew_threshold=-0.5
     )
     crispr_benchmark.run()
     crispr_benchmark.gene_skew_correlation()
