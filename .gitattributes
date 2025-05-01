@@ -1,2 +1,0 @@
-*.csv filter=lfs diff=lfs merge=lfs -text
-reports/vae/crispr/20241211_171745_transcriptomics_crisprcas9_tissue_filtered.csv filter=lfs diff=lfs merge=lfs -text
