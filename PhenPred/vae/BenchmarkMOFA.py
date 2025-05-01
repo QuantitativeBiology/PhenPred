@@ -7,7 +7,7 @@ from mofapy2.run.entry_point import entry_point
 from PhenPred.vae.Hypers import Hypers
 from PhenPred.vae import data_folder, plot_folder
 from PhenPred.vae.DatasetMOFA import CLinesDatasetMOFA
-from PhenPred.vae.DatasetDepMap23Q2 import CLinesDatasetDepMap23Q2
+from PhenPred.vae.DatasetDepMap24Q4 import CLinesDatasetDepMap24Q4
 
 
 class MOFABencharmk:
@@ -29,11 +29,12 @@ class MOFABencharmk:
                 startELBO=1,
                 freqELBO=1,
                 dropR2=0.0001,
-                verbose=False,
+                verbose=True,
+                gpu_mode=True,
             )
 
         self.clines_db_mofa = CLinesDatasetMOFA()
-        self.clines_db_original = CLinesDatasetDepMap23Q2(
+        self.clines_db_original = CLinesDatasetDepMap24Q4(
             datasets=self.hypers["datasets"],
             labels_names=self.hypers["labels"],
             standardize=self.hypers["standardize"],

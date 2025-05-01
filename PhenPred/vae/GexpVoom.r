@@ -1,7 +1,7 @@
 library(limma)
 library(edgeR)
 
-setwd("/Users/emanuel/Projects/PhenPred/data/clines/depmap23Q2/")
+setwd("/home/scai/PhenPred/data/clines/depmap24Q4/")
 
 # Read samplesheet from OmicsProfiles.csv set first column as row names
 samplesheet <- read.csv("OmicsProfiles.csv", header=TRUE, stringsAsFactors=FALSE, row.names=1)
