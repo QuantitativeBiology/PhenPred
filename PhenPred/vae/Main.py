@@ -36,9 +36,10 @@ if __name__ == "__main__":
 
     # timestamp = "20231023_092657"
     # timestamp = "20241211_171745"
-    timestamp = "20250225_145621"
-    hyperparameters = Hypers.read_hyperparameters(timestamp=timestamp)
-    # hyperparameters = Hypers.read_hyperparameters()
+    # timestamp = "20250225_145621"
+    # timestamp = "20250507_223211"
+    # hyperparameters = Hypers.read_hyperparameters(timestamp=timestamp)
+    hyperparameters = Hypers.read_hyperparameters()
     # hyperparameters = Hypers.read_hyperparameters(hypers_json=f"{plot_folder}/files/optuna_MOSA_updated_model_weights_hyperparameters.json")
 
     # DIP-VAE
@@ -65,8 +66,8 @@ if __name__ == "__main__":
     )
 
     # train.run(run_timestamp=hyperparameters["load_run"])
-    train.run(run_timestamp=timestamp)
-    # train.run()
+    # train.run(run_timestamp=timestamp)
+    train.run()
 
     if "skip_benchmarks" in hyperparameters and hyperparameters["skip_benchmarks"]:
         sys.exit(0)
@@ -197,22 +198,22 @@ if __name__ == "__main__":
         f"{plot_folder}/selected_features_clustermap",
     )
 
-    # # Run drug benchmark
-    # print("Running drug benchmark")
-    # dres_benchmark = DrugResponseBenchmark(
-    #     train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
-    # )
-    # dres_benchmark.run()
+    # Run drug benchmark
+    print("Running drug benchmark")
+    dres_benchmark = DrugResponseBenchmark(
+        train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
+    )
+    dres_benchmark.run()
 
-    # # Run proteomics benchmark
-    # print("Running proteomics benchmark")
-    # proteomics_benchmark = ProteomicsBenchmark(
-    #     train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
-    # )
-    # proteomics_benchmark.run()
-    # proteomics_benchmark.copy_number(
-    #     proteomics_only=True,
-    # )
+    # Run proteomics benchmark
+    print("Running proteomics benchmark")
+    proteomics_benchmark = ProteomicsBenchmark(
+        train.timestamp, clines_db, vae_imputed, mofa_imputed, move_diabetes_imputed
+    )
+    proteomics_benchmark.run()
+    proteomics_benchmark.copy_number(
+        proteomics_only=True,
+    )
 
     # Run CRISPR benchmark
     print("Running CRISPR benchmark")

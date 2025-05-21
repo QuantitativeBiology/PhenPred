@@ -264,7 +264,7 @@ class CLinesDatasetDepMap24Q4(Dataset):
 
     def _import_mutations(self):
         self.mutations = (
-            pd.read_csv(f"{data_folder}/mutations_summary_20230202.csv", index_col=0)
+            pd.read_csv(f"{data_folder}/mutations_summary_20250318.csv", index_col=0)
             .assign(value=1)
             .query("cancer_driver == True")
         )
