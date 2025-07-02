@@ -56,6 +56,9 @@ def select_validation_cell_lines(
     visualize_top_n=10,
     output_dir="./validation_results",
     tissue_map=None,
+    fixed_cell_lines=None,
+    candidate_cell_lines=None,
+    power=2.0,
 ):
     """
     Integrated pipeline to select optimal cell lines for synthetic lethality validation.
@@ -75,6 +78,9 @@ def select_validation_cell_lines(
     - visualize_top_n: Number of top gene pairs to visualize per cell line
     - output_dir: Directory to save visualizations
     - tissue_map: Dictionary mapping cell line IDs to tissue types (default=None)
+    - fixed_cell_lines: List of cell line IDs to include as fixed starting set (default=None/empty)
+    - candidate_cell_lines: List of cell line IDs to restrict selection to (default=None, uses all cell lines)
+    - power: Exponent for weight calculation (default=2.0, higher values favor top pairs more strongly)
 
     Returns:
     - Dictionary with selected cell lines and evaluation metrics
@@ -83,6 +89,10 @@ def select_validation_cell_lines(
         "Starting optimized cell line selection pipeline with 3-criteria percentile-based filtering..."
     )
     overall_start_time = time.time()
+
+    # Handle default case for fixed cell lines
+    if fixed_cell_lines is None:
+        fixed_cell_lines = []
 
     print("Using gene-specific percentile-based thresholds...")
     print(f"Threshold percentiles:")
@@ -96,6 +106,16 @@ def select_validation_cell_lines(
         f"  Biomarker expression threshold: {biomarker_expression_threshold_percentile}th percentile per biomarker gene"
     )
 
+    if fixed_cell_lines:
+        print(
+            f"Starting with {len(fixed_cell_lines)} fixed cell lines: {fixed_cell_lines}"
+        )
+
+    if candidate_cell_lines is not None:
+        print(
+            f"Restricting selection to {len(candidate_cell_lines)} candidate cell lines"
+        )
+
     # Step 1: Extract gene pairs and weights from the filtered results dataframe
     print("Extracting gene pairs and weights...")
     gene_pairs = list(
@@ -108,7 +128,7 @@ def select_validation_cell_lines(
     # Create weights based on fdr_vae (lower FDR = higher weight) using principled approach
     fdr_values = df_res_vae_annot_filtered_cap_top["fdr_vae"].values
     weights_array = calculate_principled_weights(
-        fdr_values, min_weight=1.0, max_weight=5.0, power=2.0
+        fdr_values, min_weight=1.0, max_weight=5.0, power=power
     )
 
     weights = pd.Series(
@@ -131,6 +151,7 @@ def select_validation_cell_lines(
         crispr_threshold_percentile=crispr_threshold_percentile,
         target_expression_threshold_percentile=target_expression_threshold_percentile,
         biomarker_expression_threshold_percentile=biomarker_expression_threshold_percentile,
+        power=power,
     )
 
     # Check if any valid scores remain after filtering
@@ -155,7 +176,7 @@ def select_validation_cell_lines(
     # Step 4: Select optimal cell lines with optimized algorithm
     print("Selecting optimal cell lines using optimized algorithm...")
     selection_results = select_optimal_cell_lines(
-        coverage_matrix, weights, num_cell_lines
+        coverage_matrix, weights, num_cell_lines, fixed_cell_lines, candidate_cell_lines
     )
 
     # Step 5: Evaluate the selection
@@ -182,6 +203,16 @@ def select_validation_cell_lines(
             "target_expression": target_expression_threshold_percentile,
             "biomarker_expression": biomarker_expression_threshold_percentile,
         },
+        "fixed_cell_lines": fixed_cell_lines,  # Add fixed cell lines information
+        "num_fixed_cell_lines": len(fixed_cell_lines),
+        "num_additional_cell_lines": len(selection_results["selected_cell_lines"])
+        - len(fixed_cell_lines),
+        "candidate_cell_lines": candidate_cell_lines,  # Add candidate cell lines information
+        "num_candidate_cell_lines": (
+            len(candidate_cell_lines)
+            if candidate_cell_lines is not None
+            else len(coverage_matrix.columns)
+        ),
     }
 
     overall_elapsed_time = time.time() - overall_start_time
@@ -197,6 +228,12 @@ def select_validation_cell_lines(
     print(
         f"Biomarker Expression > {biomarker_expression_threshold_percentile}th percentile per biomarker gene"
     )
+
+    if candidate_cell_lines is not None:
+        print(
+            f"\nSelection restricted to {len(candidate_cell_lines)} candidate cell lines"
+        )
+
     print("\nSelected Cell Lines:")
     for i, cell_line in enumerate(results["selected_cell_lines"]):
         num_pairs = len(selection_results["covered_by_cell_line"][i])
@@ -204,8 +241,12 @@ def select_validation_cell_lines(
         tissue_info = ""
         if tissue_map and cell_line in tissue_map:
             tissue_info = f" ({tissue_map[cell_line]})"
+
+        # Indicate if this is a fixed cell line
+        status = " [FIXED]" if i < len(fixed_cell_lines) else " [SELECTED]"
+
         print(
-            f"{i+1}. {cell_line}{tissue_info} - Covers {num_pairs} gene pairs "
+            f"{i+1}. {cell_line}{tissue_info}{status} - Covers {num_pairs} gene pairs "
             + f"({num_pairs/len(gene_pairs)*100:.2f}% of total)"
         )
 
@@ -236,6 +277,7 @@ def calculate_validation_scores(
     crispr_threshold_percentile=50,
     target_expression_threshold_percentile=50,
     biomarker_expression_threshold_percentile=50,
+    power=2.0,
 ):
     """
     Calculate synthetic lethality validation scores for all gene pairs across all cell lines.
@@ -250,6 +292,7 @@ def calculate_validation_scores(
     - crispr_threshold_percentile: Percentile threshold for CRISPR dependency per target gene (default=50)
     - target_expression_threshold_percentile: Percentile threshold for target gene expression per target gene (default=50)
     - biomarker_expression_threshold_percentile: Percentile threshold for biomarker gene expression per biomarker gene (default=50)
+    - power: Exponent for weight calculation (default=2.0, higher values favor top pairs more strongly)
 
     Returns:
     - validation_score_matrix: DataFrame with gene pairs as rows and cell lines as columns
@@ -279,7 +322,7 @@ def calculate_validation_scores(
 
     # Calculate weights using the same principled approach (slightly smaller range for per-pair weighting)
     pair_weights = calculate_principled_weights(
-        np.array(fdr_values_for_pairs), min_weight=1.0, max_weight=3.0, power=2.0
+        np.array(fdr_values_for_pairs), min_weight=1.0, max_weight=3.0, power=power
     )
 
     # Create lookup dictionary
@@ -465,7 +508,13 @@ def create_coverage_matrix(validation_scores, score_threshold_percentile=75):
     return coverage_matrix
 
 
-def select_optimal_cell_lines(coverage_matrix, weights, num_cell_lines=6):
+def select_optimal_cell_lines(
+    coverage_matrix,
+    weights,
+    num_cell_lines=6,
+    fixed_cell_lines=None,
+    candidate_cell_lines=None,
+):
     """
     Select the optimal set of cell lines using a weighted greedy algorithm.
     Optimized version with vectorized operations and progress reporting.
@@ -474,12 +523,38 @@ def select_optimal_cell_lines(coverage_matrix, weights, num_cell_lines=6):
     - coverage_matrix: Binary matrix where rows=gene pairs, columns=cell lines
     - weights: Series of importance weights for each gene pair
     - num_cell_lines: Number of cell lines to select
+    - fixed_cell_lines: List of cell line IDs to include as fixed starting set (default=None/empty)
+    - candidate_cell_lines: List of cell line IDs to restrict selection to (default=None, uses all cell lines)
 
     Returns:
     - Dictionary with selected cell lines and coverage statistics
     """
     print("Starting optimized cell line selection...")
     start_time = time.time()
+
+    # Handle default case for fixed cell lines
+    if fixed_cell_lines is None:
+        fixed_cell_lines = []
+
+    # Handle default case for candidate cell lines
+    if candidate_cell_lines is None:
+        candidate_cell_lines = coverage_matrix.columns.tolist()
+    else:
+        # Validate that candidate cell lines exist in coverage matrix
+        valid_candidates = [
+            cl for cl in candidate_cell_lines if cl in coverage_matrix.columns
+        ]
+        if len(valid_candidates) < len(candidate_cell_lines):
+            invalid_candidates = [
+                cl for cl in candidate_cell_lines if cl not in coverage_matrix.columns
+            ]
+            print(
+                f"Warning: {len(invalid_candidates)} candidate cell lines not found in coverage matrix: {invalid_candidates[:5]}{'...' if len(invalid_candidates) > 5 else ''}"
+            )
+        candidate_cell_lines = valid_candidates
+        print(
+            f"Using {len(candidate_cell_lines)} valid candidate cell lines for selection"
+        )
 
     # Make sure weights align with coverage_matrix index
     if weights is not None:
@@ -497,9 +572,90 @@ def select_optimal_cell_lines(coverage_matrix, weights, num_cell_lines=6):
     selected_indices = []
     remaining_pairs = set(range(len(coverage_matrix)))
 
+    # Process fixed cell lines first
+    fixed_cell_count = 0
+    if fixed_cell_lines:
+        print(f"Processing {len(fixed_cell_lines)} fixed cell lines...")
+
+        # Validate that fixed cell lines exist in the coverage matrix
+        valid_fixed_cell_lines = []
+        for cell_line in fixed_cell_lines:
+            if cell_line in coverage_matrix.columns:
+                # Also check if fixed cell line is in candidate list (if candidate list is provided)
+                if cell_line in candidate_cell_lines:
+                    valid_fixed_cell_lines.append(cell_line)
+                else:
+                    print(
+                        f"Warning: Fixed cell line '{cell_line}' not in candidate cell lines list"
+                    )
+            else:
+                print(
+                    f"Warning: Fixed cell line '{cell_line}' not found in coverage matrix"
+                )
+
+        fixed_cell_lines = valid_fixed_cell_lines
+        fixed_cell_count = len(fixed_cell_lines)
+
+        if fixed_cell_count > 0:
+            # Add fixed cell lines to selection
+            for i, cell_line in enumerate(fixed_cell_lines):
+                cell_idx = coverage_matrix.columns.get_loc(cell_line)
+                selected_cell_lines.append(cell_line)
+                selected_indices.append(cell_idx)
+
+                # Find pairs covered by this fixed cell line
+                cell_coverage = coverage_array[:, cell_idx]
+                covered_indices = np.where(cell_coverage == 1)[0]
+                newly_covered_pairs = set(covered_indices).intersection(remaining_pairs)
+
+                # Remove covered pairs from remaining pairs
+                remaining_pairs -= newly_covered_pairs
+
+                print(
+                    f"Fixed cell line {i+1}/{fixed_cell_count}: {cell_line} covers {len(newly_covered_pairs)} additional pairs"
+                )
+
+            print(
+                f"Fixed cell lines cover {len(coverage_matrix) - len(remaining_pairs)} total pairs"
+            )
+            print(f"Remaining pairs to cover: {len(remaining_pairs)}")
+
+    # Adjust num_cell_lines to account for fixed cell lines
+    additional_cell_lines_needed = max(0, num_cell_lines - fixed_cell_count)
+
+    if additional_cell_lines_needed == 0:
+        print("Fixed cell lines already meet the target number of cell lines")
+    else:
+        print(
+            f"Selecting {additional_cell_lines_needed} additional cell lines to reach target of {num_cell_lines}"
+        )
+
     # Track which pairs are covered by each selected cell line
     covered_by_cell_line = {}
     gene_pair_examples = {}
+
+    # Store coverage information for fixed cell lines
+    for i in range(fixed_cell_count):
+        cell_line = selected_cell_lines[i]
+        cell_idx = selected_indices[i]
+
+        # Find pairs covered by this fixed cell line
+        cell_coverage = coverage_array[:, cell_idx]
+        covered_indices = np.where(cell_coverage == 1)[0]
+        covered_by_cell_line[i] = set(covered_indices)
+
+        # Store example gene pairs for fixed cell lines
+        pair_scores = []
+        for pair_idx in list(covered_indices)[:50]:  # Limit to 50 for efficiency
+            target_gene, biomarker_gene = coverage_matrix.index[pair_idx]
+            validation_score = coverage_matrix.iloc[pair_idx, cell_idx]
+            pair_weight = weights_array[pair_idx]
+            pair_scores.append(
+                (target_gene, biomarker_gene, validation_score * pair_weight)
+            )
+
+        pair_scores.sort(key=lambda x: x[2], reverse=True)
+        gene_pair_examples[i] = pair_scores
 
     # Pre-compute pair scores for each gene pair
     pair_validation_scores = {}
@@ -512,90 +668,102 @@ def select_optimal_cell_lines(coverage_matrix, weights, num_cell_lines=6):
             if coverage_array[pair_idx, cell_idx] == 1
         }
 
-    # Main selection loop with progress bar
-    pbar = tqdm(total=min(num_cell_lines, len(cell_lines)), desc="Selecting cell lines")
+    # Main selection loop with progress bar for additional cell lines
+    if additional_cell_lines_needed > 0:
+        pbar = tqdm(
+            total=additional_cell_lines_needed, desc="Selecting additional cell lines"
+        )
 
-    for i in range(num_cell_lines):
-        if not remaining_pairs:
-            pbar.update(num_cell_lines - i)
-            pbar.close()
-            print(f"All gene pairs are covered. Only needed {i} cell lines.")
-            break
-
-        # Calculate weighted coverage for each cell line
-        weighted_coverage = {}
-        cell_line_pairs = {}
-
-        # This is the bottleneck - optimize by using vectorized operations
-        for cell_idx, cell_line in enumerate(cell_lines):
-            if cell_idx in selected_indices:
-                continue
-
-            # Vectorized operation: multiply coverage by weights and sum
-            cell_coverage = coverage_array[:, cell_idx]
-            covered_indices = np.where(cell_coverage == 1)[0]
-            covered_indices = [idx for idx in covered_indices if idx in remaining_pairs]
-
-            if not covered_indices:
-                weighted_coverage[cell_idx] = 0
-                cell_line_pairs[cell_idx] = (set(), [])
-                continue
-
-            weighted_sum = sum(weights_array[idx] for idx in covered_indices)
-
-            weighted_coverage[cell_idx] = weighted_sum
-
-            # Store pairs covered by this cell line with their scores
-            newly_covered_pairs = set(covered_indices)
-
-            # Get pair details for examples, but limit to avoid excessive processing
-            pair_scores = []
-            for pair_idx in list(newly_covered_pairs)[
-                :50
-            ]:  # Limit to 50 for efficiency
-                target_gene, biomarker_gene = coverage_matrix.index[pair_idx]
-                # Use pre-computed validation scores
-                validation_score = pair_validation_scores[pair_idx].get(cell_idx, 0)
-                pair_weight = weights_array[pair_idx]
-                pair_scores.append(
-                    (target_gene, biomarker_gene, validation_score * pair_weight)
-                )
-
-            cell_line_pairs[cell_idx] = (newly_covered_pairs, pair_scores)
-
-        # Select the cell line with highest coverage
-        if not weighted_coverage or all(
-            score == 0 for score in weighted_coverage.values()
+        for i in range(
+            fixed_cell_count, fixed_cell_count + additional_cell_lines_needed
         ):
-            pbar.update(num_cell_lines - i)
-            pbar.close()
-            print(
-                f"No more cell lines can cover remaining pairs. Stopping at {i} cell lines."
-            )
-            break
+            if not remaining_pairs:
+                pbar.update(additional_cell_lines_needed - (i - fixed_cell_count))
+                pbar.close()
+                print(f"All gene pairs are covered. Only needed {i} cell lines.")
+                break
 
-        best_cell_idx = max(weighted_coverage.items(), key=lambda x: x[1])[0]
-        best_cell_line = cell_lines[best_cell_idx]
+            # Calculate weighted coverage for each cell line
+            weighted_coverage = {}
+            cell_line_pairs = {}
 
-        selected_cell_lines.append(best_cell_line)
-        selected_indices.append(best_cell_idx)
+            # This is the bottleneck - optimize by using vectorized operations
+            # IMPORTANT: Only consider cell lines from the candidate list
+            for cell_idx, cell_line in enumerate(cell_lines):
+                if cell_idx in selected_indices:
+                    continue
 
-        # Store the covered pairs and example gene pairs
-        newly_covered, pair_scores = cell_line_pairs[best_cell_idx]
-        covered_by_cell_line[i] = newly_covered
+                # Skip if this cell line is not in the candidate list
+                if cell_line not in candidate_cell_lines:
+                    continue
 
-        # Sort pair_scores by the validation score (higher is better)
-        pair_scores.sort(key=lambda x: x[2], reverse=True)
-        gene_pair_examples[i] = pair_scores
+                # Vectorized operation: multiply coverage by weights and sum
+                cell_coverage = coverage_array[:, cell_idx]
+                covered_indices = np.where(cell_coverage == 1)[0]
+                covered_indices = [
+                    idx for idx in covered_indices if idx in remaining_pairs
+                ]
 
-        # Update the remaining pairs
-        remaining_pairs -= newly_covered
+                if not covered_indices:
+                    weighted_coverage[cell_idx] = 0
+                    cell_line_pairs[cell_idx] = (set(), [])
+                    continue
 
-        # Log progress
-        pbar.update(1)
-        pbar.set_postfix({"covered": len(newly_covered)})
+                weighted_sum = sum(weights_array[idx] for idx in covered_indices)
 
-    pbar.close()
+                weighted_coverage[cell_idx] = weighted_sum
+
+                # Store pairs covered by this cell line with their scores
+                newly_covered_pairs = set(covered_indices)
+
+                # Get pair details for examples, but limit to avoid excessive processing
+                pair_scores = []
+                for pair_idx in list(newly_covered_pairs)[
+                    :50
+                ]:  # Limit to 50 for efficiency
+                    target_gene, biomarker_gene = coverage_matrix.index[pair_idx]
+                    # Use pre-computed validation scores
+                    validation_score = pair_validation_scores[pair_idx].get(cell_idx, 0)
+                    pair_weight = weights_array[pair_idx]
+                    pair_scores.append(
+                        (target_gene, biomarker_gene, validation_score * pair_weight)
+                    )
+
+                cell_line_pairs[cell_idx] = (newly_covered_pairs, pair_scores)
+
+            # Select the cell line with highest coverage
+            if not weighted_coverage or all(
+                score == 0 for score in weighted_coverage.values()
+            ):
+                pbar.update(additional_cell_lines_needed - (i - fixed_cell_count))
+                pbar.close()
+                print(
+                    f"No more candidate cell lines can cover remaining pairs. Stopping at {i} cell lines."
+                )
+                break
+
+            best_cell_idx = max(weighted_coverage.items(), key=lambda x: x[1])[0]
+            best_cell_line = cell_lines[best_cell_idx]
+
+            selected_cell_lines.append(best_cell_line)
+            selected_indices.append(best_cell_idx)
+
+            # Store the covered pairs and example gene pairs
+            newly_covered, pair_scores = cell_line_pairs[best_cell_idx]
+            covered_by_cell_line[i] = newly_covered
+
+            # Sort pair_scores by the validation score (higher is better)
+            pair_scores.sort(key=lambda x: x[2], reverse=True)
+            gene_pair_examples[i] = pair_scores
+
+            # Update the remaining pairs
+            remaining_pairs -= newly_covered
+
+            # Log progress
+            pbar.update(1)
+            pbar.set_postfix({"covered": len(newly_covered)})
+
+        pbar.close()
 
     # Calculate pairs covered per cell line
     pairs_covered_per_cell = {
