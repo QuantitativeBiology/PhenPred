@@ -102,16 +102,16 @@ class CRISPRBenchmark:
             pop_suffix = "_remove_latent_n3_no_tissue" if population_correction else ""
 
             # Genomics associations
-            # genomics_file = f"{base_path}_genomics_crisprcas9{pop_suffix}.csv.gz"
-            # if not os.path.exists(genomics_file):
-            #     self.lm_genomics = self.genomic_associations()
-            #     self.lm_genomics.to_csv(
-            #         genomics_file,
-            #         compression="gzip",
-            #         index=False,
-            #     )
-            # else:
-            #     self.lm_genomics = pd.read_csv(genomics_file)
+            genomics_file = f"{base_path}_genomics_crisprcas9{pop_suffix}.csv.gz"
+            if not os.path.exists(genomics_file):
+                self.lm_genomics = self.genomic_associations()
+                self.lm_genomics.to_csv(
+                    genomics_file,
+                    compression="gzip",
+                    index=False,
+                )
+            else:
+                self.lm_genomics = pd.read_csv(genomics_file)
 
             # Transcriptomics associations
             transcriptomics_file = f"{base_path}_transcriptomics_crisprcas9{pop_suffix}_standardized{standardize}.csv.gz"
@@ -129,18 +129,18 @@ class CRISPRBenchmark:
                 self.lm_transcriptomics = pd.read_csv(transcriptomics_file)
 
             # Copy number associations
-            copynumber_file = f"{base_path}_copynumber_crisprcas9{pop_suffix}.csv.gz"
-            if not os.path.exists(copynumber_file):
-                self.lm_copynumber = self.copynumber_associations(
-                    population_correction=population_correction
-                )
-                self.lm_copynumber.to_csv(
-                    copynumber_file,
-                    compression="gzip",
-                    index=False,
-                )
-            else:
-                self.lm_copynumber = pd.read_csv(copynumber_file)
+            # copynumber_file = f"{base_path}_copynumber_crisprcas9{pop_suffix}.csv.gz"
+            # if not os.path.exists(copynumber_file):
+            #     self.lm_copynumber = self.copynumber_associations(
+            #         population_correction=population_correction
+            #     )
+            #     self.lm_copynumber.to_csv(
+            #         copynumber_file,
+            #         compression="gzip",
+            #         index=False,
+            #     )
+            # else:
+            #     self.lm_copynumber = pd.read_csv(copynumber_file)
 
             # # Tissue-level transcriptomics associations
             # transcriptomics_tissue_file = (

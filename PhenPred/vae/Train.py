@@ -17,7 +17,13 @@ from PhenPred.vae import (
 )
 from PhenPred.vae import plot_folder, shap_folder
 from torch.utils.data import DataLoader
-from PhenPred.vae.Model import MOSA, DiffusionMOSA, DiffusionScheduler
+from PhenPred.vae.Model import (
+    MOSA,
+    DiffusionMOSA,
+    DiffusionScheduler,
+    TransformerMOSA,
+    TransformerDiffusionMOSA,
+)
 from PhenPred.vae.ModelGMVAE import GMVAE
 from PhenPred.vae.Losses import CLinesLosses
 import h5py
@@ -84,6 +90,8 @@ class CLinesTrain:
             "MOSA",
             "GMVAE",
             "DiffusionMOSA",
+            "TransformerMOSA",
+            "TransformerDiffusionMOSA",
         ], "Invalid model"
 
         if self.hypers["model"] == "MOSA":
@@ -106,6 +114,34 @@ class CLinesTrain:
             )
             model = DiffusionMOSA(
                 base_mosa,
+                DiffusionScheduler(
+                    num_timesteps=self.hypers.get("diffusion_steps", 1000),
+                    beta_start=self.hypers.get("beta_start", 1e-4),
+                    beta_end=self.hypers.get("beta_end", 0.02),
+                ),
+            )
+        elif self.hypers["model"] == "TransformerMOSA":
+            # Replace MOSA with TransformerMOSA in your training code
+            model = TransformerMOSA(
+                hypers=self.hypers,
+                views_sizes=views_sizes,
+                conditional_size=(
+                    self.data.labels.shape[1] if self.hypers["use_conditionals"] else 0
+                ),
+                views_sizes_full=views_sizes_full,
+            )
+        elif self.hypers["model"] == "TransformerDiffusionMOSA":
+            # Enhanced TransformerMOSA with diffusion
+            base_transformer = TransformerMOSA(
+                hypers=self.hypers,
+                views_sizes=views_sizes,
+                conditional_size=(
+                    self.data.labels.shape[1] if self.hypers["use_conditionals"] else 0
+                ),
+                views_sizes_full=views_sizes_full,
+            )
+            model = TransformerDiffusionMOSA(
+                base_transformer,
                 DiffusionScheduler(
                     num_timesteps=self.hypers.get("diffusion_steps", 1000),
                     beta_start=self.hypers.get("beta_start", 1e-4),
@@ -156,7 +192,10 @@ class CLinesTrain:
                 else:
                     out_net = model(x_masked)
 
-                if self.hypers["model"] != "DiffusionMOSA":
+                if self.hypers["model"] not in [
+                    "DiffusionMOSA",
+                    "TransformerDiffusionMOSA",
+                ]:
                     loss = model.module.loss(
                         x if self.hypers["filtered_encoder_only"] else x_masked,
                         (
@@ -169,7 +208,7 @@ class CLinesTrain:
                         x_mask,
                         view_loss_weights=self.hypers["view_loss_weights"],
                     )
-                else:
+                elif self.hypers["model"] == "DiffusionMOSA":
                     vae_loss = model.module.base_mosa.loss(
                         x if self.hypers["filtered_encoder_only"] else x_masked,
                         (
@@ -185,6 +224,24 @@ class CLinesTrain:
                     loss = model.module.combined_loss(
                         out_net,
                         vae_loss,
+                        diffusion_weight=self.hypers.get("diffusion_weight", 1.0),
+                    )
+                else:  # TransformerDiffusionMOSA
+                    transformer_loss = model.module.base_transformer.loss(
+                        x if self.hypers["filtered_encoder_only"] else x_masked,
+                        (
+                            x_nans
+                            if self.hypers["filtered_encoder_only"]
+                            else x_nans_masked
+                        ),
+                        out_net,
+                        y,
+                        x_mask,
+                        view_loss_weights=self.hypers["view_loss_weights"],
+                    )
+                    loss = model.module.combined_loss(
+                        out_net,
+                        transformer_loss,
                         diffusion_weight=self.hypers.get("diffusion_weight", 1.0),
                     )
 
