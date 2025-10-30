@@ -27,7 +27,7 @@ The expected output, including the latent space matrix and reconstructed data ma
 ### Expected runtime
 As a deep learning-based method, the runtime of MOSA depends on whether a GPU is available for training. MOSA took 52 minutes to train and generate the results using a V100 GPU on the DepMap dataset.
 
-## Instructions for using MOFA with custom data
+## Instructions for using MOSA with custom data
 Although MOSA is specifically designed for analysing the DepMap dataset, the model can be  adapted for any multi-omic datasets. To use MOSA with custom datasets:
 1. Prepare the custom dataset following the formats of DepMap data, which can be downloaded from figshare repositories as described in the manuscript.
 2. Configure the paths of the data files in `reports/vae/files/hyperparameters.json`. At least two omic datasets are required.
