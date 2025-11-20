@@ -32,15 +32,6 @@ _data_files = dict(
 
 # Class variables - Hyperparameters
 _hyperparameters = dict(
-<<<<<<< HEAD
-    num_epochs=3,
-    learning_rate=1e-5,
-    batch_size=32,
-    n_folds=3,
-    latent_dim=25,
-    hidden_dim_1=0.1,
-    hidden_dim_2=0.05,
-=======
     datasets=dict(
         methylation=_data_files["meth_csv_file"],
         transcriptomics=_data_files["gexp_csv_file"],
@@ -56,12 +47,7 @@ _hyperparameters = dict(
     latent_dim=30,
     hidden_dim_1=0.75,
     # hidden_dim_2=0.3,
-<<<<<<< HEAD
->>>>>>> 00a887d1 (variable number of datasets possible)
-    probability=0.5,
-=======
     probability=0.75,
->>>>>>> 8274f03f (hyperparameters dump to json file)
     group=15,
     alpha_kl=0.1,
     alpha_mse=0.9,
