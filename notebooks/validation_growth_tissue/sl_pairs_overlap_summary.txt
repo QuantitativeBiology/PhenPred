@@ -1,0 +1,35 @@
+SL PAIRS OVERLAP ANALYSIS REPORT
+==================================================
+Generated on: 2025-10-20 12:21:03
+
+COLUMN MAPPING:
+- Our dataset: target_gene ↔ biomarker_gene
+- Collaborator's dataset: sg1_symbol ↔ sg2_symbol
+- Order-independent comparison: (A,B) = (B,A)
+
+DATASET SIZES:
+- Our SL pairs: 1,996 unique pairs
+- Collaborator's SL pairs: 1,000 unique pairs
+- Total unique pairs (union): 2,961 pairs
+
+OVERLAP ANALYSIS:
+- Overlapping pairs: 35 pairs
+- Pairs only in our dataset: 1,961 pairs
+- Pairs only in collaborator's dataset: 965 pairs
+
+OVERLAP PERCENTAGES:
+- Overlap as % of our dataset: 1.75%
+- Overlap as % of collaborator's dataset: 3.50%
+- Jaccard Index (overlap/union): 0.0118
+
+INTERPRETATION:
+- The Jaccard Index ranges from 0 (no overlap) to 1 (complete overlap)
+- A Jaccard Index of 0.0118 indicates low similarity between datasets
+- 1.8% of our pairs are validated by the collaborator's list
+- 3.5% of the collaborator's pairs are present in our dataset
+
+FILES GENERATED:
+- sl_pairs_overlap_analysis.png: Comprehensive visualization
+- overlapping_sl_pairs.csv: Pairs found in both datasets
+- our_unique_sl_pairs.csv: Pairs unique to our dataset
+- collaborator_unique_sl_pairs.csv: Pairs unique to collaborator's dataset
